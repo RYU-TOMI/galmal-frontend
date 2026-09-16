@@ -1,0 +1,16 @@
+# 줄바꿈은 저장소 안에서 LF 하나다.
+#
+# 옛 저장소는 core.autocrlf=true 만 있고 이 파일이 없었다. 그래서 CRLF 로 체크아웃된
+# 작업 트리와 LF 로 쓰는 도구가 섞여 헛diff 가 세 번 났다 — M2 동등성 오진,
+# BACKEND.md 1418줄 헛diff, 그리고 고쳤다고 한 뒤에 한 번 더.
+#
+# 커밋된 blob 은 이미 전부 LF 였다(2026-09-16 실측). 그래서 이 파일은 재정규화를
+# 일으키지 않는다 — 지금 LF 인 상태를 잠그는 것이지 바꾸는 것이 아니다.
+#
+# blob 을 잴 때 `git cat-file -p | grep` 을 쓰지 말 것. Git Bash 가 그 파이프에서
+# LF 를 CRLF 로 바꿔 보여준다 — blob 이 아니라 파이프가 만든 것을 보게 된다.
+# 파이썬에서 subprocess 로 받아 바이트로 센다.
+
+* text=auto eol=lf
+
+*.png binary
