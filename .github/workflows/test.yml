@@ -1,0 +1,43 @@
+# 테스트 — 표준 라이브러리만 쓰므로 설치할 것이 없다.
+#
+# 지금은 `site/charts.py` 하나를 지킨다. 레포 분리(M4) 때 백엔드 `tests/` 에서
+# 유일하게 넘어온 테스트다 — 프론트 코드를 테스트하기 때문이다(SPLIT.md M4 T4).
+name: test
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', '.gitattributes']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 단위 테스트
+        run: python -m unittest discover -s tests -v
+
+      # 🔴 **빌드가 실제로 도는지**까지 본다. 단위 테스트는 차트 함수만 보고
+      # 화면 전체가 만들어지는지는 안 본다 — 이 프로젝트가 반복해 확인한 것이
+      # 「테스트 통과는 화면이 멀쩡하다는 증거가 아니다」이다.
+      # 픽스처로 구우므로 네트워크도 백엔드도 필요 없다.
+      - name: 픽스처로 빌드가 도는가
+        run: |
+          set -e
+          python site/build.py --api fixtures/v1 --out /tmp/dist
+          for f in index.html sitemap.xml robots.txt build.json \
+                   assets/discover.js assets/discover.css data/world.geojson; do
+            test -s "/tmp/dist/$f" || { echo "::error::빠졌다: $f"; exit 1; }
+          done
+          n=$(ls /tmp/dist/routes/*.html | wc -l)
+          test "$n" -ge 30 || { echo "::error::노선 페이지가 $n 장뿐이다"; exit 1; }
+          echo "노선 $n 장"
