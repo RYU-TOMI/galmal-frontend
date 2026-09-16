@@ -43,8 +43,11 @@ jobs:
 
       - name: 화면을 굽는다
         env:
-          # M5 에서 https://api.galmal.kr/v1 로 이 한 줄만 바뀐다.
-          API_URL: ${{ vars.API_URL || 'https://galmal.kr/v1' }}
+          # 🔴 **기본값이 galmal.kr 을 가리키면 안 된다.** M5 에서 그 도메인이 이 저장소를
+          # 가리키게 되는데 여기엔 `/v1` 이 없다 — 빌드가 자기 자신에게 물어보게 된다.
+          # 그래서 변수가 없을 때의 기본값도 **백엔드 저장소**를 본다.
+          # M5 2번 단계는 이 변수 하나를 https://api.galmal.kr/v1 로 바꾸는 것이다.
+          API_URL: ${{ vars.API_URL || 'https://ryu-tomi.github.io/galmal-backend/v1' }}
         run: python site/build.py --api "$API_URL" --out dist
 
       # 🔴 굽고 나서 **실제로 다 들어갔는지** 본다.
