@@ -18,8 +18,11 @@
 나중에 백엔드가 자체 서버가 되면 **이 인자에 넣는 문자열만 바뀐다.**
 """
 import argparse
+import json
 import os
+import shutil
 import sys
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -36,10 +39,23 @@ def main():
                     help="산출물 폴더 (기본 docs)")
     ap.add_argument("--only", default=None,
                     help="노선 코드 하나만 굽는다 (예: ICN-FUK). 대조할 때 쓴다")
-    ap.add_argument("--world", default="docs/data/world.geojson",
+    ap.add_argument("--public", default="public",
+                    help="그대로 서빙될 정적 파일 트리(assets/ · data/). 산출물 폴더에 통째로 복사한다")
+    ap.add_argument("--world", default="public/data/world.geojson",
                     help="지도 윤곽. 정적 자산이라 API 가 아니라 파일이다 — d3 와 같은 부류로, "
-                         "커밋 2회짜리이고 크론이 만들지 않는다. M4 에서 assets/ 로 옮긴다")
+                         "커밋 2회짜리이고 크론이 만들지 않는다")
     a = ap.parse_args()
+
+    # 🔴 **정적 자산을 먼저 깐다.** 빌드가 만드는 건 HTML·XML 뿐이고
+    # `discover.js|css`·d3·지도 윤곽은 **산출물이 아니라 그냥 파일**이다.
+    # 안 깔면 HTML 은 완벽한데 **화면만 백지**가 되고, HTML diff 로는 절대 안 잡힌다 —
+    # 없는 파일의 404 는 HTML 에 안 나타난다. 그래서 확인에 브라우저 콘솔이 들어간다.
+    # (M2 에서 실제로 겪었고 SPLIT.md M4 의 함정으로 박아둔 자리다.)
+    if os.path.isdir(a.public):
+        shutil.copytree(a.public, a.out, dirs_exist_ok=True)
+        print("정적 자산 → %s" % a.out)
+    else:
+        sys.exit("정적 자산 폴더가 없다: %s" % a.public)
 
     pages = route.build_all(a.api)
     if a.only:
@@ -77,6 +93,18 @@ def main():
         with open(os.path.join(a.out, name), "w", encoding="utf-8", newline="") as f:
             f.write(text)
         print("  %s" % name)
+
+    # 🔴 **배포가 멈춘 걸 누가 알아채나** (SPLIT.md R1c · M4 T5b).
+    # 저장소가 갈리면 백엔드 API 는 매일 신선한데 프론트 배포만 몇 주째 죽어 있을 수 있다
+    # (PAT 만료 등). 그때 백엔드 점검은 자기 API 만 보고 **초록불**이다.
+    # 그래서 「어느 시점 데이터로 구웠나」를 사이트에 같이 내보낸다. 백엔드가
+    # 사이트의 `api_generated` 와 API 의 `generated` 가 **같은지** 본다 — 절대값이 아니라 일치다.
+    # `meta.generated` 를 **가공 없이 그대로** 복사한다(문자열 비교다).
+    build_info = {"api_generated": meta["generated"],
+                  "built": datetime.now().astimezone().isoformat(timespec="seconds")}
+    with open(os.path.join(a.out, "build.json"), "w", encoding="utf-8", newline="") as f:
+        json.dump(build_info, f, ensure_ascii=False)
+    print("  build.json  (api_generated=%s)" % meta["generated"])
 
 
 if __name__ == "__main__":

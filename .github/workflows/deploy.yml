@@ -1,0 +1,79 @@
+# 화면을 굽고 GitHub Pages 에 올린다.
+#
+# 데이터는 백엔드가 발행한 v1 API 를 **빌드 타임에** 받는다 — 브라우저가 아니라 여기서.
+# 그래서 방문자는 아무것도 요청하지 않고 CORS·로딩 상태·재시도가 전부 없다.
+# 백엔드가 자체 서버가 되는 날 바뀌는 건 `API_URL` 문자열 하나다.
+name: deploy
+
+on:
+  # 백엔드 수집이 끝나면 저쪽 크론이 이걸 쏜다(M4 T6).
+  repository_dispatch:
+    types: [api-updated]
+  # 손으로 돌리기. M4 동안은 이것만 쓴다 — 구형 크론이 아직 galmal.kr 을 서빙하고 있어
+  # 자동 배선의 실전 검증은 M5 다(SPLIT.md T4b).
+  workflow_dispatch:
+  push:
+    branches: [main]
+    # 화면에 영향이 없는 변경으로 배포를 돌리지 않는다.
+    paths-ignore: ['**.md', '.gitattributes']
+
+# 🔴 기본 토큰은 읽기 전용이다(저장소 설정). 필요한 것만 여기서 연다.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 배포가 겹치면 뒤엣것만 남긴다. 다만 진행 중인 것을 죽이지는 않는다 —
+# 반쯤 올라간 사이트가 나가면 안 된다.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # 의존성 설치가 없다. `site/*.py` 는 표준 라이브러리만 쓴다
+      # (CLAUDE.md 「Node/npm 빌드 도입 금지 · 런타임 CDN 의존 0」과 같은 방향).
+
+      - name: 화면을 굽는다
+        env:
+          # M5 에서 https://api.galmal.kr/v1 로 이 한 줄만 바뀐다.
+          API_URL: ${{ vars.API_URL || 'https://galmal.kr/v1' }}
+        run: python site/build.py --api "$API_URL" --out dist
+
+      # 🔴 굽고 나서 **실제로 다 들어갔는지** 본다.
+      # `site/build.py` 가 만드는 건 HTML·XML 뿐이고 JS·CSS·지도 윤곽은 `public/` 에서
+      # 복사된다. 안 깔리면 **HTML 은 완벽한데 화면만 백지**가 되는데,
+      # HTML 을 아무리 비교해도 안 잡힌다 — 없는 파일의 404 는 HTML 에 안 나타난다.
+      - name: 산출물 점검
+        run: |
+          set -e
+          for f in index.html sitemap.xml robots.txt build.json \
+                   assets/discover.js assets/discover.css \
+                   assets/d3-geo.min.js assets/d3-array.min.js data/world.geojson; do
+            test -s "dist/$f" || { echo "::error::빠졌다: $f"; exit 1; }
+          done
+          n=$(ls dist/routes/*.html | wc -l)
+          test "$n" -ge 30 || { echo "::error::노선 페이지가 $n 장뿐이다"; exit 1; }
+          echo "노선 $n 장 · $(python -c "import json;print(json.load(open('dist/build.json'))['api_generated'])")"
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
