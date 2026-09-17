@@ -27,6 +27,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import home   # noqa: E402
+import snapshot  # noqa: E402
 import route  # noqa: E402  (위 sys.path 설정 뒤여야 한다)
 import seo    # noqa: E402
 
@@ -44,7 +45,25 @@ def main():
     ap.add_argument("--world", default="public/data/world.geojson",
                     help="지도 윤곽. 정적 자산이라 API 가 아니라 파일이다 — d3 와 같은 부류로, "
                          "커밋 2회짜리이고 크론이 만들지 않는다")
+    ap.add_argument("--expect-generated", default="",
+                    help="백엔드 신호가 알려준 generated. 받은 meta 와 다르면 옛 캐시다. "
+                         "비우면 이 대조만 건너뛴다(섞임 검사는 그대로 한다)")
+    ap.add_argument("--retries", type=int, default=12, help="스냅숏이 안 맞을 때 다시 받는 횟수")
+    ap.add_argument("--wait", type=int, default=60, help="재시도 간격(초). CDN max-age=600")
+    ap.add_argument("--no-snapshot-check", action="store_true",
+                    help="한 발행분 검사를 끈다. **고정된 픽스처를 구울 때만** 쓴다 — "
+                         "기준선 픽스처(05d0de9)는 이 규칙이 생기기 전의 발행이라 통과하지 않는다")
     a = ap.parse_args()
+
+    # 🔴 **다 받고, 한 발행분인지 확인한 다음에야 한 파일이라도 쓴다** (snapshot.py 참고).
+    # 예전엔 정적 자산을 먼저 깔고 API 를 받아서, 받다가 실패하면 자산만 있고 HTML 은
+    # 없는 반쪽 폴더가 남았다. 이제 실패는 산출물 폴더를 건드리기 전에 난다.
+    snap = snapshot.load(a.api, expect=a.expect_generated or None,
+                         retries=a.retries, wait=a.wait, check=not a.no_snapshot_check)
+    meta, index = snap["meta"], snap["index"]
+    print("스냅숏 generated=%s · preserved=%s · 노선 %d%s" % (
+        meta["generated"], meta.get("preserved"), len(snap["routes"]),
+        "  (검사 끔 — 고정 픽스처)" if a.no_snapshot_check else ""))
 
     # 🔴 **정적 자산을 먼저 깐다.** 빌드가 만드는 건 HTML·XML 뿐이고
     # `discover.js|css`·d3·지도 윤곽은 **산출물이 아니라 그냥 파일**이다.
@@ -57,7 +76,7 @@ def main():
     else:
         sys.exit("정적 자산 폴더가 없다: %s" % a.public)
 
-    pages = route.build_all(a.api)
+    pages = route.build_all(snap)
     if a.only:
         want = a.only + ".html"
         pages = {k: v for k, v in pages.items() if k == want}
@@ -76,13 +95,11 @@ def main():
     if a.only:
         print("--only 라 sitemap·robots 는 건너뛴다")
         return
-    meta = route.fetch(a.api, "meta.json")
-    index = route.fetch(a.api, "routes/index.json")
     os.makedirs(a.out, exist_ok=True)
 
     # 발견 홈. deals 와 지도 윤곽을 HTML 에 인라인하므로 file:// 로도 열린다
     # (fetch() 는 file:// 에서 막힌다).
-    payload = route.fetch(a.api, "deals.json")
+    payload = snap["deals"]
     with open(a.world, encoding="utf-8") as f:
         world = f.read()
     with open(os.path.join(a.out, "index.html"), "w", encoding="utf-8", newline="") as f:
@@ -108,6 +125,7 @@ def main():
 
 
 if __name__ == "__main__":
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     main()
