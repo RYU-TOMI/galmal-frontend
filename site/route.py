@@ -275,16 +275,19 @@ def render(r, index, meta, generated_date):
                                 og_description=og_desc)
 
 
-def build_all(api):
-    """36장을 만들어 {파일명: HTML} 로 돌려준다. 파일 쓰기는 `build.py` 가 한다."""
-    meta = fetch(api, "meta.json")
-    index = fetch(api, "routes/index.json")
+def build_all(snap):
+    """36장을 만들어 {파일명: HTML} 로 돌려준다. 파일 쓰기는 `build.py` 가 한다.
+
+    `snap` 은 `snapshot.load()` 가 **검증까지 마친** 응답 묶음이다. 여기서 다시 받지 않는다 —
+    예전엔 `meta`·`index` 를 여기서 한 번, `build.py` 에서 또 한 번 받았고 노선 36개도 따로
+    받았다. 받는 시점이 흩어지면 CDN 캐시 때문에 **한 사이트에 여러 날짜가 섞일 수 있다.**
+    """
+    meta, index = snap["meta"], snap["index"]
     # `generated` 는 KST 시각이다. 기계용 날짜는 UTC 로 바꿔서 뽑는다 — machine_date() 참고.
     generated_date = machine_date(meta["generated"])
 
     out = {}
     for r in index["routes"]:
-        detail = fetch(api, "routes/%s.json" % r["code"])
-        name, html_text = render(detail, index, meta, generated_date)
+        name, html_text = render(snap["routes"][r["code"]], index, meta, generated_date)
         out[name] = html_text
     return out
