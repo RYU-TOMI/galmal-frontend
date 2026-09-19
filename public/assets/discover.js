@@ -479,6 +479,7 @@
   }
   function render() {
     if (!ORIGIN) return;
+    fitDock();   // 라벨 회피가 도크를 재기 **전에** 상한을 먹인다 — 상한이 적용된 높이로 재야 한다(SPEC §CH2)
     tweenId++; svg.classList.remove("tweening");  // 진행 중 트윈이 있으면 무효화
     // 필터 중에는 항상 `아주 멀리` 뷰다. "전 지역 매칭"이 확정 스펙인데 가까운 단계에서
     // 필터를 켜면 매칭 딜이 화면 밖에 있다 — 피드엔 뜨는데 지도엔 없는 상태(F15)가 재현된다.
@@ -901,6 +902,31 @@
     e.stopPropagation(); if (expandedI === null && active !== null) expand(active);
   });
 
+  // ---- 데스크톱 도크 높이 상한 (SPEC §CH2, 2026-09-20 확정 · B54) ----
+  // 상한 = 무대 높이 − 거리 단계 버튼 아래끝 − 여백. **버튼과 도크 제목 줄은 어떤 높이에서도 안 가려진다.**
+  // 버튼 자리를 CSS 에 숫자로 박으면 버튼이 바뀌는 날 조용히 틀린다 — 그래서 실제 자리를 잰다.
+  // 모바일은 펼친 도크가 하단 시트라(§CH5) 손대지 않는다.
+  var DOCK_GAP = 12;
+  function fitDock() {
+    var dock = document.getElementById("fdock"), step = document.getElementById("stepper");
+    if (!dock || !stageEl) return;
+    if (isMobile() || !step || step.hidden) { dock.style.removeProperty("--dock-max"); syncDockClip(); return; }
+    var sb = stageEl.getBoundingClientRect(), st = step.getBoundingClientRect();
+    var bottom = parseFloat(getComputedStyle(dock).bottom) || 0;
+    // 아무리 낮아도 제목 줄 + 조건 한 줄은 남긴다 — 그보다 낮은 무대면 어차피 쓸 수 없는 화면이다.
+    var max = Math.max(120, Math.floor(sb.bottom - bottom - st.bottom - DOCK_GAP));
+    dock.style.setProperty("--dock-max", max + "px");
+    syncDockClip();
+  }
+  // 「아래에 더 있을 때만」 페이드 — 다 보이거나 끝까지 내렸으면 없다. 접힌 도크·모바일에도 없다.
+  function syncDockClip() {
+    var dock = document.getElementById("fdock"), body = dock ? dock.querySelector(".fdbody") : null;
+    if (!dock || !body) return;
+    var more = !isMobile() && !dock.classList.contains("collapsed") &&
+               body.scrollHeight - body.scrollTop - body.clientHeight > 2;
+    dock.classList.toggle("clipped", more);
+  }
+
   // ---- 단계 · 필터 도크 ----
   // 필터를 켜고 끌 때도 단계 전환과 같은 모션으로 움직인다(400ms · cubic-out · 배율 로그 보간).
   // 필터를 끄면 stageIdx 가 그대로라 직전 단계로 돌아온다. (SPEC §CH2)
@@ -1160,7 +1186,9 @@
   });
 
   var fdock = document.getElementById("fdock"), fdt = document.getElementById("fdtoggle");
-  if (fdt) fdt.addEventListener("click", function () { fdock.classList.toggle("collapsed"); });
+  if (fdt) fdt.addEventListener("click", function () { fdock.classList.toggle("collapsed"); syncDockClip(); });
+  var fdbodyEl = fdock ? fdock.querySelector(".fdbody") : null;
+  if (fdbodyEl) fdbodyEl.addEventListener("scroll", syncDockClip);
   if (fdock && window.innerWidth <= 860) fdock.classList.add("collapsed");  // 모바일=접힌 채 시작
 
   // ---- 출발지: 서울 기본 + 헤더 알약에서 변경 (SPEC §CH3, 2026-09-01 확정) ----

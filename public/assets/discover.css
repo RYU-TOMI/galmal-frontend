@@ -162,6 +162,20 @@ svg.map{position:absolute;inset:0;width:100%;height:100%;display:block;backgroun
 .stepper button:disabled{cursor:default;opacity:.32}
 /* 오른쪽 아래 필터 도크 */
 .filterdock{position:absolute;right:16px;bottom:18px;width:270px;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(20,40,40,.18);overflow:hidden;z-index:7}
+/* ---- 데스크톱 도크 높이 상한 (SPEC §CH2, 2026-09-20 확정 · B54) ----
+   펼친 도크는 581px 고정이었다. 1366×768 노트북(뷰포트 높이 640~768)에서 **거리 단계 버튼을 덮고**
+   640 에선 무대를 뚫고 첫 방문 띠까지 올라갔다(실측). 상한 = 무대 높이 − 버튼 아래끝 − 여백.
+   `--dock-max` 는 JS(`fitDock`)가 실제 버튼 자리에서 재서 준다 — 없으면 아래 어림값(버튼 106 + 여백 12 + 아래 18).
+   **제목 줄은 고정, 조건 줄만 스크롤** — 모바일 펼친 도크(§CH5)와 같은 방식이다. 모바일 규칙은 아래 @media 에 따로 있다. */
+@media(min-width:861px){
+  .filterdock{display:flex;flex-direction:column;max-height:var(--dock-max,calc(100% - 136px))}
+  .fdtoggle{flex:0 0 auto}
+  .fdbody{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}
+  /* 🔴 **잘린 줄이 있으면 잘렸다는 게 보여야 한다.** 예산 줄이 말없이 스크롤 아래로 숨으면 필터가 둘뿐인 줄 안다.
+     `.clipped` 는 JS 가 「아래에 더 있을 때만」 붙인다 — 다 보이거나 끝까지 내렸으면 페이드가 없다. */
+  .filterdock.clipped::after{content:"";position:absolute;left:0;right:0;bottom:0;height:34px;pointer-events:none;
+    border-radius:0 0 14px 14px;background:linear-gradient(to bottom,#ffffff00,#fff 85%)}
+}
 .fdtoggle{width:100%;display:flex;align-items:center;justify-content:space-between;border:0;background:#fff;font-weight:800;font-size:.9rem;color:var(--ink);padding:12px 15px;cursor:pointer}
 /* 접힌 도크는 조건을 보여준다. 길면 줄임표 — 도크 폭(270px)을 넘기지 않는다 (SPEC §CH2 B7) */
 .fdtoggle #fdsum{flex:1;min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
