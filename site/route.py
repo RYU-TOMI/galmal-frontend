@@ -45,10 +45,9 @@ from charts import bar_chart, line_chart
 from fmt import fmt_date, fmt_month, weekday_name
 from shell import BASE_URL, SITE_NAME, page
 
-# 지역 표시명. 백엔드는 `region` 코드만 주고 이름은 화면이 붙인다(`COPY.md` §2b).
-REGION_NAME = {"dom": "국내", "jp": "일본", "cn": "중화권", "sea": "동남아",
-               "island": "섬", "oc": "대양주", "eu": "유럽", "am": "미주",
-               "etc": "그 외"}
+# 지역 표시명은 여기 없다 — `/v1/vocab.json` 의 `region_name` 에서 받는다(CONTRACT §5).
+# 예전엔 9개를 손으로 적었다. 노선 응답이 `region` 코드만 주기 때문이었는데, 백엔드
+# `collector/dests.py` 에도 같은 표가 있어 한쪽만 바뀌면 빵부스러기 이름이 조용히 갈렸다.
 
 # 프론트가 가진 임계 두 개. 값(2·3)은 현행 코드에서 가져왔다 —
 # 바꾸려면 `DESIGN.md`/`COPY.md` 에 근거와 함께 남긴다(`CONTRACT.md` §v1).
@@ -123,8 +122,9 @@ def subscribe_link(sub, code, label):
     return f"mailto:{sub['address']}?subject={subject}&body={body}"
 
 
-def render(r, index, meta, generated_date):
-    """노선 1개 → (파일명, HTML). `r` 은 `/v1/routes/{code}.json` 응답."""
+def render(r, index, meta, generated_date, region_name):
+    """노선 1개 → (파일명, HTML). `r` 은 `/v1/routes/{code}.json` 응답.
+    `region_name` 은 `vocab.region_name` — 지역 코드 → 표시명."""
     code = r["code"]
     label = f'{r["o_name"]} → {r["d_name"]}'
     s = r["summary"]
@@ -157,7 +157,7 @@ def render(r, index, meta, generated_date):
     # 한쪽만 고쳐진다 — 실제로 그랬다(`특가 피드`는 2026-09-01에 `발견`으로 폐기된
     # 이름인데 두 곳에 박혀 있었고, 그 상태로 검색엔진에 발행됐다. `SPEC.md` IA-3).
     crumb = [("발견", f"{BASE_URL}/"),
-             (REGION_NAME.get(r["region"], "그 외"), None),
+             (region_name.get(r["region"], "그 외"), None),
              (label, None)]
     crumb_html = " › ".join(
         f'<a href="{href}">{html.escape(name)}</a>' if href else html.escape(name)
@@ -288,6 +288,7 @@ def build_all(snap):
 
     out = {}
     for r in index["routes"]:
-        name, html_text = render(snap["routes"][r["code"]], index, meta, generated_date)
+        name, html_text = render(snap["routes"][r["code"]], index, meta, generated_date,
+                                 snap["vocab"]["region_name"])
         out[name] = html_text
     return out

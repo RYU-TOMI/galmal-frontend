@@ -98,8 +98,15 @@ def main():
     payload = snap["deals"]
     with open(a.world, encoding="utf-8") as f:
         world = f.read()
+    page = home.render_home(payload, home.inline_deals(payload), world, index, snap["vocab"])
+    # 🔴 `discover.js` 가 어휘 목록을 **이 칩에서 읽으므로** 칩이 계약과 다르면 내보내지 않는다.
+    bad = home.chip_problems(page, snap["vocab"])
+    if bad:
+        for b in bad:
+            print("  🔴 " + b)
+        sys.exit("홈의 어휘 칩이 /v1/vocab.json 과 다르다 — 배포하지 않는다")
     with open(os.path.join(a.out, "index.html"), "w", encoding="utf-8", newline="") as f:
-        f.write(home.render_home(payload, home.inline_deals(payload), world, index))
+        f.write(page)
     print("  index.html")
 
     for name, text in seo.build_all(index, route.machine_date(meta["generated"])).items():
