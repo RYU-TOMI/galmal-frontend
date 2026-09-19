@@ -879,8 +879,14 @@
     try { document.execCommand("copy"); done(); } catch (e) { /* 조용히 포기한다 */ }
     document.body.removeChild(ta);
   }
+  // 🔴 **`history.back()` 은 앞 항목이 이 사이트일 때만 누른다.** 공유 링크(`#SEL-FUK`)로 **처음 들어온**
+  // 사람에게는 그 항목이 이 탭의 첫 항목이거나 앞이 남의 페이지다 — 거기서 `×` 나 빈 지도를 누르면
+  // **상세가 닫히는 게 아니라 사이트를 떠났다**(실측: 카톡·게시판에서 온 사람이 `×` 한 번에 원래 페이지로
+  // 돌아간다). 스펙은 「사이트를 안 떠나고 상세만 닫힌다」다(§CH4 열고닫기).
+  // 우리가 `pushState` 로 쌓은 항목에만 표식이 있다(`writeHash`). 없으면 그 자리에서 닫고 주소만 맞춘다.
   function closeByUser() {
-    if (expandedI !== null && window.history && history.pushState && parseHash() && parseHash().d) history.back();
+    var ours = window.history && history.pushState && history.state && history.state.gm;
+    if (expandedI !== null && ours && parseHash() && parseHash().d) history.back();
     else collapse();
   }
   hc.addEventListener("click", function (e) {
@@ -1253,7 +1259,9 @@
     var next = "#" + h;
     if (location.hash === next || applyingHash) return;
     if (window.history && history.pushState) {
-      if (push) history.pushState(null, "", next); else history.replaceState(null, "", next);
+      // `{gm:1}` = **우리가 쌓은 항목**이라는 표식. 이 표식이 있으면 바로 앞 항목도 이 사이트다 —
+      // `closeByUser()` 가 그걸 보고 `history.back()` 을 해도 되는지 정한다. 교체할 땐 표식을 물려준다.
+      if (push) history.pushState({ gm: 1 }, "", next); else history.replaceState(history.state, "", next);
     } else { location.hash = next; }   // 아주 오래된 브라우저 — 히스토리 구분은 포기한다
   }
   function cityByCode(code) {
