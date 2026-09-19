@@ -46,7 +46,7 @@ def _from_url(base):
         with urllib.request.urlopen(base + "/" + path, timeout=30) as r:
             return r.read()
 
-    for p in ("meta.json", "deals.json", "routes/index.json"):
+    for p in ("meta.json", "deals.json", "vocab.json", "routes/index.json"):
         yield "v1/" + p, get(p)
     idx = json.loads(get("routes/index.json").decode("utf-8"))
     for r in idx["routes"]:
@@ -59,6 +59,11 @@ def main():
     src = sys.argv[1]
     gen = _from_url(src) if src.startswith("http") else _from_git(src)
 
+    # 🔴 **옛 사본을 먼저 비운다.** 백엔드는 표본 0 이 된 노선의 옛 파일을 지우지 않는다 —
+    # 덮어쓰기만 하면 지금 index 에 없는 노선 파일이 섞여 남는다.
+    import shutil
+    shutil.rmtree(OUT, ignore_errors=True)
+
     n = 0
     for rel, blob in gen:
         dst = os.path.join(HERE, rel)
@@ -67,8 +72,18 @@ def main():
             f.write(blob)
         n += 1
 
+    # 🔴 **받아 적은 것이 한 발행분인지 빌드와 같은 규칙으로 본다.** 섞인 채 사본으로 굳으면
+    # 그 뒤 모든 픽스처 빌드가 섞인 데이터를 기준으로 삼는다(CONTRACT §공통 규칙, site/snapshot.py).
+    sys.path.insert(0, os.path.join(os.path.dirname(HERE), "site"))
+    import snapshot
+    bad = snapshot.problems(snapshot.fetch_all(OUT))
+    if bad:
+        for b in bad:
+            print("  🔴 " + b)
+        sys.exit("한 발행분이 아니다 — 다시 받아 적는다. 이 사본을 커밋하지 말 것.")
+
     meta = json.load(io.open(os.path.join(OUT, "meta.json"), encoding="utf-8"))
-    print("받아 적음 %d개 · schema=%s · generated=%s · 딜 %d건"
+    print("받아 적음 %d개 · 한 발행분 ✅ · schema=%s · generated=%s · 딜 %d건"
           % (n, meta.get("schema"), meta.get("generated"),
              meta.get("counts", {}).get("deals", -1)))
     print("출처: %s" % src)

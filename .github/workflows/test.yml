@@ -33,11 +33,9 @@ jobs:
       - name: 픽스처로 빌드가 도는가
         run: |
           set -e
-          # --no-snapshot-check: 기준선 픽스처(05d0de9)는 「한 발행의 응답은 같은 generated」
-          # 규칙이 생기기 전의 발행이라 통과하지 않는다(deals 만 42초 이른 시각).
-          # 픽스처는 손으로 고치지 않고, M2 동등성 증명의 짝이라 새로 받지도 않는다.
-          # 검사 로직 자체는 위 단위 테스트(tests/test_snapshot.py)가 지킨다.
-          python site/build.py --api fixtures/v1 --out /tmp/dist --no-snapshot-check
+          # 픽스처도 라이브와 **같은 스냅숏 검사**를 받는다 — 한 발행분으로 받아 적었기 때문이다.
+          # (2026-09-19 전엔 옛 픽스처가 규칙 이전 발행이라 검사를 껐다. BACKLOG B40)
+          python site/build.py --api fixtures/v1 --out /tmp/dist
           for f in index.html sitemap.xml robots.txt build.json \
                    assets/discover.js assets/discover.css data/world.geojson; do
             test -s "/tmp/dist/$f" || { echo "::error::빠졌다: $f"; exit 1; }

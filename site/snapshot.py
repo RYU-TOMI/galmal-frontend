@@ -20,9 +20,12 @@
 | 응답 | `generated` |
 |---|---|
 | `routes/index` · `routes/{code}` | == G |
+| `vocab` (참조 데이터, 2026-09-19~) | == G — **보존일에도** 오늘 G (백엔드 `7a4983e`) |
 | `deals` — `meta.preserved` 가 거짓 | == G |
 | `deals` — `meta.preserved` 가 참 | **< G** |
 | 백엔드 신호의 `client_payload.generated` (있을 때만) | == G |
+
+모두 40개다(meta · index · deals · vocab · 노선 36).
 
 `preserved` 분기가 있는 이유: 수집이 하한선에 못 미친 날 백엔드는 `deals.json` 을 **새로
 쓰지 않는다**(BB1). 어제 데이터에 오늘 도장을 찍지 않기로 했다(2026-08-22). 그래서 그날
@@ -35,7 +38,7 @@
 
 ## 실패 방식
 
-어긋나면 **39개 전부를 다시 받는다**(어긋난 것만 다시 받으면 그 사이 백엔드가 또 발행해
+어긋나면 **40개 전부를 다시 받는다**(어긋난 것만 다시 받으면 그 사이 백엔드가 또 발행해
 새로운 섞임이 생길 수 있다). 캐시 수명(10분)을 넘길 만큼 기다려도 안 맞으면 **한 파일도
 쓰기 전에** 멈춘다 → 배포 안 됨 → 사이트는 직전 배포본으로 남고 잡이 실패한다.
 틀린 데이터가 조용히 나가는 것보다 하루 갱신이 밀리고 빨간불이 뜨는 쪽이 낫다.
@@ -53,8 +56,9 @@ def fetch_all(api):
     meta = fetch(api, "meta.json")
     index = fetch(api, "routes/index.json")
     deals = fetch(api, "deals.json")
+    vocab = fetch(api, "vocab.json")
     routes = {r["code"]: fetch(api, "routes/%s.json" % r["code"]) for r in index["routes"]}
-    return {"meta": meta, "index": index, "deals": deals, "routes": routes}
+    return {"meta": meta, "index": index, "deals": deals, "vocab": vocab, "routes": routes}
 
 
 def _t(s):
@@ -72,6 +76,10 @@ def problems(snap, expect=None):
     if snap["index"]["generated"] != g:
         out.append("routes/index %s != meta %s" % (snap["index"]["generated"], g))
 
+    # 참조 데이터는 딜 보존과 무관하게 매 발행 새로 쓴다 — 보존일에도 == G.
+    if snap["vocab"]["generated"] != g:
+        out.append("vocab %s != meta %s" % (snap["vocab"]["generated"], g))
+
     stale = sorted(c for c, r in snap["routes"].items() if r["generated"] != g)
     if stale:
         out.append("노선 %d개가 meta(%s)와 다르다: %s%s" % (
@@ -88,12 +96,14 @@ def problems(snap, expect=None):
     return out
 
 
-def load(api, expect=None, retries=12, wait=60, check=True, log=print):
-    """검증된 스냅숏을 돌려준다. 끝내 안 맞으면 종료코드 1 로 멈춘다."""
+def load(api, expect=None, retries=12, wait=60, log=print):
+    """검증된 스냅숏을 돌려준다. 끝내 안 맞으면 종료코드 1 로 멈춘다.
+
+    검사를 끄는 길은 없다. 예전엔 `--no-snapshot-check` 가 있었는데, 기준선 픽스처(05d0de9)가
+    이 규칙 이전 발행이라서였다. 2026-09-19 픽스처를 한 발행분으로 새로 받아 적어 없앴다(B40).
+    """
     for attempt in range(1, retries + 1):
         snap = fetch_all(api)
-        if not check:
-            return snap
         bad = problems(snap, expect)
         if not bad:
             if attempt > 1:
@@ -103,7 +113,7 @@ def load(api, expect=None, retries=12, wait=60, check=True, log=print):
         for b in bad:
             log("    - " + b)
         if attempt < retries:
-            log("    %d초 뒤 39개를 전부 다시 받는다 (CDN max-age=600)" % wait)
+            log("    %d초 뒤 40개를 전부 다시 받는다 (CDN max-age=600)" % wait)
             time.sleep(wait)
     sys.exit("🔴 %d번 받아도 한 발행분이 아니다. 배포하지 않는다 — 사이트는 직전 배포본으로 남는다."
              % retries)
