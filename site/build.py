@@ -26,6 +26,7 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import coverage  # noqa: E402
 import home   # noqa: E402
 import snapshot  # noqa: E402
 import route  # noqa: E402  (위 sys.path 설정 뒤여야 한다)
@@ -60,6 +61,16 @@ def main():
     meta, index = snap["meta"], snap["index"]
     print("스냅숏 generated=%s · preserved=%s · 노선 %d" % (
         meta["generated"], meta.get("preserved"), len(snap["routes"])))
+
+    # 🔴 **어휘를 키로 쓰는 매핑이 어휘를 다 덮는지** — 빠지면 조용히 폴백하므로 쓰기 전에 막는다
+    # (site/coverage.py · CONTRACT §5). 새 태그·새 haul 이 생기면 여기서 빌드가 멈춘다.
+    js_path = os.path.join(a.public, "assets", "discover.js")
+    with open(js_path, encoding="utf-8") as f:
+        bad = coverage.problems(f.read(), snap["vocab"], snap["deals"]["deals"])
+    if bad:
+        for b in bad:
+            print("  🔴 " + b)
+        sys.exit("어휘를 덮지 못하는 매핑이 있다 — 배포하지 않는다")
 
     # 🔴 **정적 자산을 먼저 깐다.** 빌드가 만드는 건 HTML·XML 뿐이고
     # `discover.js|css`·d3·지도 윤곽은 **산출물이 아니라 그냥 파일**이다.
