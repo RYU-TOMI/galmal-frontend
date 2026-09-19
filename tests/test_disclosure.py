@@ -13,6 +13,10 @@
   | 크기 | 12px 이상 (`.75rem`) |
   | 색 | `--sub` 그대로 · **`opacity` 없음** → `--card` 위 대비 4.5:1 이상 |
   | 강조 | 없음 — 코랄 · 굵게(700+) · 배경칠 금지 (중립성 결정 2026-08-06) |
+  | 순서 | `(광고)` 설명이 **예약처 목록보다 앞** — 뜻을 모른 채 누를 수 없게 |
+
+「스크롤 없이 보이게」는 규칙이 **아니다** — 카드 높이는 지도(핀 y)가 정해서 지킬 수가 없다(기획이 정정).
+표식은 링크에 붙어 다니므로 누를 수 있는 순간엔 보인다. 남는 문제는 설명이 아래라는 것이었고, 그래서 순서다.
 
 탐침은 실제 `discover.css` 를 읽는다 — 가짜 CSS 로 검사하면 진짜 파일이 바뀌었을 때를 못 잡는다.
 
@@ -26,8 +30,11 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSS = io.open(os.path.join(ROOT, "public", "assets", "discover.css"), encoding="utf-8").read()
+JS = io.open(os.path.join(ROOT, "public", "assets", "discover.js"), encoding="utf-8").read()
+AD_NOTE = "(광고) 표시는"                # 설명 문구의 머리 — 전문은 COPY.md 소관이라 여기 옮겨 적지 않는다
 
-DISCLOSURE = [".cmp-ad", ".hc-ad"]      # (광고) 표식 · 설명줄(가격 신선도 고지도 이 줄)
+# (광고) 표식 · 설명줄(캡션과 가격 고지) · 가격 기준 시각(「조회 시점 기준」과 같은 성격 — 2026-09-20 범위에 추가)
+DISCLOSURE = [".cmp-ad", ".hc-ad", ".hc-seen"]
 MIN_PX = 12
 MIN_CONTRAST = 4.5
 ROOT_PX = 16                            # rem 기준 — discover.css 는 html font-size 를 안 바꾼다
@@ -125,6 +132,29 @@ def problems(css):
     return out
 
 
+def order_problems(js):
+    """상세 카드에서 `(광고)` 설명이 예약처 목록보다 **먼저** 조립되는가. 맞으면 빈 목록.
+
+    `detailHTML()` 은 문자열을 이어 붙여 HTML 을 만든다 — 소스에서의 앞뒤가 곧 DOM 의 앞뒤다.
+    (화면에서의 확인은 CDP `compareDocumentPosition` 으로 따로 한다 — FRONTEND.md §3.)
+    """
+    m = re.search(r"function detailHTML\(c\) \{(.*?)\n  \}\n", js, re.S)
+    if not m:
+        return ["discover.js 에서 detailHTML() 을 못 찾았다 — 검사를 할 수 없으면 통과가 아니라 실패다"]
+    body = re.sub(r"(?m)^\s*//.*$", "", m.group(1))      # 주석 속 문구에 속지 않는다
+    note, lst = body.find(AD_NOTE), body.find("compareHTML(c.links)")
+    out = []
+    if lst < 0:
+        out.append("detailHTML() 에서 예약처 목록(compareHTML)을 못 찾았다")
+    if note < 0:
+        out.append("detailHTML() 에 `%s…` 설명이 없다 — 표식만 있고 뜻이 없다" % AD_NOTE)
+    elif body.count(AD_NOTE) != 1:
+        out.append("`%s…` 설명이 %d번 나온다 — 한 번이어야 한다" % (AD_NOTE, body.count(AD_NOTE)))
+    if note >= 0 and lst >= 0 and note > lst:
+        out.append("`%s…` 설명이 예약처 목록 **뒤**에 있다 — 뜻을 모른 채 누를 수 있다" % AD_NOTE)
+    return out
+
+
 class DisclosureTest(unittest.TestCase):
 
     def test_real_css_meets_the_floor(self):
@@ -162,9 +192,44 @@ class DisclosureTest(unittest.TestCase):
         self.assertNotEqual(lighter, CSS)
         self.assertTrue(any("대비" in b for b in problems(lighter)))
 
+    def test_timestamp_line_is_in_scope(self):
+        """탐침 — 가격 기준 시각(`.hc-seen`)도 고지다. 예전 값(9px · opacity .75 → 2.91:1)이면 잡힌다."""
+        old = CSS.replace(".hc-seen{font-size:.75rem;color:var(--sub);",
+                          ".hc-seen{font-size:.56rem;color:var(--sub);opacity:.75;")
+        self.assertNotEqual(old, CSS, "탐침이 아무것도 안 바꿨다 — CSS 모양이 달라졌으면 탐침을 고친다")
+        bad = problems(old)
+        self.assertTrue(any(".hc-seen" in b and "opacity" in b for b in bad))
+        self.assertTrue(any(".hc-seen" in b and "12px 미만" in b for b in bad))
+
+    def test_ad_note_comes_before_the_list(self):
+        self.assertEqual(order_problems(JS), [])
+
+    def test_ad_note_below_the_list_is_caught(self):
+        """탐침 — 설명을 목록 뒤로 되돌리면 잡힌다. 2026-09-20 까지 실제로 그 자리였다."""
+        lines = JS.split("\n")
+        cap = [i for i, l in enumerate(lines) if AD_NOTE in l and not l.strip().startswith("//")]
+        lst = [i for i, l in enumerate(lines) if l.strip() == "compareHTML(c.links)"]
+        self.assertEqual((len(cap), len(lst)), (1, 1),
+                         "탐침이 캡션 줄·목록 줄을 못 찾았다 — JS 모양이 달라졌으면 탐침을 고친다")
+        self.assertLess(cap[0], lst[0])
+        cap_line = lines.pop(cap[0])                       # 캡션 줄을 빼서
+        li = lst[0] - 1                                    # (위에서 한 줄 빠졌으니 목록 줄은 한 칸 앞)
+        lines[li] += " +"
+        lines.insert(li + 1, cap_line.rstrip().rstrip("+").rstrip())   # 목록 줄 **뒤**에 다시 끼운다
+        moved = "\n".join(lines)
+        self.assertTrue(any("뒤" in b for b in order_problems(moved)), order_problems(moved))
+
+    def test_ad_note_removed_is_caught(self):
+        """탐침 — 설명을 지우면 표식만 남는다. 그것도 잡는다."""
+        gone = JS.replace(AD_NOTE, "(안내)")
+        self.assertTrue(any("설명이 없다" in b for b in order_problems(gone)))
+
+    def test_order_check_unreadable_is_failure(self):
+        self.assertTrue(order_problems(JS.replace("function detailHTML(c)", "function detailCard(c)")))
+
     def test_missing_rule_is_failure_not_pass(self):
         """이름이 바뀌어 규칙을 못 찾으면 「어긴 게 없다」로 읽히면 안 된다."""
-        renamed = CSS.replace(".hc-ad{", ".hc-notice{")
+        renamed = CSS.replace(".hc-ad", ".hc-notice")      # 캡션 변형(`.hc-ad.cap`)까지 전부
         self.assertTrue(any(".hc-ad" in b and "못 찾았다" in b for b in problems(renamed)))
 
 
