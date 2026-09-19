@@ -1335,7 +1335,14 @@
       if (h && h.d) c = cityByCode(h.d);
       missNote = "";
       if (!c && h && h.d) noteMissing(h.d);   // 허브는 유효한데 그 딜만 없다
-      if (c) {
+      // 🔴 **이미 그 딜이 열려 있으면 아무것도 하지 않는다.** 해시가 바뀌면 브라우저는 `popstate` 와
+      // `hashchange` 를 **둘 다** 쏜다 → 이 함수가 두 번 돈다. `expand()` 는 「같은 것을 다시 누르면
+      // 닫힌다」 토글이라, 두 번째 호출이 방금 연 상세를 닫고 `history.back()` 까지 눌렀다(B47).
+      // 실측: 안내의 `그 특가 보러 가기` 를 눌러도 제자리였고, 앞으로 가기로 상세가 안 열렸다.
+      // 리스너를 하나로 줄이지 않는 이유는 아래 주석 — 브라우저마다 빠지는 쪽이 다르다.
+      if (c && expandedI === CITY.indexOf(c)) {
+        // 열려 있다 — 그대로 둔다
+      } else if (c) {
         // 딥링크 진입은 **이동 없이 그 위치에서 시작**한다 — 첫 화면부터 움직이면 어지럽다.
         var want = stageIdxOf(c);
         if (want !== stageIdx) {
@@ -1354,7 +1361,8 @@
   if (window.addEventListener) {
     window.addEventListener("popstate", function () { applyHash(true); });
     // 안내의 `그 특가 보러 가기` 처럼 **앵커로 해시가 바뀌는 경로**도 있다. `popstate` 만 들으면
-    // 브라우저에 따라 놓친다 — `hashchange` 를 같이 듣고, 이미 반영된 상태면 안에서 걸러진다.
+    // 브라우저에 따라 놓친다 — `hashchange` 를 같이 듣는다. 둘 다 오면 `applyHash` 가 두 번 도는데,
+    // 두 번째는 「이미 열려 있다」에서 걸러진다(위). **걸러 주는 코드 없이 이 말만 있던 때 B47 이 났다.**
     window.addEventListener("hashchange", function () { applyHash(true); });
   }
 
