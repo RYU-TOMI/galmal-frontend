@@ -810,7 +810,8 @@
     if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function highlight(i, scroll) { if (expandedI !== null) return; showCard(i, scroll, false); }
-  function expand(i) {
+  // `instant` — 트윈 없이 **그 자리에서** 연다. 딥링크 첫 진입이 쓴다(아래 boot).
+  function expand(i, instant) {
     // **같은 것을 다시 누르면 닫힌다** (SPEC §CH4 열고닫기). 지금은 다시 그려서 아무 일도 안
     // 일어난 것처럼 보였다 — 누른 게 먹었는지 알 수 없다.
     if (expandedI === i) { closeByUser(); return; }
@@ -818,9 +819,7 @@
     expandedI = i;
     var c = cityByI(i);
     if (c && ORIGIN_KEY) writeHash(ORIGIN_KEY + "-" + c.dcode, true);   // 상세는 히스토리를 쌓는다
-    // 🔴 `prefers-reduced-motion` 이면 **전부 0ms**. 큰 화면 이동이라 어지럼증을 유발할 수 있다 —
-    //    선택이 아니라 필수다. 이동도 등장도 즉시.
-    if (!c || !CURV || reduceMotion()) { showCard(i, true, true); return; }
+    if (!c || !CURV) { showCard(i, true, true); return; }
     var to = viewForPin(c, CURV);
     // 이미 그 자리면 굳이 움직이지 않는다 — 딥링크 진입은 **이동 없이 그 위치에서 시작**한다.
     if (Math.abs(norm(to.lon - CURV.lon)) < 0.3 && Math.abs(to.lat - CURV.lat) < 0.3) {
@@ -829,6 +828,15 @@
     // **이동 중 다른 카드를 누르면 진행 중인 이동을 가로챈다.** 큐에 쌓지 않는다 —
     // `tweenTo` 가 `tweenId` 로 이미 그렇게 동작한다. 예약해 둔 카드 등장도 같이 취소한다.
     if (openT) { clearTimeout(openT); openT = null; }
+    // 🔴 `prefers-reduced-motion` 이면 **전부 0ms**. 큰 화면 이동이라 어지럼증을 유발할 수 있다 —
+    //    선택이 아니라 필수다. 이동도 등장도 즉시.
+    // **0ms 는 「안 움직인다」가 아니라 「한 번에 간다」다.** 예전엔 이 분기가 지도를 안 옮기고 카드만
+    // 띄웠다 — 카드는 「핀이 도착할 자리」에 뜨는데 핀은 제자리라 **카드가 핀에서 떨어졌다**
+    // (실측: 삿포로 핀 [75,24] · 카드는 [46,72] 기준, 가로 324px 어긋남). 딥링크 첫 진입도 같은 길이다.
+    if (instant || reduceMotion()) {
+      tweenId++; svg.classList.remove("tweening");   // 진행 중 트윈이 있으면 버린다
+      moveOnly(to); showCard(i, true, true); return;
+    }
     tweenTo(CURV, to, slideMs(CURV, to));
     // **왜 300ms 를 기다리나**: 지도가 아직 움직이는 중에 카드가 뜨면 **카드가 미끄러지는 것처럼**
     // 보인다. 시선이 목적지에 도착한 뒤 열어야 "여기다" 가 된다.
@@ -1263,6 +1271,7 @@
     return i < 0 ? 0 : i;
   }
   var ORIGIN_KEY = null;
+  var booting = false, bootOpen = null;   // 첫 로드의 딥링크 — boot 참고
   function pickOrigin(k, initial) {
     var o = D.origins[k]; if (!o) return;
     ORIGIN_KEY = k; ORIGIN = { n: o.name, lon: o.lon, lat: o.lat };
@@ -1350,7 +1359,12 @@
           var bs = document.querySelectorAll(".stagebar .pill");
           for (var b = 0; b < bs.length; b++) bs[b].classList.toggle("on", b === stageIdx);
         }
-        expand(c._i);
+        // 🔴 **첫 로드의 딥링크는 여기서 열지 않는다** — boot 이 첫 화면을 다시 그린 **뒤에** 연다.
+        // 여기서 열면 `expand()` 가 지도를 밀기 시작하자마자 boot 의 rAF 재렌더가 `render()` 첫 줄
+        // (`tweenId++`)로 그 이동을 취소하고 뷰를 단계 기본값으로 되돌린다. 300ms 뒤 카드는
+        // 「핀이 도착했어야 할 자리」에 혼자 뜬다(B46 — 실측: LA 핀 [82,35], 카드는 [46,72] 기준).
+        if (booting) bootOpen = CITY.indexOf(c);
+        else expand(c._i);
       } else if (expandedI !== null) {
         collapse();
       }
@@ -1371,7 +1385,7 @@
     var live = liveOrigins();
     if (!live.length) return emptyDay();   // 오늘 딜 0건 (SPEC §CH3 F1)
     buildDrop();
-    applyHash(false);
+    booting = true; applyHash(false); booting = false;
     maybeNote();
     // ⚠️ boot 은 **파싱 중**에 돈다(화면0이 없어져 사용자 클릭을 기다리지 않는다).
     //    그 시점엔 `svg.getScreenCTM()` 이 아직 없어 `uiBoxes()` 가 빈 배열이 되고,
@@ -1379,6 +1393,11 @@
     //    재렌더 계기가 없으면 그 상태가 첫 화면으로 남는다.
     //    레이아웃이 끝난 뒤(rAF) 한 번 더 배치한다. 첫 렌더를 미루지 않는 이유는
     //    **빈 지도가 한 프레임 보이는 게 더 나쁘기** 때문이다. path 는 transform 한 줄이라 비용이 없다.
-    if (window.requestAnimationFrame) requestAnimationFrame(function () { if (ORIGIN) render(); });
+    //
+    // 딥링크로 들어왔으면 **그 재렌더 뒤에** 상세를 연다. 순서가 바뀌면 재렌더가 이동을 취소한다(B46).
+    // **이동 없이 그 위치에서 시작한다** — 첫 화면부터 지도가 미끄러지면 어지럽다(SPEC §CH4 열고닫기).
+    function openBoot() { if (bootOpen !== null) { var i = bootOpen; bootOpen = null; expand(i, true); } }
+    if (window.requestAnimationFrame) requestAnimationFrame(function () { if (ORIGIN) render(); openBoot(); });
+    else openBoot();
   })();
 })();
