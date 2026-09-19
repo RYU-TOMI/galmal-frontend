@@ -13,9 +13,10 @@
   - `send_alerts.py:30` `theme.BASE_URL` — 알림 메일이 사이트로 거는 링크
   - `publish_v1.py:35` `import theme` — 실사용이 안 보인다(주석에만 등장)
 
-색상은 dataviz 팔레트 검증 통과값:
-  라이트 브랜드 #23538F / 특가 #D9482B (surface #FAF6EF)
-  다크   브랜드 #5D8FE0 / 특가 #E85D35 (surface #121820)
+🔴 **다크 모드는 없다 — 전 페이지 라이트 하나다**(DESIGN.md §컬러, 2026-09-20 B53).
+예전엔 여기 `@media (prefers-color-scheme: dark)` 색표가 있었다(옛 `theme.py` 유물). 홈(`discover.css`)에는
+없어서 **OS 가 다크인 사람은 홈(밝음) → 노선(어두움)으로 넘어가며 다른 사이트를 봤다.** 다크는 지도·핀·사진
+그라디언트까지 사이트 전체를 한 번에 켤 때 한다 — 그 전에 한 페이지만 켜지 않는다. `tests/test_shell.py` 가 잠근다.
 """
 import html
 import json
@@ -117,12 +118,8 @@ CSS = """
     /* 하위호환 별칭(기존 클래스용): brand=청록(차트라인), deal=코랄(강조/CTA) */
     --brand:#33534F; --deal:#F2603F; --chip:#F0F5F4; --ocean:#EDF4F3;
     --serif:'Pretendard Variable',Pretendard,sans-serif;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --accent:#FF7A57; --accent2:#D65A38;
-            --sea:#0F2A29; --land:#16403C; --coast:#2A625C; --soft:#1D3634;
-            --bg:#0F2A29; --card:#16302E; --ink:#EAF3F0; --sub:#8FB2AD; --line:#26403C;
-            --brand:#5FB0B8; --deal:#FF7A57; --chip:#1D3634; --ocean:#0F2A29; }
+    /* 라이트 하나다 — 명시하지 않으면 OS 가 다크일 때 폼 컨트롤·스크롤바가 다크로 간다 */
+    color-scheme:light;
   }
   * { box-sizing:border-box; margin:0; }
   body { background-color:var(--bg); color:var(--ink);
