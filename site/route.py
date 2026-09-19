@@ -43,7 +43,7 @@ from datetime import datetime, timezone
 
 from charts import bar_chart, line_chart
 from fmt import fmt_date, fmt_month, weekday_name
-from shell import BASE_URL, SITE_NAME, page
+from shell import BASE_URL, SITE_NAME, logo, page
 
 # 지역 표시명은 여기 없다 — `/v1/vocab.json` 의 `region_name` 에서 받는다(CONTRACT §5).
 # 예전엔 9개를 손으로 적었다. 노선 응답이 `region` 코드만 주기 때문이었는데, 백엔드
@@ -164,7 +164,7 @@ def render(r, index, meta, generated_date, region_name):
         for name, href in crumb)
 
     body = f"""  <div class="topbar">
-    <a class="brand" href="{BASE_URL}/">갈래<em>말래</em> ✈️</a>
+    {logo(gid="gmr", href=f"{BASE_URL}/")}
   </div>
   <p class="crumb">{crumb_html}</p>
   <header>

@@ -97,7 +97,12 @@ _PLANE = (f'<g transform="translate({_P2[0]},{_P2[1]}) rotate({_ANG:.1f}) scale(
 
 
 def logo(gid="gm", href=None):
-    """워드마크 갈래말래 + 비행운 + 종이비행기. gid는 그라디언트 id 충돌 방지용."""
+    """워드마크 갈래말래 + 비행운 + 종이비행기. gid는 그라디언트 id 충돌 방지용.
+
+    🔴 **모든 페이지가 이 함수로 로고를 그린다**(DESIGN.md §로고, 2026-09-20 B53). 예전엔 홈이 같은 기하를
+    손으로 옮겨 적은 사본(`home.LOGO_SVG`, 각도 `-28.6` 을 숫자로)을, 노선 페이지는 청록 `말래` + ✈️ 이모지
+    (`.brand`)를 썼다 — 로고가 세 벌이었다. `tests/test_shell.py` 가 두 페이지가 이 출력을 쓰는지 본다.
+    """
     svg = (f'<svg class="lg" viewBox="0 0 170 46" overflow="visible" aria-hidden="true">'
            f'<defs><linearGradient id="{gid}" x1="0" x2="1">'
            f'<stop offset="0" stop-color="{ACCENT}" stop-opacity="0"/>'
@@ -131,9 +136,6 @@ CSS = """
   a { color:var(--brand); }
 
   .topbar { display:flex; align-items:baseline; gap:12px; margin-bottom:6px; }
-  .brand { font-family:var(--serif); font-size:1.7rem; font-weight:700;
-           letter-spacing:-0.01em; text-decoration:none; color:var(--ink); }
-  .brand em { font-style:normal; color:var(--brand); }
   header .tagline { color:var(--sub); font-family:var(--serif); font-size:1.02rem; }
   header h1 { font-family:var(--serif); font-size:2rem; font-weight:700;
               letter-spacing:-0.01em; margin-top:6px; }
@@ -274,6 +276,8 @@ CSS = """
   .gm-logo .pl-top { fill:var(--accent); }
   .gm-logo .pl-btm { fill:var(--accent2); }
   .gm-logo .pl-crease { stroke:#ffffff88; stroke-width:.8; fill:none; }
+  /* 노선 페이지 머리의 로고 — 홈 헤더와 같은 크기(DESIGN.md §로고 `1.3rem`). 링크라 밑줄만 끈다. */
+  .topbar .gm-logo { font-size:1.3rem; text-decoration:none; }
   /* 헤더 */
   .gm-hdr { display:flex; align-items:center; height:60px; padding:0 22px;
             background:var(--card); border-bottom:1px solid var(--line); }

@@ -14,20 +14,12 @@
 import html
 import json
 
-from shell import BASE_URL, OG_IMAGE, SITE_NAME, verification_meta
+from shell import BASE_URL, OG_IMAGE, SITE_NAME, logo, verification_meta
 
-# "말래" 밑 페이드 비행운 + 접힌 종이비행기 (theme.logo와 동일 기하)
-LOGO_SVG = (
-    '<svg class="lg" viewBox="0 0 170 46" overflow="visible" aria-hidden="true">'
-    '<defs><linearGradient id="gmlg" x1="0" x2="1">'
-    '<stop offset="0" stop-color="#F2603F" stop-opacity="0"/>'
-    '<stop offset="1" stop-color="#F2603F" stop-opacity=".95"/></linearGradient></defs>'
-    '<path d="M6,34 Q76,40 114,19" fill="none" stroke="url(#gmlg)" stroke-width="3" stroke-linecap="round"/>'
-    '<g transform="translate(120,16) rotate(-28.6) scale(1.02)">'
-    '<path class="pl-btm" d="M13,0 L-4,0 L-11,8 Z"/>'
-    '<path class="pl-top" d="M13,0 L-11,-8 L-4,0 Z"/>'
-    '<path class="pl-crease" d="M13,0 L-4,0"/></g></svg>'
-)
+# 로고는 `shell.logo()` 가 그린다 — 모든 페이지가 같은 함수를 쓴다(DESIGN.md §로고, B53).
+# 예전엔 같은 기하를 여기 손으로 옮겨 적은 사본이 있었다(각도 `-28.6` 을 숫자로). 지금 출력은 그 사본과 바이트까지 같다.
+# `gid` 는 SVG 그라디언트 id — 예전 값을 그대로 둬서 홈 HTML 이 한 글자도 안 바뀐다.
+HOME_LOGO_GID = "gmlg"
 
 _FILTER_DOCK = """
     <div class="filterdock" id="fdock">
@@ -175,7 +167,7 @@ def render_home(payload, deals_json, world_json, index, vocab):
 <link rel="stylesheet" href="assets/discover.css">
 </head><body>
 <div class="hdr">
-  <span class="gm-logo">갈래<em>말래</em>{LOGO_SVG}</span>
+  {logo(gid=HOME_LOGO_GID)}
   <span class="nav"><span class="on">발견</span><span class="muted">노선별</span></span>
   <span class="tools"><span class="originwrap">
     <button type="button" class="pill origin" id="originPill" aria-haspopup="listbox" aria-expanded="false">출발지 ▾</button>
