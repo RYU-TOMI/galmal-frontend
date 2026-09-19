@@ -29,18 +29,14 @@ LOGO_SVG = (
     '<path class="pl-crease" d="M13,0 L-4,0"/></g></svg>'
 )
 
-FILTER_DOCK = """
+_FILTER_DOCK = """
     <div class="filterdock" id="fdock">
       <button type="button" class="fdtoggle" id="fdtoggle"><span id="fdsum">필터</span><i>▾</i></button>
       <div class="fdbody">
         <div class="fdrow"><span class="fdlabel">언제 갈래요?</span>
           <div class="chips">
             <button type="button" class="fchip date on" data-date="">아무때</button>
-            <button type="button" class="fchip date" data-date="이번 주말">이번 주말<i></i></button>
-            <button type="button" class="fchip date" data-date="다음 주말">다음 주말<i></i></button>
-            <button type="button" class="fchip date" data-date="이번 주">이번 주<i></i></button>
-            <button type="button" class="fchip date" data-date="이번 달">이번 달<i></i></button>
-            <button type="button" class="fchip date" data-date="다음 달">다음 달<i></i></button>
+@@WHEN_FIXED@@
             <button type="button" class="fchip date" data-date="rest">그 이후<i></i></button>
             <button type="button" class="fchip date" data-date="custom">날짜 지정</button>
           </div>
@@ -57,12 +53,7 @@ FILTER_DOCK = """
           </div></div>
         <div class="fdrow"><span class="fdlabel">분위기</span>
           <div class="chips">
-            <button type="button" class="fchip moodf" data-mood="해변">해변<i></i></button>
-            <button type="button" class="fchip moodf" data-mood="도시">도시<i></i></button>
-            <button type="button" class="fchip moodf" data-mood="미식">미식<i></i></button>
-            <button type="button" class="fchip moodf" data-mood="자연">자연<i></i></button>
-            <button type="button" class="fchip moodf" data-mood="문화">문화<i></i></button>
-            <button type="button" class="fchip moodf" data-mood="온천">온천<i></i></button>
+@@MOODS@@
           </div></div>
         <div class="fdrow"><span class="fdlabel">예산</span>
           <div class="budgetwrap">
@@ -78,7 +69,53 @@ FILTER_DOCK = """
     </div>"""
 
 
-def render_home(payload, deals_json, world_json, index):
+def filter_dock(vocab):
+    """필터 도크. **어휘 칩은 `/v1/vocab.json` 에서 만든다**(CONTRACT §5).
+
+    예전엔 분위기 칩 6개·날짜 칩 5개를 여기 손으로 적었다. 백엔드가 어휘를 바꾸면 칩은 옛
+    이름으로 남고 **필터가 조용히 0건**이 됐다. 이제 목록은 한 곳(계약)에서만 온다.
+
+    - 분위기 칩 = `tags.top` **순서 그대로**(필터 칩 순서라는 게 계약에 적힌 뜻이다)
+    - 날짜 칩 중 고정값 = `when.fixed` 순서 그대로. **`data-when` 표식을 단다** —
+      `discover.js` 가 이 표식으로 어휘 칩만 골라 읽는다. 「아무때」·「그 이후」·「날짜 지정」은
+      **화면 전용 칩**이라 어휘가 아니고 표식도 없다. 제외 목록을 JS 에 두면 그게 또 하나의
+      손 사본이 되고, 화면 전용 칩이 늘 때 어휘로 잘못 읽힌다 — 표식이면 새 칩은 저절로 빠진다.
+
+    `discover.js` 의 `TAG_TOP`·`WHEN_CHIPS` 는 **이 칩에서 읽는다.** 그래서 빌드가 이 칩이
+    계약과 같은지 확인한다(`build.py` — 틀리면 배포하지 않는다).
+    """
+    esc = lambda x: html.escape(x, quote=True)
+    ind = "            "
+    when = "\n".join(
+        ind + '<button type="button" class="fchip date" data-date="%s" data-when>%s<i></i></button>'
+        % (esc(w), esc(w)) for w in vocab["when"]["fixed"])
+    moods = "\n".join(
+        ind + '<button type="button" class="fchip moodf" data-mood="%s">%s<i></i></button>'
+        % (esc(t), esc(t)) for t in vocab["tags"]["top"])
+    return _FILTER_DOCK.replace("@@WHEN_FIXED@@", when).replace("@@MOODS@@", moods)
+
+
+def chip_problems(page_html, vocab):
+    """그려진 홈의 어휘 칩이 계약과 **순서까지** 같은지. 틀리면 문장 목록, 맞으면 빈 목록.
+
+    `discover.js` 는 `TAG_TOP`·`WHEN_CHIPS` 를 **이 칩에서 읽는다.** 칩이 비거나 모자라면
+    `TAG_TOP = []` → 모든 태그가 하위로 분류 → **카드 태그가 조용히 틀린다.**
+    런타임 경고는 아무것도 멈추지 않으므로 빌드가 막는다.
+    """
+    import re
+    got_mood = [html.unescape(x) for x in re.findall(
+        r'class="fchip moodf" data-mood="([^"]*)"', page_html)]
+    got_when = [html.unescape(x) for x in re.findall(
+        r'class="fchip date" data-date="([^"]*)" data-when>', page_html)]
+    out = []
+    if got_mood != vocab["tags"]["top"]:
+        out.append("분위기 칩 %s != tags.top %s" % (got_mood, vocab["tags"]["top"]))
+    if got_when != vocab["when"]["fixed"]:
+        out.append("날짜 어휘 칩 %s != when.fixed %s" % (got_when, vocab["when"]["fixed"]))
+    return out
+
+
+def render_home(payload, deals_json, world_json, index, vocab):
     # `generated`(ISO 8601 + 오프셋) -> 화면 문자열. 표시는 프론트 몫이라고 계약이
     # 명시한 자리다(P7). 현행 `updated` 와 같은 모양 `YYYY-MM-DD HH:MM` 을 만든다.
     updated = html.escape(payload["generated"][:16].replace("T", " "))
@@ -161,7 +198,7 @@ def render_home(payload, deals_json, world_json, index):
     <div class="stepper" id="stepper">
       <button type="button" data-step="out" aria-label="더 멀리" title="더 멀리"><i>＋</i><em>더 멀리</em></button>
       <button type="button" data-step="in" aria-label="가까이" title="가까이"><i>－</i><em>가까이</em></button>
-    </div>{FILTER_DOCK}
+    </div>{filter_dock(vocab)}
     <div class="hovercard" id="hc"></div>
     <div class="emptyday" id="emptyday" hidden>
       <h2>오늘은 조용하네요</h2>

@@ -172,7 +172,17 @@
   // 실측: 일요일에 `이번 주`를 누르면 정상 0건인데 18건(전부 다음 주), 토요일에 `이번 주말`을
   // 누르면 오늘·내일 출발 10건이 사라졌다. 원인이 같은데 두 곳에서 따로 터진 것이다.
   // `when` 으로 거르면 카드 배지와 필터가 구조적으로 어긋날 수 없다.
-  var WHEN_CHIPS = ["이번 주말", "다음 주말", "이번 주", "이번 달", "다음 달"];
+  // 어휘 칩 목록은 **서버가 `/v1/vocab.json` 으로 그린 칩에서 읽는다** (CONTRACT §5 · site/home.py filter_dock).
+  // 예전엔 여기 손으로 적었고, 백엔드가 어휘를 바꾸면 칩·필터가 조용히 어긋났다.
+  // 빌드가 그 칩이 계약과 같은지(순서까지) 확인하고 틀리면 배포하지 않는다 — 그래서 여기선 다시 적지 않는다.
+  // 날짜 칩은 **`data-when` 표식이 있는 것만** 어휘다. 「아무때」·「그 이후」·「날짜 지정」은 화면 전용이라
+  // 표식이 없다 — 제외 목록을 여기 두면 그게 또 손 사본이 된다.
+  function chipList(sel, key) {
+    var els = document.querySelectorAll(sel), out = [], i;
+    for (i = 0; i < els.length; i++) out.push(els[i].getAttribute("data-" + key));
+    return out;
+  }
+  var WHEN_CHIPS = chipList(".fchip.date[data-when]", "date");
   function matchesDate(c, mode) {
     if (!mode) return true;                                   // 아무때
     if (mode === "custom") {                                  // 여기서만 날짜를 본다
@@ -316,7 +326,7 @@
   // 표시 태그 = **하위 전부 + 상위 1개**(하위 없으면 상위 2개), 최대 4개.
   // 개수를 고정하지 않는다 — 태그 개수가 곧 "즐길 게 얼마나 많은가"라는 신호다.
   // 하위는 반드시 상위를 동반하므로 `야시장`을 보고 `미식` 필터를 눌러도 잡힌다.
-  var TAG_TOP = ["해변", "도시", "미식", "자연", "문화", "온천"];
+  var TAG_TOP = chipList(".fchip.moodf", "mood");   // tags.top — 위 chipList 설명 참고
   function cardTags(tags) {
     var sub = [], top = [], i;
     for (i = 0; i < tags.length; i++) (TAG_TOP.indexOf(tags[i]) < 0 ? sub : top).push(tags[i]);
