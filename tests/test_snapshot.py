@@ -6,7 +6,7 @@
 가능하다. 화면은 멀쩡해 보여서 아무도 모른다.
 
 여기서 지키는 건 넷이다:
-  1. 노선·목록은 meta 와 같은 시각이어야 한다
+  1. 노선·목록·참조 데이터(vocab)는 meta 와 같은 시각이어야 한다
   2. deals 는 평소엔 같고, **보존일(preserved)엔 더 이전**이어야 한다
   3. 백엔드가 신호로 알려준 시각이 있으면 meta 와 같아야 한다
   4. 끝내 안 맞으면 **아무것도 쓰기 전에** 멈춘다
@@ -27,12 +27,13 @@ G = "2026-09-17T11:45:25+09:00"
 YESTERDAY = "2026-09-16T15:49:59+09:00"
 
 
-def snap(meta=G, index=G, deals=G, routes=None, preserved=False):
+def snap(meta=G, index=G, deals=G, vocab=G, routes=None, preserved=False):
     routes = routes if routes is not None else {"ICN-FUK": G, "ICN-NRT": G}
     return {
         "meta": {"generated": meta, "preserved": preserved},
         "index": {"generated": index, "routes": [{"code": c} for c in routes]},
         "deals": {"generated": deals},
+        "vocab": {"generated": vocab},
         "routes": {c: {"generated": g} for c, g in routes.items()},
     }
 
@@ -66,6 +67,18 @@ class SnapshotTest(unittest.TestCase):
         """오프셋이 달라도 시각으로 비교한다. 문자열 비교면 +00:00 이 +09:00 보다 뒤로 정렬될 수 있다."""
         earlier_utc = "2026-09-17T01:00:00+00:00"   # = 10:00 KST, G(11:45 KST)보다 이전
         self.assertEqual(snapshot.problems(snap(deals=earlier_utc, preserved=True)), [])
+
+    def test_vocab_one_second_off_is_caught(self):
+        """탐침 — vocab 만 1초 어긋나도 잡는다. 초 단위 차이는 사람 눈엔 같은 발행으로 보인다."""
+        one_sec = "2026-09-17T11:45:26+09:00"
+        bad = snapshot.problems(snap(vocab=one_sec))
+        self.assertEqual(len(bad), 1)
+        self.assertIn("vocab", bad[0])
+
+    def test_vocab_on_preserved_day_is_still_today(self):
+        """보존일에도 참조 데이터는 매 발행 새로 쓴다 — deals 만 어제, vocab 은 오늘 G."""
+        self.assertEqual(snapshot.problems(snap(deals=YESTERDAY, vocab=G, preserved=True)), [])
+        self.assertTrue(snapshot.problems(snap(deals=YESTERDAY, vocab=YESTERDAY, preserved=True)))
 
     def test_backend_signal_mismatch_is_caught(self):
         """백엔드는 새로 발행했다고 알렸는데 우리가 받은 meta 는 옛것 — 옛 캐시를 받았다."""
@@ -106,16 +119,6 @@ class LoadTest(unittest.TestCase):
             got = snapshot.load("x", retries=3, wait=0, log=lambda *a: None)
             self.assertEqual(got["meta"]["generated"], G)
             self.assertEqual(len(calls), 2)
-        finally:
-            snapshot.fetch_all = orig
-
-    def test_check_off_skips_validation(self):
-        """고정 픽스처용 — 검사를 끄면 섞여 있어도 그대로 돌려준다."""
-        orig = snapshot.fetch_all
-        snapshot.fetch_all = lambda api: snap(deals=YESTERDAY)
-        try:
-            got = snapshot.load("x", check=False, log=lambda *a: None)
-            self.assertEqual(got["deals"]["generated"], YESTERDAY)
         finally:
             snapshot.fetch_all = orig
 

@@ -14,17 +14,17 @@ v1 API를 받아 **화면을 굽는다** — 발견 지도·카드·필터·노�
 |---|---|
 | `site/` | 화면 빌드 — 진입점 **`site/build.py`** |
 | `public/` | 정적 자산(`assets/` JS·CSS·벤더 `d3-*` · `data/world.geojson`). 빌드가 그대로 복사한다 |
-| `fixtures/v1/` | 기준선에서 받아 적은 v1 사본 — **손으로 고치지 않는다** |
+| `fixtures/v1/` | 라이브에서 받아 적은 v1 사본(한 발행분, 40개) — **손으로 고치지 않는다** |
 | `tests/` | 단위 테스트 |
 
 ## 빌드
 ```bash
 python site/build.py --api https://api.galmal.kr/v1 --out dist          # 라이브 API로
-python site/build.py --api fixtures/v1 --out dist --no-snapshot-check    # 네트워크 없이 픽스처로
+python site/build.py --api fixtures/v1 --out dist                        # 네트워크 없이 픽스처로
 python -m http.server 8000 --directory dist                              # 확인
 ```
 - 빌드는 받은 v1 응답 전부의 `generated`가 한 스냅숏인지 검사하고(`galmal-plan/CONTRACT.md` §공통 규칙), 어긋나면 **한 파일도 쓰기 전에** 실패한다(T6d).
-- ⚠️ `--no-snapshot-check`는 **픽스처 빌드에만** 쓴다 — 기준선 픽스처는 그 규칙이 생기기 전 것이라 위반한다. 다른 경로에 번지면 검사가 무력해진다. 픽스처를 새로 받아 적는 날 지운다.
+- 검사를 끄는 옵션은 **없다.** 픽스처도 한 발행분으로 받아 적으므로(`python fixtures/capture.py https://api.galmal.kr/v1`) 같은 검사를 받는다.
 - 테스트: `python -m unittest discover -s tests -v` — **출력에서 `^OK`를 확인**하고 커밋한다.
 
 ## 배포 (`.github/workflows/deploy.yml`)

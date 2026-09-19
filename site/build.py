@@ -50,20 +50,16 @@ def main():
                          "비우면 이 대조만 건너뛴다(섞임 검사는 그대로 한다)")
     ap.add_argument("--retries", type=int, default=12, help="스냅숏이 안 맞을 때 다시 받는 횟수")
     ap.add_argument("--wait", type=int, default=60, help="재시도 간격(초). CDN max-age=600")
-    ap.add_argument("--no-snapshot-check", action="store_true",
-                    help="한 발행분 검사를 끈다. **고정된 픽스처를 구울 때만** 쓴다 — "
-                         "기준선 픽스처(05d0de9)는 이 규칙이 생기기 전의 발행이라 통과하지 않는다")
     a = ap.parse_args()
 
     # 🔴 **다 받고, 한 발행분인지 확인한 다음에야 한 파일이라도 쓴다** (snapshot.py 참고).
     # 예전엔 정적 자산을 먼저 깔고 API 를 받아서, 받다가 실패하면 자산만 있고 HTML 은
     # 없는 반쪽 폴더가 남았다. 이제 실패는 산출물 폴더를 건드리기 전에 난다.
     snap = snapshot.load(a.api, expect=a.expect_generated or None,
-                         retries=a.retries, wait=a.wait, check=not a.no_snapshot_check)
+                         retries=a.retries, wait=a.wait)
     meta, index = snap["meta"], snap["index"]
-    print("스냅숏 generated=%s · preserved=%s · 노선 %d%s" % (
-        meta["generated"], meta.get("preserved"), len(snap["routes"]),
-        "  (검사 끔 — 고정 픽스처)" if a.no_snapshot_check else ""))
+    print("스냅숏 generated=%s · preserved=%s · 노선 %d" % (
+        meta["generated"], meta.get("preserved"), len(snap["routes"])))
 
     # 🔴 **정적 자산을 먼저 깐다.** 빌드가 만드는 건 HTML·XML 뿐이고
     # `discover.js|css`·d3·지도 윤곽은 **산출물이 아니라 그냥 파일**이다.
