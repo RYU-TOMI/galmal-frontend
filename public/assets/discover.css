@@ -95,7 +95,8 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 .hc-share:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
 .hc-share:disabled{color:var(--accent);border-color:var(--accent);cursor:default}
 .hc-none{font-size:.66rem;color:var(--sub);text-align:center;padding:12px 8px;background:var(--soft);border-radius:9px}
-.hc-seen{font-size:.56rem;color:var(--sub);opacity:.75;margin-top:6px;text-align:center}
+/* 가격 기준 시각도 **고지**다(「조회 시점 기준」과 같은 성격) — 하한은 `.hc-ad` 주석. 9px·opacity .75(2.91:1)였다. */
+.hc-seen{font-size:.75rem;color:var(--sub);margin-top:6px;text-align:center}
 .tilde{font-size:.66rem;color:var(--sub);font-weight:700}
 .fdate{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px;font-size:.74rem;font-weight:800;color:var(--ink)}
 .when{background:var(--accent);color:#fff;font-weight:800;font-size:.62rem;padding:2px 8px;border-radius:99px}
