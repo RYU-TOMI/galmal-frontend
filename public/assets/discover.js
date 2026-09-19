@@ -1254,8 +1254,12 @@
   }
   // 딥링크로 들어오면 **거리 단계를 그 딜에 맞춘다.** `#SEL-LAX`(장거리)로 왔는데 `가까운 곳`이면
   // 핀이 화면 밖이라 안 보인다 — F15 재발이다. 단계는 URL 에 없어도 상태는 딜을 따라간다.
-  function stageForHaul(haul) {
-    var st = HAUL2STAGE[haul] || "far", i = STAGES.indexOf(st);
+  // 🔴 `c.haul` 은 **이미 단계 이름**이다 — `toCity()` 가 `HAUL2STAGE` 로 바꿔 둔다(`short` → `near`).
+  // 여기서 `HAUL2STAGE` 를 한 번 더 태우면 `HAUL2STAGE["near"]` 가 없어 `|| "far"` 로 떨어지고,
+  // **모든 딥링크가 조용히 「아주 멀리」로 열린다**(실제로 그랬다, B45 — 후쿠오카 링크가 핀 79개짜리
+  // 세계 지도로 열렸다). 매핑은 한 곳(`toCity`)에서만 한다.
+  function stageIdxOf(c) {
+    var i = STAGES.indexOf(c.haul);
     return i < 0 ? 0 : i;
   }
   var ORIGIN_KEY = null;
@@ -1333,7 +1337,7 @@
       if (!c && h && h.d) noteMissing(h.d);   // 허브는 유효한데 그 딜만 없다
       if (c) {
         // 딥링크 진입은 **이동 없이 그 위치에서 시작**한다 — 첫 화면부터 움직이면 어지럽다.
-        var want = stageForHaul(c.haul);
+        var want = stageIdxOf(c);
         if (want !== stageIdx) {
           stageIdx = want; render();
           var bs = document.querySelectorAll(".stagebar .pill");
