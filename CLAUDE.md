@@ -34,8 +34,10 @@ python -m http.server 8000 --directory dist                              # 확�
 
 ## 계약 소비
 - 계약 정본은 `galmal-backend/contract/v1/`. **임계(보여줘도 되나)는 프론트가 정하고, 창(어느 기간을 보나)은 백엔드가 정한다.**
-- ⚠️ **알려진 손 사본**(참조 데이터 v1 발행 과제에서 없앤다): `TAG_TOP` · 분위기 칩 · `WHEN_CHIPS` · 날짜 칩 · `site/route.py` `REGION_NAME`.
-  어휘 키 매핑 `TAG_GRAD` · `HAUL2STAGE`는 남기되 빌드 타임 포괄 검사로 잠근다. 그 전까진 어휘가 바뀌면 이 목록부터 본다.
+- **어휘는 `/v1/vocab.json`에서 받는다**(CONTRACT §5). 손 사본은 없다 — 분위기 칩·날짜 어휘 칩은 `site/home.py`가 vocab으로 그리고,
+  `discover.js`의 `TAG_TOP`·`WHEN_CHIPS`는 **그 칩에서 읽는다**(날짜 칩은 `data-when` 표식이 있는 것만). 지역 표시명은 `vocab.region_name`.
+- 빌드가 막는 것 둘 — ① 그려진 칩 ≠ 계약(순서까지) `home.chip_problems` ② 어휘 키 매핑 `TAG_GRAD`·`HAUL2STAGE`가 어휘를 못 덮음 `site/coverage.py`.
+  새 태그·새 haul이 생기면 **빌드가 멈춘다** — 그때 매핑에 색·단계를 정해 넣는다(색은 `DESIGN.md` 소관).
 
 ## git
 - `main`에 크론 커밋이 없다. 작게 자주 커밋하면 push마다 배포된다 — **배포되는 것**이라는 걸 기억한다.
