@@ -120,7 +120,7 @@ def main():
         f.write(page)
     print("  index.html")
 
-    for name, text in seo.build_all(index, route.machine_date(meta["generated"])).items():
+    for name, text in seo.build_all(index, route.machine_date(meta["generated"]), snap["routes"]).items():
         with open(os.path.join(a.out, name), "w", encoding="utf-8", newline="") as f:
             f.write(text)
         print("  %s" % name)

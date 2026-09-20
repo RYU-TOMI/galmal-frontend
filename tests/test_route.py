@@ -143,7 +143,7 @@ class MachineDateTest(unittest.TestCase):
         day = route.machine_date(META["generated"])
         snap = {"meta": META, "index": INDEX, "vocab": VOCAB, "routes": ROUTES}
         pages = route.build_all(snap)
-        sm = seo.sitemap(INDEX, day)
+        sm = seo.sitemap(INDEX, day, ROUTES)
         for name, html_text in pages.items():
             self.assertIn('"dateModified":"%s"' % day, html_text, name)
         self.assertEqual(sm.count("<lastmod>%s</lastmod>" % day), len(INDEX["routes"]) + 1)
@@ -251,12 +251,44 @@ class FormatTest(unittest.TestCase):
         self.assertEqual(fmt.weekday_name(9), "9")
 
 
+class CollectDaysTest(unittest.TestCase):
+    """`{D}` = 첫 수집일 ~ 마지막 수집일의 **기간**, 상한 `window_days`. 점의 개수가 아니다(COPY.md 🔒)."""
+
+    def _r(self, dates, window=30):
+        return {"trend": [{"date": d, "price": 1} for d in dates], "window_days": window}
+
+    def test_span_not_count(self):
+        """구멍이 있어도 기간으로 센다 — 3점이지만 09-01~09-19 는 19일이다."""
+        self.assertEqual(route.collect_days(self._r(["2026-09-01", "2026-09-10", "2026-09-19"])), 19)
+
+    def test_capped_at_window(self):
+        self.assertEqual(route.collect_days(self._r(["2026-08-20", "2026-09-19"])), 30)     # 31일 → 30
+
+    def test_one_day_and_none(self):
+        self.assertEqual(route.collect_days(self._r(["2026-09-19"])), 1)
+        self.assertEqual(route.collect_days(self._r([])), 0)
+        self.assertEqual(route.collect_days({}), 0)
+
+    def test_order_does_not_matter(self):
+        self.assertEqual(route.collect_days(self._r(["2026-09-19", "2026-09-01"])), 19)
+
+    def test_every_real_route_is_past_the_floor(self):
+        """오늘 실린 노선은 전부 14일을 넘는다 — 이 챕터가 **지금 sitemap 을 안 바꾼다**는 증거."""
+        self.assertEqual(sorted(c for c, r in ROUTES.items() if route.thin(r)), [])
+
+    def test_probe_counting_points_would_strand_routes_at_28(self):
+        """탐침 — 점 개수로 세면 멀쩡한 노선이 30을 못 채운다(`fetched_date` 구멍)."""
+        full = [r for r in ROUTES.values() if route.collect_days(r) == 30]
+        self.assertTrue(full)
+        self.assertTrue(any(len(r["trend"]) < 30 for r in full))
+
+
 class SitemapTest(unittest.TestCase):
 
     NS = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
     def test_home_plus_every_route_once(self):
-        root = ET.fromstring(seo.sitemap(INDEX, "2026-09-19").encode("utf-8"))
+        root = ET.fromstring(seo.sitemap(INDEX, "2026-09-19", ROUTES).encode("utf-8"))
         locs = [e.text for e in root.findall("s:url/s:loc", self.NS)]
         want = [shell.BASE_URL + "/"] + ["%s/routes/%s.html" % (shell.BASE_URL, r["code"]) for r in INDEX["routes"]]
         self.assertEqual(locs, want)
@@ -268,6 +300,35 @@ class SitemapTest(unittest.TestCase):
         built = set(route.build_all(snap))
         listed = set(r["code"] + ".html" for r in INDEX["routes"])
         self.assertEqual(built, listed)
+
+    def _locs(self, index, routes):
+        root = ET.fromstring(seo.sitemap(index, "2026-09-19", routes).encode("utf-8"))
+        return [e.text for e in root.findall("s:url/s:loc", self.NS)]
+
+    def test_thin_route_is_built_but_not_submitted(self):
+        """수집 14일 미만 노선 — **페이지는 굽고 sitemap 에서만 뺀다.** 새 노선의 첫날은 차트가 전부 빈다."""
+        new = dict(ROUTES["ICN-FUK"], code="TAE-CJU", trend=[{"date": "2026-09-19", "price": 98000}])
+        index = {"routes": INDEX["routes"] + [dict(INDEX["routes"][0], code="TAE-CJU")]}
+        routes = dict(ROUTES, **{"TAE-CJU": new})
+        locs = self._locs(index, routes)
+        self.assertNotIn("%s/routes/TAE-CJU.html" % shell.BASE_URL, locs)
+        self.assertEqual(len(locs), len(INDEX["routes"]) + 1)                 # 기존 노선은 그대로 다 실린다
+        snap = {"meta": META, "index": index, "vocab": VOCAB, "routes": routes}
+        pages = route.build_all(snap)
+        self.assertIn("TAE-CJU.html", pages)                                  # 페이지는 있다
+        self.assertIn("/routes/TAE-CJU.html", pages["ICN-FUK.html"])          # 「다른 노선」 링크도 남는다
+
+    def test_route_enters_sitemap_on_day_fourteen(self):
+        """경계 — 13일째는 빠지고 14일째에 들어온다. 그리고 **기간**으로 센다(점 2개여도 14일이면 들어온다)."""
+        def with_span(days):
+            first = "2026-09-%02d" % (19 - days + 1)
+            r = dict(ROUTES["ICN-FUK"], code="X", trend=[{"date": first, "price": 1}, {"date": "2026-09-19", "price": 1}])
+            return self._locs({"routes": [dict(INDEX["routes"][0], code="X")]}, {"X": r})
+        self.assertEqual(len(with_span(13)), 1)      # 홈만
+        self.assertEqual(len(with_span(14)), 2)
+
+    def test_index_entry_without_a_response_is_not_submitted(self):
+        self.assertEqual(len(self._locs({"routes": [dict(INDEX["routes"][0], code="ZZZ-ZZZ")]}, {})), 1)
 
     def test_robots_points_at_the_sitemap(self):
         self.assertIn("Sitemap: %s/sitemap.xml" % shell.BASE_URL, seo.robots())

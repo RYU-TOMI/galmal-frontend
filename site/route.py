@@ -39,7 +39,7 @@ import json
 import os
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from charts import bar_chart, line_chart
 from fmt import fmt_date, fmt_month, weekday_name
@@ -56,10 +56,37 @@ MIN_SAMPLES = 3      # 얇은 버킷은 주장의 근거가 못 된다
 MONTH_CAP = 10       # 현행 `LIMIT 10` 재현. 창인지 임계인지의 판정은 이전 후로 미룸
 AIRLINE_CAP = 8      # 현행 `LIMIT 8` 재현
 
+# 🔴 **표본이 얇은 노선의 하한 — 수집 14일** (DECISIONS.md 2026-09-20 (7) · COPY.md 노선 페이지).
+# 세 곳에서 **같은 뜻**으로 쓴다: sitemap 제출 · 「평소 시세」 칸 · 머리말 문구. 숫자가 하나여야 안 갈린다.
+# 14 인 이유는 새로 만든 근거가 아니다 — 발견 홈 「{N}일 중 최저가」가 이미 실측으로 14일을 골랐고 거기서
+# **7일은 기각됐다**(SPEC §CH3 「사이클 하나뿐이라 사실이지만 거의 아무 말도 아니다」). 같은 제품이 한쪽에서 버린
+# 숫자를 다른 쪽에서 쓰면 기준이 갈린다. 노선 페이지는 요일·월 비교가 본문이라 주말 사이클 둘이 맞다.
+MIN_DAYS = 14
+
 
 def usable(buckets):
     """이 버킷들로 **주장을 해도 되는가.** 차트와 문장에 같이 건다(BB28)."""
     return len(buckets) >= MIN_BUCKETS
+
+
+def collect_days(r):
+    """이 노선을 **며칠째 수집했나** — 첫 수집일부터 마지막 수집일까지의 «기간»(끝 − 첫 + 1), 상한 `window_days`.
+
+    노선 응답에 「수집 일수」 필드는 없다. `trend` 가 수집일마다 1점이라 거기서 뽑는다.
+    🔴 **점의 개수가 아니다.** 백엔드 `fetched_date` 에 구멍이 있어(UTC 자정에 걸친 실행 — 2026-09-07·09-13)
+    멀쩡한 노선도 30일 창에 점이 28개뿐이다. 개수로 세면 「최근 30일」을 영영 못 채운다. 문구가 기간을 말하니
+    기간으로 센다(COPY.md 🔒). 실측 2026-09-19: 오래된 노선 28점·31일 → 30 · 부산 출발 17점·19일 → 19.
+    """
+    days = sorted(t["date"] for t in r.get("trend") or [])
+    if not days:
+        return 0
+    span = (date.fromisoformat(days[-1]) - date.fromisoformat(days[0])).days + 1
+    return min(span, r.get("window_days") or span)
+
+
+def thin(r):
+    """표본이 아직 얇은가 — `MIN_DAYS` 참고."""
+    return collect_days(r) < MIN_DAYS
 
 
 def months_shown(months):
