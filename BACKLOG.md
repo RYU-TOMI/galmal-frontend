@@ -383,7 +383,7 @@ B9 · B11(실측: `tabindex` 달린 핀·카드 0개) · B12(`사진 준비중`)
 - **B50. 코드 주석에도 레포 분리 전 서술이 남아 있다 — B43 의 코드판, 8개 파일 25줄.** 지시처럼 읽혀 따라 하면 틀리는 것만:
   `build.py:8` 「크론은 아직 옛 것을 부른다 — 스위치는 M3」 · `build.py --out` 기본값이 `docs`(문서는 전부 `dist`) · `shell.py:8` 「여기를 고치면 저기도 고쳐야 한다」 ·
   `route.py:8` 「이전 중에는 동작을 바꾸지 않는다」 · `charts.py:18` 「그때까지 두 벌」 · `deploy.yml:12,46` M4/M5 단계 안내 · `test.yml:3` 「`charts.py` 하나를 지킨다」(실제 4파일 33개) ·
-  `snapshot.py`·`deploy.yml` 의 「39개」(지금 40). `route.py` `machine_date` 주석의 크론 관측 범위(상한 00:13Z)도 낡았다 — 백엔드 실측 00:31Z 까지, 예약 자체를 옮기는 안이 사용자 승인 대기 중(2026-09-19 백엔드 통지). `fixtures/capture.py` `_from_git` 은 `docs/v1` 이 없어 죽은 경로, `home.inline_deals()` 는 이전용 어댑터(§0-5 에 이미 적힘).
+  `snapshot.py`·`deploy.yml` 의 「39개」(지금 40). `route.py` `machine_date` 주석의 크론 관측 범위(상한 00:13Z)도 낡았다 — 백엔드 실측 00:31Z 까지, ~~예약 자체를 옮기는 안이 사용자 승인 대기 중~~ → **옮겼다**(백엔드 `2c3edba`, 예약 20:10Z). 새 슬롯 첫 실행은 22:18Z 시작(지연 2시간 8분, **1회 관측 — 범위로 적지 말 것**), 사이트 갱신 07:19 KST. 주석을 고칠 땐 「옛 슬롯의 기록」이라고만 표시한다 — `machine_date()` 의 방식(`generated` 를 UTC 로 바꿔 날짜를 뗌)은 그대로 맞다. `fixtures/capture.py` `_from_git` 은 `docs/v1` 이 없어 죽은 경로, `home.inline_deals()` 는 이전용 어댑터(§0-5 에 이미 적힘).
 - **B51. 백엔드가 준 문자열을 이스케이프 없이 HTML 에 넣는 자리가 있다.** `discover.js` 의 `innerHTML`(도시명 `c.n` · `l.name` · `l.url` · `c.when` · `alt.ko`),
   `route.py` 의 `label`·`o_name`, `home.py` 의 `window.__DEALS=` 인라인(`shell.jsonld_block` 은 `</` 를 막는데 여긴 안 막는다). 출처가 우리 백엔드라 **지금은 해가 없다.**
   도시명·예약처 이름에 `<` 나 `</script>` 가 들어오는 날 화면이 깨진다 — `home.py` 의 나머지 자리는 전부 `html.escape` 를 하고 있어 **규칙은 있는데 빠진 자리**다.
