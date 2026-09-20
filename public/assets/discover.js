@@ -1148,36 +1148,62 @@
     document.body.classList.remove("sheet-drag");
     setSheet(best, true);
   }
+  // 한 단 키운다 — 맨 위 단이면 한 단 줄인다. **같은 자리를 누르면 왔다 갔다 한다.** (SPEC §3 B62-③, 2026-09-20)
+  function stepSheet() {
+    var sn = sheetSnaps(), at = 0, d = Infinity, i;
+    for (i = 0; i < sn.length; i++) { var dd = Math.abs(sn[i] - sheetH); if (dd < d) { d = dd; at = i; } }
+    setSheet(sn[at < sn.length - 1 ? at + 1 : at - 1], true);
+  }
   // 손잡이는 **헤더**다 — 잡는 자리와 스크롤 자리를 나눠야 드래그가 안 부딪힌다.
   // 시트 안 스크롤은 `.feed` 가 그대로 갖는다.
   (function sheetDrag() {
-    var startY = 0, startH = 0, dragging = false;
-    // 손잡이는 **헤더**다 — 잡는 자리와 스크롤 자리를 나눠야 드래그가 안 부딪힌다.
+    var startY = 0, startH = 0, dragging = false, moved = 0, downAt = 0, lastTouch = 0, gripEl = null;
+    // 🔴 **탭도 먹는다.** 예전엔 끌기만 됐다 — 실기기 첫 관찰(2026-09-20)에서 사람들이 손잡이를 **눌렀고**
+    // 아무 일도 없자 지도나 아래 카드가 대신 눌렸다. 「눌렀는데 아무 일도 없다」가 옳은 시트는 없다.
+    // 움직임이 `TAP_SLOP` 안쪽이고 짧게 끝났으면 탭이다 → 한 단 키운다(`stepSheet`).
+    var TAP_SLOP = 8, TAP_MS = 500;
     // 헤더는 `render()` 가 다시 그리므로 **document 위임**으로 잡는다.
     // (`e.currentTarget` 은 읽기 전용이라 대입해서 넘기려던 앞 판이 조용히 안 먹었다.)
+    // **시트 머리 전체**가 잡는 자리다. 정렬 알약처럼 **실제 컨트롤만** 뺀다 — 알약 줄의 빈 자리는 잡힌다.
     function grip(e) {
       var t = e.target;
-      if (!t || !t.closest) return false;
-      return !!t.closest(".feedhead") && !t.closest(".spill");
+      if (!t || !t.closest) return null;
+      return t.closest(".spill") ? null : t.closest(".feedhead");
     }
     function yOf(e) { return e.touches && e.touches[0] ? e.touches[0].clientY : e.clientY; }
+    function release() { if (gripEl) gripEl.classList.remove("grab"); gripEl = null; dragging = false; }
     function onDown(e) {
-      if (!isMobile() || !grip(e)) return;
-      dragging = true; startY = yOf(e); startH = sheetH;
-      document.body.classList.add("sheet-drag");
+      // 터치 뒤에는 브라우저가 **같은 자리에 마우스 이벤트를 한 벌 더** 쏜다. 그대로 받으면 탭이 두 번 먹어
+      // 한 단 커졌다가 바로 되돌아간다(「눌렀는데 아무 일도 없다」가 다른 길로 돌아온다).
+      if (e.type === "mousedown" && Date.now() - lastTouch < 800) return;
+      var g = isMobile() ? grip(e) : null;
+      if (!g) return;
+      dragging = true; moved = 0; downAt = Date.now(); startY = yOf(e); startH = sheetH;
+      gripEl = g; g.classList.add("grab");             // 잡혔다는 걸 보여 준다
     }
     function onMove(e) {
       if (!dragging) return;
-      setSheet(startH + (startY - yOf(e)), false);      // 위로 끌면 커진다
+      var dy = startY - yOf(e);
+      if (Math.abs(dy) > moved) moved = Math.abs(dy);
+      if (moved < TAP_SLOP) return;                     // 아직 탭일 수 있다 — 손가락 떨림으로 시트가 흔들리지 않게
+      document.body.classList.add("sheet-drag");
+      setSheet(startH + dy, false);                     // 위로 끌면 커진다
       if (e.cancelable) e.preventDefault();
     }
-    function onUp() { if (!dragging) return; dragging = false; snapSheet(); }
+    function onUp(e) {
+      if (e.type.indexOf("touch") === 0) lastTouch = Date.now();
+      if (!dragging) return;
+      var tap = moved < TAP_SLOP && Date.now() - downAt < TAP_MS && e.type !== "touchcancel";
+      release();
+      if (tap) stepSheet(); else snapSheet();
+    }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("touchstart", onDown, { passive: true });
     document.addEventListener("mousemove", onMove);
     document.addEventListener("touchmove", onMove, { passive: false });
     document.addEventListener("mouseup", onUp);
     document.addEventListener("touchend", onUp);
+    document.addEventListener("touchcancel", onUp);
   })();
   if (isMobile()) setSheet(SHEET_HALF, true);
   window.addEventListener("resize", function () {
