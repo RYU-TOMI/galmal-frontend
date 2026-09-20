@@ -270,10 +270,19 @@ svg.map{position:absolute;inset:0;width:100%;height:100%;display:block;backgroun
         overscroll-behavior:contain;touch-action:pan-y}
   .sheet-drag .feed{transition:none}                  /* 끄는 동안은 손가락을 그대로 따라간다 */
   /* 시트 손잡이 = 헤더. **잡는 자리와 스크롤 자리를 나눠야** 드래그가 안 부딪힌다. */
+  /* 🔴 **시트 머리 전체가 잡는 자리다 — 탭하면 한 단 커지고, 끌면 따라온다** (SPEC §3 B62-③, 2026-09-20).
+     실기기 첫 관찰에서 사람들이 손잡이를 **눌렀는데** 아무 일도 없었고, 지도나 아래 카드가 대신 눌렸다.
+     손잡이 막대는 38×4px · `--line`(흰 바탕 위 1.2:1) 이라 **어디를 잡는지 보이지도 않았다.**
+     · 정렬 알약 위쪽만으로 세로 48px(44 이상) — 알약 줄의 빈 자리도 잡힌다
+     · 막대를 키우고 `--sub` 로 — 글자가 아니라 조작 표식이라 흐림(opacity)으로 무게를 맞춘다
+     · 잡으면 머리가 눌린 색이 된다(`.grab`) — 「먹었다」가 보여야 한 번 더 누르지 않는다 */
   .feedhead{position:sticky;top:0;z-index:2;background:var(--card);
-            padding:16px 2px 8px;border:0;cursor:grab;touch-action:none;user-select:none}
-  .feedhead::before{content:"";position:absolute;left:50%;top:7px;transform:translateX(-50%);
-                    width:38px;height:4px;border-radius:99px;background:var(--line)}
+            padding:20px 2px 8px;border:0;border-radius:16px 16px 0 0;cursor:grab;touch-action:none;user-select:none;
+            -webkit-tap-highlight-color:transparent;transition:background .12s}
+  .feedhead::before{content:"";position:absolute;left:50%;top:8px;transform:translateX(-50%);
+                    width:48px;height:5px;border-radius:99px;background:var(--sub);opacity:.42;transition:opacity .12s}
+  .feedhead.grab{background:var(--soft);cursor:grabbing}
+  .feedhead.grab::before{opacity:.8}
   .sortbar{margin-top:8px}
   /* 카드는 **세로로** 쌓는다 — 세로로 읽는 화면에서 손가락 방향이 바뀌면 안 된다. */
   .fcard{flex:0 0 auto}
