@@ -41,7 +41,7 @@ import urllib.parse
 import urllib.request
 from datetime import date, datetime, timezone
 
-from charts import bar_chart, line_chart
+from charts import NOT_ENOUGH, bar_chart, line_chart
 from fmt import fmt_date, fmt_month, weekday_name
 from shell import BASE_URL, SITE_NAME, logo, page
 
@@ -172,6 +172,52 @@ def render(r, index, meta, generated_date, region_name):
         tips.append(f'출발 요일은 <b>{weekday_name(b["wd"])}요일</b>이 가장 쌉니다 ({b["price"]:,}원)')
     tip_html = " · ".join(tips) or "데이터가 쌓이면 저렴한 시기를 분석해 보여드립니다."
 
+    # 🔴 **수집 일수 `D` 에 따라 말이 바뀐다**(COPY.md 노선 페이지 · DECISIONS.md 2026-09-20 (7)).
+    # 새 노선의 첫날에도 예전엔 「최근 30일 수집한 가격 …」이라고 썼다 — 하루치에 그건 **틀린 말**이다.
+    # `D` < 14 면 「평소 시세(중앙값)」 칸도 내보내지 않는다: 하루치의 중앙값은 최저가와 **같은 숫자**이고,
+    # 같은 숫자를 다른 이름으로 두 번 보여주면 비교 근거가 있는 척이 된다. 하한은 sitemap 과 같은 `MIN_DAYS`.
+    days = collect_days(r)
+    if days < MIN_DAYS:
+        tagline = f"수집 {days}일째 — 가격 {n:,}건으로 본 {label} 왕복 시세입니다. 표본이 아직 얇습니다."
+        low_cap = "지금까지 최저가"
+        median_col = ""
+    else:
+        tagline = f"최근 {days}일 수집한 가격 {n:,}건으로 분석한 {label} 왕복 항공권 시세입니다."
+        low_cap = f"최근 {days}일 최저가"
+        median_col = f"""
+    <div class="col">
+      <span class="cap">평소 시세(중앙값)</span>
+      <span class="figure" style="font-size:1.6rem">{median:,}<small>원</small></span>
+    </div>"""
+
+    # 차트 셋. **셋이 모두 비면 안내 상자 하나로 합친다** — 같은 문장 세 번은 정보가 아니라 소음이다(COPY.md).
+    # 하나라도 그려지면 예전대로 자리마다 둔다: 빈 자리의 안내는 「이 차트는 아직」이라는 정보다.
+    trend_svg = line_chart([(t["date"], t["price"]) for t in trend], fmt_date)
+    month_svg = bar_chart([(fmt_month(m["m"]), m["price"]) for m in months])
+    weekday_svg = bar_chart([(weekday_name(w["wd"]), w["price"]) for w in weekdays])
+    if trend_svg == month_svg == weekday_svg == NOT_ENOUGH:
+        charts_html = f"""  <section>
+    <div class="chart">{NOT_ENOUGH}</div>
+  </section>"""
+    else:
+        charts_html = f"""  <section>
+    <h2>{label} 최저가 추이</h2>
+    <p class="lead">매일 아침 수집한 이 노선의 왕복 최저가입니다. 아래로 꺾일수록 지금이 살 때입니다.</p>
+    <div class="chart">{trend_svg}</div>
+  </section>
+
+  <section>
+    <h2>출발 월별 최저가</h2>
+    <p class="lead">출발 시기에 따라 {label} 항공권 가격이 얼마나 달라지는지 비교했습니다.</p>
+    <div class="chart">{month_svg}</div>
+  </section>
+
+  <section>
+    <h2>출발 요일별 최저가</h2>
+    <p class="lead">같은 노선도 무슨 요일에 떠나느냐로 가격이 달라집니다.</p>
+    <div class="chart">{weekday_svg}</div>
+  </section>"""
+
     airline_rows = "\n".join(
         f'<tr><td>{html.escape(a["name"])}</td><td class=\'num\'>{a["min"]:,}원</td>'
         f'<td class=\'num\'>{a["n"]:,}건</td></tr>' for a in airlines)
@@ -196,41 +242,21 @@ def render(r, index, meta, generated_date, region_name):
   <p class="crumb">{crumb_html}</p>
   <header>
     <h1>{label} 항공권 최저가</h1>
-    <p class="tagline">최근 30일 수집한 가격 {n:,}건으로 분석한 {label} 왕복 항공권 시세입니다.</p>
+    <p class="tagline">{tagline}</p>
   </header>
 
   <div class="hero">
     <div class="col">
-      <span class="cap">최근 30일 최저가</span>
+      <span class="cap">{low_cap}</span>
       <span class="figure">{cheapest:,}<small>원</small></span>
-    </div>
-    <div class="col">
-      <span class="cap">평소 시세(중앙값)</span>
-      <span class="figure" style="font-size:1.6rem">{median:,}<small>원</small></span>
-    </div>
+    </div>{median_col}
     <div class="col" style="flex:1;min-width:220px">
       <span class="cap">언제 가면 싼가</span>
       <span>{tip_html}</span>
     </div>
   </div>
 
-  <section>
-    <h2>{label} 최저가 추이</h2>
-    <p class="lead">매일 아침 수집한 이 노선의 왕복 최저가입니다. 아래로 꺾일수록 지금이 살 때입니다.</p>
-    <div class="chart">{line_chart([(t["date"], t["price"]) for t in trend], fmt_date)}</div>
-  </section>
-
-  <section>
-    <h2>출발 월별 최저가</h2>
-    <p class="lead">출발 시기에 따라 {label} 항공권 가격이 얼마나 달라지는지 비교했습니다.</p>
-    <div class="chart">{bar_chart([(fmt_month(m["m"]), m["price"]) for m in months])}</div>
-  </section>
-
-  <section>
-    <h2>출발 요일별 최저가</h2>
-    <p class="lead">같은 노선도 무슨 요일에 떠나느냐로 가격이 달라집니다.</p>
-    <div class="chart">{bar_chart([(weekday_name(w["wd"]), w["price"]) for w in weekdays])}</div>
-  </section>
+{charts_html}
 
   <section>
     <h2>항공사별 최저가</h2>
