@@ -222,6 +222,91 @@ class ClaimTest(unittest.TestCase):
         self.assertEqual(odd, [])
 
 
+def _days(n, end="2026-09-19"):
+    """끝 날짜에서 거꾸로 `n`일 기간이 되도록 점 두 개(하루면 하나)를 만든다."""
+    from datetime import date, timedelta
+    last = date.fromisoformat(end)
+    first = last - timedelta(days=n - 1)
+    pts = [{"date": first.isoformat(), "price": 100000}]
+    if n > 1:
+        pts.append({"date": last.isoformat(), "price": 90000})
+    return pts
+
+
+class ThinRouteCopyTest(unittest.TestCase):
+    """수집 일수 `D` 에 따라 말이 바뀐다(COPY.md 노선 페이지 · DECISIONS.md 2026-09-20 (7)). 하한은 sitemap 과 같은 14."""
+
+    M = [{"m": "2026-09", "n": 5, "price": 200000}, {"m": "2026-10", "n": 5, "price": 180000}]
+
+    def _page(self, n_days, **kw):
+        r = _route(**kw)
+        r["trend"] = _days(n_days)
+        r["window_days"] = 30
+        return _render(r)
+
+    def test_full_window_says_thirty(self):
+        page = self._page(31, months=self.M)
+        self.assertIn("최근 30일 수집한 가격 1,784건으로 분석한 인천 → 후쿠오카 왕복 항공권 시세입니다.", page)
+        self.assertIn('<span class="cap">최근 30일 최저가</span>', page)
+        self.assertIn("평소 시세(중앙값)", page)
+
+    def test_young_route_says_its_real_age(self):
+        """9월 1일에 추가된 부산 노선들이 그동안 「최근 30일」이라고 말하고 있었다 — 19일째였다."""
+        page = self._page(19, months=self.M)
+        self.assertIn("최근 19일 수집한 가격", page)
+        self.assertIn('<span class="cap">최근 19일 최저가</span>', page)
+        tagline = re.search(r'class="tagline">(.*?)</p>', page).group(1)
+        self.assertNotIn("30일", tagline)          # 머리말만 본다 — 공유 문구·항공사 리드·푸터의 「30일」은 창(window)을 말한다
+        self.assertIn("평소 시세(중앙값)", page)
+
+    def test_thin_route_copy(self):
+        page = self._page(1)
+        self.assertIn("수집 1일째 — 가격 1,784건으로 본 인천 → 후쿠오카 왕복 시세입니다. 표본이 아직 얇습니다.", page)
+        self.assertIn('<span class="cap">지금까지 최저가</span>', page)
+        self.assertNotIn("최근 1일", page)
+        self.assertNotIn("항공권 시세입니다.</p>", page)
+
+    def test_thin_route_hides_the_median_column(self):
+        """하루치의 중앙값은 최저가와 같은 숫자다 — 다른 이름으로 두 번 보여주면 비교 근거가 있는 척이 된다."""
+        page = self._page(13)
+        self.assertNotIn("평소 시세(중앙값)</span>", page)
+        self.assertNotIn("306,708", page.split("<footer>")[0].split("</header>")[1].split("<section")[0])
+
+    def test_boundary_is_the_same_fourteen_as_the_sitemap(self):
+        self.assertIn("지금까지 최저가", self._page(route.MIN_DAYS - 1))
+        self.assertIn("최근 14일 최저가", self._page(route.MIN_DAYS))
+        self.assertEqual(route.MIN_DAYS, 14)
+
+    def test_all_charts_empty_means_one_notice(self):
+        """차트 셋이 모두 비면 안내 상자 **하나**. 같은 문장 세 번은 소음이다 — 빈 차트의 제목·리드도 같이 뺀다."""
+        page = self._page(1)
+        body = page.split("</style>")[1]
+        self.assertEqual(body.count("데이터가 아직 충분하지 않습니다"), 1)
+        for title in ("최저가 추이", "출발 월별 최저가", "출발 요일별 최저가"):
+            self.assertNotIn(title, body)
+        self.assertIn("항공사별 최저가", body)              # 나머지 구역은 그대로
+        self.assertIn("알림 받기", body)
+
+    def test_one_live_chart_keeps_every_slot(self):
+        """하나라도 그려지면 자리마다 둔다 — 빈 자리의 안내는 「이 차트는 아직」이라는 정보다."""
+        page = self._page(20, months=self.M)                  # 추이 2점 + 월 2개, 요일은 없음
+        body = page.split("</style>")[1]
+        for title in ("최저가 추이", "출발 월별 최저가", "출발 요일별 최저가"):
+            self.assertIn(title, body)
+        self.assertEqual(body.count("데이터가 아직 충분하지 않습니다"), 1)     # 요일 자리 하나
+        self.assertEqual(body.count("<svg viewBox"), 2)
+
+    def test_real_routes_say_their_own_age(self):
+        """픽스처 36장 — 머리말의 일수가 `collect_days()` 와 같다. 30 이 박혀 있던 자리다."""
+        wrong = []
+        for code, r in ROUTES.items():
+            d = route.collect_days(r)
+            if ("최근 %d일 수집한 가격" % d) not in _render(r):
+                wrong.append((code, d))
+        self.assertEqual(wrong, [])
+        self.assertGreater(len(set(route.collect_days(r) for r in ROUTES.values())), 1)   # 전부 30이면 이 검사는 눈이 멀었다
+
+
 class FormatTest(unittest.TestCase):
 
     def test_weekday_is_sunday_zero(self):
