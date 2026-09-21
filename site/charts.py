@@ -115,13 +115,25 @@ def bar_chart(rows, width=680, height=200):
     hi = max(vals) * 1.12
     mt, mb, ml, mr = 22, 26, 8, 8
     pw, ph = width - ml - mr, height - mt - mb
-    slot = pw / len(rows)
-    bw = min(24.0, slot - 2)          # ≤24px, 이웃과 2px 간격
+    # 🔴 **칸 너비에 상한을 둔다.** 없으면 막대가 적을 때 칸이 거대해져 **막대가 서로 멀리 떨어진다** —
+    # 실측(2026-09-21 라이브, 인천→타이중 월 2막대): 간격 **436px**(390px 화면에서 146px). 사용자 지적:
+    # 「막대 꼴랑 2개 있으니까 좀 별론데」. 데이터가 적은 게 아니라(2개는 비교가 성립하는 수다) 배치 문제였다.
+    #
+    # 72 인 이유: 값 라벨이 최대 **34**(viewBox 단위, `15.8만` 실측)라 옆 칸과 안 겹치려면 36 이상이어야 하고,
+    # 그 위에서 **사용자가 화면을 보고 고른 값**이다(간격 48 = 390px 화면에서 23px — 막대 9개짜리 차트와 같은 리듬).
+    # 막대가 많으면 상한에 안 걸려 **바이트가 그대로**다(월 10막대 66.4 · 9막대 73.8 은 경계).
+    MAX_SLOT = 72.0
+    slot = min(pw / len(rows), MAX_SLOT)
+    bw = min(24.0, slot - 2)          # ≤24px — 칸을 채우지 않는다(남는 건 여백)
+    # 남는 폭은 **양쪽으로 나눈다**(가운데 모으기, 사용자 결정 2026-09-21).
+    # 기획은 왼쪽 정렬을 골랐다 — 「월·요일은 순서 있는 축이라 왼쪽에서 시작」·「장마다 시작점이 같아야 한다」.
+    # 사용자가 두 안을 화면으로 보고 가운데를 골랐고, 기획이 「사용자가 가운데라 하면 그게 이긴다」고 정해 뒀다.
+    x0 = ml + (pw - slot * len(rows)) / 2
     ibest = min(range(len(vals)), key=lambda i: vals[i])
     parts = []
     for i, (lab, v) in enumerate(rows):
         h = (v - lo) / (hi - lo) * ph
-        x = ml + i * slot + (slot - bw) / 2
+        x = x0 + i * slot + (slot - bw) / 2
         y = mt + ph - h
         r = min(4.0, bw / 2, h)
         cls = "bar-best" if i == ibest else "bar"
