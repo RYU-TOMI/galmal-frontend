@@ -233,5 +233,46 @@ class DisclosureTest(unittest.TestCase):
         self.assertTrue(any(".hc-ad" in b and "못 찾았다" in b for b in problems(renamed)))
 
 
+class RouteLinkTest(unittest.TestCase):
+    """노선 페이지 진입로 `이 노선 시세 자세히 →` — **고지보다 아래, 맨 마지막** (SPEC §CH6 IA-1, B65).
+
+    고지는 바로 위 예약 링크에 대한 것이라, 그 사이에 **다른 링크가 끼면 고지가 무엇에 대한 것인지 흐려진다**
+    (`(광고)` 설명을 목록 위로 올린 것과 같은 이유 — 순서가 뜻을 만든다).
+    """
+
+    LINK = "이 노선 시세 자세히 →"
+
+    def _detail(self):
+        m = re.search(r"function detailHTML\(c\) \{(.*?)\n  \}\n", JS, re.S)
+        return re.sub(r"(?m)^\s*//.*$", "", m.group(1))
+
+    def test_link_comes_after_the_disclosure(self):
+        body = self._detail()
+        self.assertIn(self.LINK, body)
+        self.assertGreater(body.index(self.LINK), body.index(AD_NOTE))
+        self.assertGreater(body.index(self.LINK), body.index("항공권 가격은"))
+
+    def test_link_only_when_the_route_page_exists(self):
+        """`route` 가 없으면 안 보인다 — 목적지만 맞춰 걸면 **부산 딜에서 인천 노선 분석**으로 보낸다."""
+        self.assertRegex(self._detail(), r"c\.route \?[^:]*%s" % re.escape(self.LINK))
+
+    def test_link_target_is_root_relative(self):
+        """도메인을 JS 에 박으면 `shell.BASE_URL` 과 사본이 둘이 되고, 상대경로면 해시 주소에서 엉뚱하게 풀린다."""
+        self.assertIn("href=\"/routes/' + c.route + '.html\"", self._detail())
+
+    def test_route_value_is_carried_from_the_deal(self):
+        """`toCity()` 가 `route` 를 들고 와야 한다 — 받아만 두고 버리던 값이었다."""
+        m = re.search(r"function toCity\(dl\) \{(.*?)\n  \}\n", JS, re.S)
+        self.assertIsNotNone(m, "toCity() 를 못 찾았다 — 검사를 할 수 없으면 통과가 아니라 실패다")
+        self.assertIn('route: dl.route || ""', m.group(1))
+
+    def test_link_does_not_compete_with_the_booking_cta(self):
+        """예약 CTA(코랄 채움)와 경쟁하지 않는다 — 그건 사러 가는 길이고 이건 더 알아보는 길이다."""
+        m = re.search(r"\.hc-route\{([^}]*)\}", CSS)
+        self.assertIsNotNone(m)
+        self.assertNotIn("background:var(--accent)", m.group(1))
+        self.assertIn("text-decoration:underline", m.group(1))
+
+
 if __name__ == "__main__":
     unittest.main()

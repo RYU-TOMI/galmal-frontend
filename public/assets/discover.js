@@ -102,7 +102,11 @@
       price: (dl.price).toLocaleString("en-US"), disc: (dl.discount || 0) + "%↓", dtier: discTier(dl.discount || 0),
       when: dl.when, date: fmtRange(dl.dep, dl.ret), nights: dl.nights || "", dep: dl.dep,
       trans: transportHTML(dl), tags: dl.tags, dcode: dl.d, g: grad(dl.tags), country: dl.country, links: dl.links || [], median: dl.median || 0,
-      seen: dl.seen || "" };
+      // `route` — 이 딜에 **노선 페이지가 있으면** 그 코드(`"ICN-FUK"`), 없으면 빈 값.
+      // 🔴 **프론트가 만들 수 없는 값이다.** 허브 `SEL` 은 가상이라 인천인지 김포인지 `deals.json` 에 없다 —
+      // 목적지만 보고 링크를 걸면 **부산 딜을 보다가 인천 노선 분석으로 들어간다.** 아는 쪽(백엔드)이 판정해 준다.
+      // (SPEC §CH6 IA-1. 받아만 두고 안 쓰던 값이었다 — B65 에서 비로소 쓴다.)
+      route: dl.route || "", seen: dl.seen || "" };
   }
 
   // ---- 파싱/공용 ----
@@ -738,6 +742,19 @@
       // 이 문장의 결론이라 그 근처에 둔다. (COPY.md §2d)
       '<div class="hc-ad">항공권 가격은 예약 사이트가 마지막으로 조회한 값이라 며칠 전일 수 있어요<br>' +
       '위 가격은 발견가(스캔 시점) · 실시간 최저가는 각 사이트에서 확인하세요</div>' +
+      // 🔴 **홈에서 노선 페이지로 가는 유일한 진입로** (SPEC §CH6 IA-1, 2026-09-01 확정).
+      // 그동안 노선 페이지 링크는 `<noscript>` 안에만 있어 **정상 방문자는 도달할 수 없었다** —
+      // 30일 시세라는 신뢰 근거를 만들어 두고 진입로를 막아 둔 상태였다(`IA.md` 구멍 A).
+      //
+      // **맨 아래, 가격 고지보다 아래다.** 고지는 바로 위 예약 링크에 대한 것이라 그 사이에 다른 링크가
+      // 끼면 **고지가 무엇에 대한 것인지 흐려진다**(B61 에서 순서를 정한 이유 그대로).
+      // 피드 카드에 두지 않는 이유는 밀도다 — 카드는 스캔하는 자리고 상세가 결정하는 자리다(SPEC).
+      //
+      // `route` 가 있을 때만 — **없으면 안 보인다.** 그 노선 페이지가 없다는 뜻이고,
+      // 목적지만 맞춰 거는 순간 다른 노선의 시세를 보여주게 된다.
+      // 주소는 **루트 기준 경로**다. 도메인을 JS 에 박으면 `site/shell.py` 의 `BASE_URL` 과 사본이 둘이 되고,
+      // 상대경로(`routes/…`)로 쓰면 해시가 붙은 주소에서 엉뚱하게 풀린다.
+      (c.route ? '<a class="hc-route" href="/routes/' + c.route + '.html">이 노선 시세 자세히 →</a>' : "") +
       "</div></div>";
   }
   function positionCard(c, at) {
