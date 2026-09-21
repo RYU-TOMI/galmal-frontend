@@ -47,6 +47,12 @@ INDEX = _load("routes", "index.json")
 VOCAB = _load("vocab.json")
 ROUTES = {r["code"]: _load("routes", r["code"] + ".json") for r in INDEX["routes"]}
 
+# 🔴 픽스처에 **두 갈래가 다 있다**(2026-09-21 재수신 — 백엔드가 노선을 36 → 43 으로 늘린 다음 날).
+# 예전 픽스처는 전부 18일 이상이라 「얇은 노선」 경로를 **실데이터로는 한 번도 안 지났다.**
+# 이제 새 7노선이 수집 1일째라 같은 응답 안에서 두 경로가 같이 검사된다.
+FAT = [c for c, r in ROUTES.items() if not __import__("route").thin(r)]
+THIN = [c for c, r in ROUTES.items() if __import__("route").thin(r)]
+
 # 🔴 백엔드 파서가 노선을 뽑는 정규식의 **사본**이다(`galmal-backend/collector/subscriptions.py` `ROUTE_RE`).
 # 계약(`meta.subscribe`)은 주소·제목·`route_token` 만 주고 **파서가 무엇을 읽는지는 주지 않는다** — 그래서
 # 여기 옮겨 적을 수밖에 없다. 사본이라 갈릴 수 있다: 백엔드가 파서를 바꾸면 이 테스트는 초록인데 구독이 깨진다.
@@ -146,7 +152,7 @@ class MachineDateTest(unittest.TestCase):
         sm = seo.sitemap(INDEX, day, ROUTES)
         for name, html_text in pages.items():
             self.assertIn('"dateModified":"%s"' % day, html_text, name)
-        self.assertEqual(sm.count("<lastmod>%s</lastmod>" % day), len(INDEX["routes"]) + 1)
+        self.assertEqual(sm.count("<lastmod>%s</lastmod>" % day), len(FAT) + 1)   # 홈 + 두꺼운 노선
 
 
 class ThresholdTest(unittest.TestCase):
@@ -297,14 +303,21 @@ class ThinRouteCopyTest(unittest.TestCase):
         self.assertEqual(body.count("<svg viewBox"), 2)
 
     def test_real_routes_say_their_own_age(self):
-        """픽스처 36장 — 머리말의 일수가 `collect_days()` 와 같다. 30 이 박혀 있던 자리다."""
+        """실데이터 전수 — 두꺼운 노선은 `최근 {D}일 수집한`, 얇은 노선은 `수집 {D}일째`. 30 이 박혀 있던 자리다."""
         wrong = []
         for code, r in ROUTES.items():
             d = route.collect_days(r)
-            if ("최근 %d일 수집한 가격" % d) not in _render(r):
+            want = ("수집 %d일째 — 가격" % d) if route.thin(r) else ("최근 %d일 수집한 가격" % d)
+            if want not in _render(r):
                 wrong.append((code, d))
         self.assertEqual(wrong, [])
-        self.assertGreater(len(set(route.collect_days(r) for r in ROUTES.values())), 1)   # 전부 30이면 이 검사는 눈이 멀었다
+        self.assertGreater(len(set(route.collect_days(r) for r in ROUTES.values())), 1)   # 전부 같으면 이 검사는 눈이 멀었다
+
+    def test_real_thin_routes_hide_the_median_column(self):
+        for code in THIN:
+            self.assertNotIn("평소 시세(중앙값)</span>", _render(ROUTES[code]), code)
+        for code in FAT:
+            self.assertIn("평소 시세(중앙값)</span>", _render(ROUTES[code]), code)
 
 
 class FormatTest(unittest.TestCase):
@@ -357,9 +370,16 @@ class CollectDaysTest(unittest.TestCase):
     def test_order_does_not_matter(self):
         self.assertEqual(route.collect_days(self._r(["2026-09-19", "2026-09-01"])), 19)
 
-    def test_every_real_route_is_past_the_floor(self):
-        """오늘 실린 노선은 전부 14일을 넘는다 — 이 챕터가 **지금 sitemap 을 안 바꾼다**는 증거."""
-        self.assertEqual(sorted(c for c, r in ROUTES.items() if route.thin(r)), [])
+    def test_fixture_has_both_kinds(self):
+        """픽스처에 두꺼운 노선과 얇은 노선이 **둘 다** 있어야 이 파일의 검사들이 눈을 뜬다.
+        하나라도 0 이면 그쪽 경로는 실데이터로 한 번도 안 지나간다(2026-09-21 전 픽스처가 그랬다)."""
+        self.assertTrue(FAT)
+        self.assertTrue(THIN, "얇은 노선이 없으면 얇은 쪽 검사가 전부 눈이 먼다 — 픽스처를 다시 받을 때 확인할 것")
+
+    def test_thin_matches_collect_days(self):
+        """`thin()` 과 `collect_days()` 가 어긋나지 않는다 — 문지기가 둘로 갈리면 sitemap 과 문구가 갈린다."""
+        for code, r in ROUTES.items():
+            self.assertEqual(route.thin(r), route.collect_days(r) < route.MIN_DAYS, code)
 
     def test_probe_counting_points_would_strand_routes_at_28(self):
         """탐침 — 점 개수로 세면 멀쩡한 노선이 30을 못 채운다(`fetched_date` 구멍)."""
@@ -372,12 +392,23 @@ class SitemapTest(unittest.TestCase):
 
     NS = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
 
-    def test_home_plus_every_route_once(self):
+    def test_home_plus_every_fat_route_once(self):
+        """홈 + **두꺼운** 노선, index 순서 그대로. 얇은 노선은 빠진다(B64)."""
         root = ET.fromstring(seo.sitemap(INDEX, "2026-09-19", ROUTES).encode("utf-8"))
         locs = [e.text for e in root.findall("s:url/s:loc", self.NS)]
-        want = [shell.BASE_URL + "/"] + ["%s/routes/%s.html" % (shell.BASE_URL, r["code"]) for r in INDEX["routes"]]
+        want = [shell.BASE_URL + "/"] + ["%s/routes/%s.html" % (shell.BASE_URL, r["code"])
+                                         for r in INDEX["routes"] if r["code"] in FAT]
         self.assertEqual(locs, want)
         self.assertEqual(len(locs), len(set(locs)))
+
+    def test_real_thin_routes_are_built_but_absent_from_sitemap(self):
+        """실데이터 — 오늘 얇은 노선(새 7개)은 페이지로 구워지고 sitemap 에만 없다."""
+        snap = {"meta": META, "index": INDEX, "vocab": VOCAB, "routes": ROUTES}
+        pages = route.build_all(snap)
+        locs = self._locs(INDEX, ROUTES)
+        for code in THIN:
+            self.assertIn(code + ".html", pages, code)
+            self.assertNotIn("%s/routes/%s.html" % (shell.BASE_URL, code), locs, code)
 
     def test_every_listed_page_is_actually_built(self):
         """sitemap 에 실린 노선과 실제로 구워지는 페이지가 **같은 집합**이다 — 한쪽만 늘면 404 를 광고한다."""
@@ -392,16 +423,16 @@ class SitemapTest(unittest.TestCase):
 
     def test_thin_route_is_built_but_not_submitted(self):
         """수집 14일 미만 노선 — **페이지는 굽고 sitemap 에서만 뺀다.** 새 노선의 첫날은 차트가 전부 빈다."""
-        new = dict(ROUTES["ICN-FUK"], code="TAE-CJU", trend=[{"date": "2026-09-19", "price": 98000}])
-        index = {"routes": INDEX["routes"] + [dict(INDEX["routes"][0], code="TAE-CJU")]}
-        routes = dict(ROUTES, **{"TAE-CJU": new})
+        new = dict(ROUTES["ICN-FUK"], code="ZZZ-NEW", trend=[{"date": "2026-09-19", "price": 98000}])
+        index = {"routes": INDEX["routes"] + [dict(INDEX["routes"][0], code="ZZZ-NEW")]}
+        routes = dict(ROUTES, **{"ZZZ-NEW": new})
         locs = self._locs(index, routes)
-        self.assertNotIn("%s/routes/TAE-CJU.html" % shell.BASE_URL, locs)
-        self.assertEqual(len(locs), len(INDEX["routes"]) + 1)                 # 기존 노선은 그대로 다 실린다
+        self.assertNotIn("%s/routes/ZZZ-NEW.html" % shell.BASE_URL, locs)
+        self.assertEqual(len(locs), len(FAT) + 1)                             # 두꺼운 노선은 그대로 다 실린다
         snap = {"meta": META, "index": index, "vocab": VOCAB, "routes": routes}
         pages = route.build_all(snap)
-        self.assertIn("TAE-CJU.html", pages)                                  # 페이지는 있다
-        self.assertIn("/routes/TAE-CJU.html", pages["ICN-FUK.html"])          # 「다른 노선」 링크도 남는다
+        self.assertIn("ZZZ-NEW.html", pages)                                  # 페이지는 있다
+        self.assertIn("/routes/ZZZ-NEW.html", pages["ICN-FUK.html"])          # 「다른 노선」 링크도 남는다
 
     def test_route_enters_sitemap_on_day_fourteen(self):
         """경계 — 13일째는 빠지고 14일째에 들어온다. 그리고 **기간**으로 센다(점 2개여도 14일이면 들어온다)."""
