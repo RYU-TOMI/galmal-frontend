@@ -329,6 +329,9 @@ svg.map{position:absolute;inset:0;width:100%;height:100%;display:block;backgroun
 .gm-logo .muted,.nav .muted{color:var(--sub);font-weight:600}
 
 /* 평소 시세 vs 발견가 (실데이터) */
+/* 막대 대신 한 줄로 이유를 말하는 자리 (SPEC §CH4). 막대가 차지하던 만큼만 쓰고,
+   **강조하지 않는다** — 불리한 사실을 말하는 것이지 알리는 소식이 아니다. 크기·색은 고지 하한(12px·--sub)과 같다. */
+.pc-none{font-size:.75rem;color:var(--sub);background:var(--soft);border-radius:9px;padding:9px 11px;margin:2px 0 6px}
 .pc{margin:2px 0 6px}
 .pc-row{display:flex;justify-content:space-between;font-size:.7rem;color:var(--sub);margin:2px 0}
 .pc-row.now{color:var(--accent);font-weight:800}
