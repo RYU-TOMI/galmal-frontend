@@ -25,10 +25,16 @@ JSON 에는 주석을 못 다니 이 경고가 파일 안에 못 들어간다 �
 
 ```
 출처    https://api.galmal.kr/v1  (라이브)
-발행    generated 2026-09-19T16:04:43+09:00 · preserved false
-받은 것 40개 — meta · deals · vocab · routes/index · routes/{code} 36
+발행    generated 2026-09-21T07:23:55+09:00 · preserved false
+받은 것 47개 — meta · deals · vocab · routes/index · routes/{code} 43
 확인    capture.py 가 받아 적은 직후 빌드와 같은 스냅숏 규칙으로 검사 — 한 발행분 ✅
 ```
+
+🔴 **이 사본에는 「얇은 노선」이 들어 있다.** 백엔드가 노선을 36 → 43 으로 늘린 다음 날 받아서, 새 7개
+(`PUS-BKK`·`PUS-HAN`·`TAE-CJU`·`GMP-SHA`·`GMP-TPE`·`GMP-NGO`·`ICN-PQC`)가 **수집 1일째**다.
+그래서 같은 응답 안에서 **두꺼운 36 + 얇은 7** 두 경로가 같이 검사된다 — 얇은 쪽(sitemap 제외 · `수집 N일째`
+머리말 · 「평소 시세」 칸 없음)은 그 전 픽스처로는 **실데이터로 한 번도 안 지나갔다.**
+다시 받을 때 **두 갈래가 다 남아 있는지** 본다(`tests/test_route.py` `test_fixture_has_both_kinds`).
 
 **이 사본은 한 발행분이다.** 그래서 픽스처 빌드도 라이브 빌드와 **같은 검사**를 받는다 —
 예전엔 `--no-snapshot-check` 로 검사를 껐다.
