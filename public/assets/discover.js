@@ -663,11 +663,27 @@
       '<div class="hc-date">' + c.date + (c.nights ? " · " + c.nights : "") + "</div>" +
       '<div class="hc-trans">' + c.trans + "</div>" + freshHTML(c);
   }
+  // ---- 평소 시세(중앙값) 대비 발견가 ----
+  // 🔴 **막대가 없으면 «왜 없는지»를 말한다** (SPEC §CH4, 2026-09-01 확정 — 프론트가 지적해 생긴 결정).
+  // 예전엔 두 경우 모두 빈 문자열이라 **근거 자리가 말없이 사라졌다.** 확장 상세는 결정하는 자리인데
+  // 거기서 아무 말이 없으면 사용자는 "왜 근거가 없지"를 혼자 생각한다.
+  // 실측(라이브 2026-09-21 딜 138건): `median <= price` 65건(47%) · `median` 없음 5건 — **둘 중 하나가 이 자리였다.**
+  //
+  // **둘을 한 문구로 뭉치지 않는다.** 「모른다」와 「알아봤는데 아니다」는 전혀 다른 말이고,
+  // 전자를 후자처럼 쓰면 **없는 근거를 있는 척**하는 게 된다. 둘 다 **우리에게 불리한 사실인데도 말하는 것**이다.
+  //
+  // ⚠️ 「평소보다 비싸요」라고 쓰지 않는다 — `price` 는 그날 최저가, `median` 은 거친 기준선이라
+  //    몇 %p 차이를 「비싸다」고 단정할 만큼 정밀하지 않다. (SPEC §CH4)
+  function pcNote(text) { return '<div class="hc-sec">평소 시세와 비교</div><div class="pc-none">' + text + "</div>"; }
   function priceCompare(c) {
-    // 실데이터: 평소 시세(중앙값) 대비 발견가. 할인 없으면 생략.
     var now = num(c.price), med = c.median || 0;
-    if (!med || med <= now) return "";
-    var w = Math.max(12, Math.round(now / med * 100)), pct = Math.round((med - now) / med * 100);
+    if (!med) return pcNote("아직 이 노선의 평소 시세를 모아두지 못했어요");
+    var pct = Math.round((med - now) / med * 100);
+    // 🔴 **반올림해 `0%` 가 되면 「비슷해요」로 보낸다** (기획 확정 2026-09-21).
+    // 화면에 `0%` 라고 쓰는 순간 그건 주장이 아니다 — 「0.8% 더 쌈」은 참이어도 사용자에겐 같은 가격이고,
+    // 그걸 근거라고 내밀면 문구 전체의 신뢰가 깎인다. `median <= price` 와 **같은 처리**다.
+    if (med <= now || pct < 1) return pcNote("지금은 평소 시세와 비슷해요");
+    var w = Math.max(12, Math.round(now / med * 100));
     return '<div class="hc-sec">평소 시세와 비교</div>' +
       '<div class="pc">' +
       '<div class="pc-row"><span>평소 시세(중앙값)</span><span>₩' + med.toLocaleString("en-US") + "</span></div>" +
