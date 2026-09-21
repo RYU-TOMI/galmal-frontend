@@ -209,9 +209,13 @@ def render(r, index, meta, generated_date, region_name):
         tagline = f"수집 {days}일째 — 가격 {n:,}건으로 본 {label} 왕복 시세입니다. 표본이 아직 얇습니다."
         low_cap = "지금까지 최저가"
         median_col = ""
+        # 「최근 {D}일간」은 D=1 이면 틀린 말은 아니지만 **「최근」이 기간을 약속한다** — hero 의
+        # `지금까지 최저가` 와 같은 말로 맞춘다(COPY.md, 2026-09-21 B68).
+        airline_lead = "지금까지 이 노선에서 수집된 항공사별 최저 왕복 요금입니다."
     else:
         tagline = f"최근 {days}일 수집한 가격 {n:,}건으로 분석한 {label} 왕복 항공권 시세입니다."
         low_cap = f"최근 {days}일 최저가"
+        airline_lead = f"최근 {days}일간 이 노선에서 수집된 항공사별 최저 왕복 요금입니다."
         median_col = f"""
     <div class="col">
       <span class="cap">평소 시세(중앙값)</span>
@@ -288,7 +292,7 @@ def render(r, index, meta, generated_date, region_name):
 
   <section>
     <h2>항공사별 최저가</h2>
-    <p class="lead">최근 {days}일간 이 노선에서 수집된 항공사별 최저 왕복 요금입니다.</p>
+    <p class="lead">{airline_lead}</p>
     <table class="data">
       <thead><tr><th>항공사</th><th class="num">최저가</th><th class="num">수집 건수</th></tr></thead>
       <tbody>
