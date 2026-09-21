@@ -246,11 +246,23 @@ class RouteLinkTest(unittest.TestCase):
         m = re.search(r"function detailHTML\(c\) \{(.*?)\n  \}\n", JS, re.S)
         return re.sub(r"(?m)^\s*//.*$", "", m.group(1))
 
-    def test_link_comes_after_the_disclosure(self):
+    def test_link_sits_under_the_compare_bar(self):
+        """🔴 위치가 바뀌었다(2026-09-21). 처음엔 **맨 아래**(가격 고지 밑)였는데 사용자가
+        「찾는 거 너무 힘들다」고 했다 — 카드 안 스크롤로 57~268px 아래였다.
+        「평소 시세와 비교」 바로 아래로 올렸다: 「이 가격이 싼가」를 막 읽은 자리라 다음 질문이 이어진다."""
         body = self._detail()
         self.assertIn(self.LINK, body)
-        self.assertGreater(body.index(self.LINK), body.index(AD_NOTE))
-        self.assertGreater(body.index(self.LINK), body.index("항공권 가격은"))
+        self.assertGreater(body.index(self.LINK), body.index("priceCompare(c)"))
+        self.assertLess(body.index(self.LINK), body.index("compareHTML(c.links)"))
+
+    def test_link_does_not_split_the_disclosure_chain(self):
+        """🔴 **`(광고)` 설명 → 예약처 목록 → 가격 고지는 붙어 있어야 한다** (B61).
+        그 사이에 링크가 끼면 고지가 무엇에 대한 것인지 흐려진다. 링크는 그 사슬 **앞**에 있어야 한다."""
+        body = self._detail()
+        note, lst, disc = body.index(AD_NOTE), body.index("compareHTML(c.links)"), body.index("항공권 가격은")
+        self.assertLess(body.index(self.LINK), note)      # 사슬보다 앞
+        self.assertLess(note, lst)                        # 설명 → 목록
+        self.assertLess(lst, disc)                        # 목록 → 고지
 
     def test_link_only_when_the_route_page_exists(self):
         """`route` 가 없으면 안 보인다 — 목적지만 맞춰 걸면 **부산 딜에서 인천 노선 분석**으로 보낸다."""
