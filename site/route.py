@@ -52,7 +52,7 @@ from shell import BASE_URL, SITE_NAME, logo, page
 # 프론트가 가진 임계 두 개. 값(2·3)은 현행 코드에서 가져왔다 —
 # 바꾸려면 `DESIGN.md`/`COPY.md` 에 근거와 함께 남긴다(`CONTRACT.md` §v1).
 MIN_BUCKETS = 2      # 하나는 비교가 아니다
-MIN_SAMPLES = 3      # 얇은 버킷은 주장의 근거가 못 된다
+MIN_SAMPLES = 3      # 얇은 버킷은 주장의 근거가 못 된다 — 월 차트에도, **모든 팁에도**(2026-09-20)
 MONTH_CAP = 10       # 현행 `LIMIT 10` 재현. 창인지 임계인지의 판정은 이전 후로 미룸
 AIRLINE_CAP = 8      # 현행 `LIMIT 8` 재현
 
@@ -67,6 +67,23 @@ MIN_DAYS = 14
 def usable(buckets):
     """이 버킷들로 **주장을 해도 되는가.** 차트와 문장에 같이 건다(BB28)."""
     return len(buckets) >= MIN_BUCKETS
+
+
+def tip_buckets(buckets):
+    """팁이 **고를 수 있는** 버킷 — `n >= MIN_SAMPLES` 인 것만 (SPEC §3 B66, 2026-09-20 확정).
+
+    🔴 **막대는 사실이고 팁은 권고다.** 요일 막대는 「지금 팔리는 표가 이렇다」라 하루치라도 참이지만,
+    「○요일이 가장 쌉니다」는 **「그러니 그때 가라」는 권고**다. 표본 1건짜리 요일이 그 권고의 근거가 될 수는 없다.
+    그래서 하한을 **팁에만** 건다 — 요일 차트의 막대에는 안 건다(계약의 「weekdays 에 n>=3 을 걸지 않는다」는
+    타이중 차트가 5칸 → 3칸으로 주는 걸 피하려던 **차트** 결정이고, 그건 그대로 산다).
+    월은 `months_shown()` 이 이미 같은 값으로 거르고 있어 결과가 안 바뀐다 — 값을 하나로 쓰는 것이다.
+
+    실측(라이브 2026-09-20, 36노선): 팁이 가리키던 요일 버킷의 n 은 최소 3 · 중앙 306 이라
+    **이 하한을 걸어도 팁을 잃거나 요일이 바뀌는 노선이 0개**다. 지금 아무 일도 안 하기 때문에 지금 건다 —
+    사고가 난 뒤에 세우는 문지기는 이미 누가 그 말을 믿고 표를 산 뒤다. 실제로 일할 자리는
+    **「14일을 넘겼는데도 표가 드문 노선」**이다.
+    """
+    return [b for b in buckets if b.get("n", 0) >= MIN_SAMPLES]
 
 
 def collect_days(r):
@@ -157,27 +174,38 @@ def render(r, index, meta, generated_date, region_name):
     s = r["summary"]
     cheapest, median, n = s["cheapest"], s["median"], s["n"]
 
+    # `D` — 며칠 모았나. 머리말·hero·팁·공유 문구가 **같은 값**을 쓴다(COPY.md 🔒).
+    days = collect_days(r)
+    thin_route = days < MIN_DAYS
     months = months_shown(r["months"])
     weekdays = r["weekdays"]                      # 필터 없음 — 현행 그대로
     airlines = airlines_shown(r["airlines"])
     trend = r["trend"]
 
     # 🔴 문장에도 차트와 **같은** 임계를 건다(BB28). 현행은 `if best_month:` 였다.
+    #
+    # 그 위에 문지기가 **둘 더** 있다(2026-09-20 B66). 셋이 각자 다른 것을 본다:
+    #   `usable`  — 비교가 성립하나(버킷 2개 이상)
+    #   `D`       — **며칠 모았나** → 팁을 쓸지 말지. 하루치는 「가장 싼 100건의 단면」이라 권고를 못 한다.
+    #               `months`·`weekdays` 는 수집일 창이 없어 **첫날에도 버킷이 찬다** — 그래서 `usable` 만으로는
+    #               「표본이 아직 얇습니다」라고 말한 바로 아래에서 「가장 저렴합니다」라고 단정하게 된다(실제로 그랬다).
+    #   `n`       — 그 칸에 몇 건인가 → **어느 칸을 가리킬지**(`tip_buckets`)
     tips = []
-    if usable(months):
-        b = min(months, key=lambda m: m["price"])
-        tips.append(f'<b>{fmt_month(b["m"])} 출발</b>이 가장 저렴합니다 ({b["price"]:,}원)')
-    if usable(weekdays):
-        b = min(weekdays, key=lambda w: w["price"])
-        tips.append(f'출발 요일은 <b>{weekday_name(b["wd"])}요일</b>이 가장 쌉니다 ({b["price"]:,}원)')
+    if not thin_route:
+        mt, wt = tip_buckets(months), tip_buckets(weekdays)
+        if usable(mt):
+            b = min(mt, key=lambda m: m["price"])
+            tips.append(f'<b>{fmt_month(b["m"])} 출발</b>이 가장 저렴합니다 ({b["price"]:,}원)')
+        if usable(wt):
+            b = min(wt, key=lambda w: w["price"])
+            tips.append(f'출발 요일은 <b>{weekday_name(b["wd"])}요일</b>이 가장 쌉니다 ({b["price"]:,}원)')
     tip_html = " · ".join(tips) or "데이터가 쌓이면 저렴한 시기를 분석해 보여드립니다."
 
     # 🔴 **수집 일수 `D` 에 따라 말이 바뀐다**(COPY.md 노선 페이지 · DECISIONS.md 2026-09-20 (7)).
     # 새 노선의 첫날에도 예전엔 「최근 30일 수집한 가격 …」이라고 썼다 — 하루치에 그건 **틀린 말**이다.
     # `D` < 14 면 「평소 시세(중앙값)」 칸도 내보내지 않는다: 하루치의 중앙값은 최저가와 **같은 숫자**이고,
     # 같은 숫자를 다른 이름으로 두 번 보여주면 비교 근거가 있는 척이 된다. 하한은 sitemap 과 같은 `MIN_DAYS`.
-    days = collect_days(r)
-    if days < MIN_DAYS:
+    if thin_route:
         tagline = f"수집 {days}일째 — 가격 {n:,}건으로 본 {label} 왕복 시세입니다. 표본이 아직 얇습니다."
         low_cap = "지금까지 최저가"
         median_col = ""
@@ -260,7 +288,7 @@ def render(r, index, meta, generated_date, region_name):
 
   <section>
     <h2>항공사별 최저가</h2>
-    <p class="lead">최근 30일간 이 노선에서 수집된 항공사별 최저 왕복 요금입니다.</p>
+    <p class="lead">최근 {days}일간 이 노선에서 수집된 항공사별 최저 왕복 요금입니다.</p>
     <table class="data">
       <thead><tr><th>항공사</th><th class="num">최저가</th><th class="num">수집 건수</th></tr></thead>
       <tbody>
@@ -287,7 +315,7 @@ def render(r, index, meta, generated_date, region_name):
   </section>"""
 
     title = f"{label} 항공권 최저가 · 시세 추이 | {SITE_NAME}"
-    desc = (f"{label} 왕복 항공권 최저가 {cheapest:,}원. 최근 30일 가격 추이와 "
+    desc = (f"{label} 왕복 항공권 최저가 {cheapest:,}원. 최근 {days}일 가격 추이와 "
             f"출발 월·요일별 최저가, 항공사별 요금을 매일 갱신합니다.")
     url = f"{BASE_URL}/routes/{code}.html"
 
@@ -317,7 +345,10 @@ def render(r, index, meta, generated_date, region_name):
     # 말풍선은 어제 가격을 계속 보여주고, 들어가 보니 다른 가격이면 그게 우리가
     # 가장 안 하기로 한 것이다. 본문에는 가격이 있다. 본문은 캐시되지 않는다.
     og_title = f"{label} 항공권, 지금 얼마?"
-    og_desc = (f"최근 30일 수집한 가격으로 본 {label} 왕복 시세. "
+    # 🔴 공유 문구도 `{D}` 다 — 머리말과 **같은 말**이라서다(COPY.md, 2026-09-20).
+    # sitemap 에서 빠진 얇은 노선도 **카톡 공유·직접 방문에는 나간다** — 거기서 「최근 30일 수집한」이면 틀린 말이다.
+    og_desc = (f"수집 {days}일째 — {label} 왕복 시세를 모으는 중입니다. 매일 갱신합니다." if thin_route else
+               f"최근 {days}일 수집한 가격으로 본 {label} 왕복 시세. "
                "언제 가면 싼지 월·요일별로 비교했습니다.")
 
     # `contact` 는 푸터 「문의」다. mailto 와 **같은 출처**(`meta.subscribe.address`)를 쓴다 —

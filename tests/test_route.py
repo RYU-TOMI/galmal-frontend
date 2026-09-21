@@ -184,10 +184,11 @@ class ThresholdTest(unittest.TestCase):
         self.assertEqual(shown[0]["min"], min(a["min"] for a in rows))
 
 
-def _route(months=(), weekdays=()):
+def _route(months=(), weekdays=(), days=30):
+    """기본은 **두꺼운 노선**(D=30) — 팁 검사가 D 문지기에 걸리지 않게. 얇은 쪽은 `days=`로 따로 준다."""
     return {"code": "ICN-FUK", "o_name": "인천", "d_name": "후쿠오카", "region": "JP",
-            "summary": {"cheapest": 132536, "median": 306708, "n": 1784},
-            "months": list(months), "weekdays": list(weekdays), "airlines": [], "trend": []}
+            "summary": {"cheapest": 132536, "median": 306708, "n": 1784}, "window_days": 30,
+            "months": list(months), "weekdays": list(weekdays), "airlines": [], "trend": _days(days)}
 
 
 def _render(r):
@@ -216,16 +217,48 @@ class ClaimTest(unittest.TestCase):
         self.assertIn("<b>10월 출발</b>이 가장 저렴합니다 (180,000원)", page)
         self.assertIn("<b>토요일</b>이 가장 쌉니다 (140,000원)", page)      # wd=6 은 토요일(0=일)
 
-    def test_claim_and_chart_agree_on_every_real_route(self):
-        """실제 36장 — 「가장 저렴」 문장이 있는 장은 월 막대 차트도 있고, 없는 장은 차트도 없다."""
+    def test_claim_matches_the_three_gates_on_every_real_route(self):
+        """실데이터 43장 — 월 팁이 있는 장 ⟺ **두껍고**(D≥14) n≥3 버킷이 2개 이상인 장.
+        문지기 셋이 각자 다른 것을 본다: `D`(며칠 모았나) · `n`(그 칸에 몇 건인가) · `usable`(비교가 되나)."""
         odd = []
         for code, r in ROUTES.items():
-            page = _render(r)
-            claims = "출발</b>이 가장 저렴합니다" in page
-            enough = len(route.months_shown(r["months"])) >= route.MIN_BUCKETS
-            if claims != enough:
+            claims = "출발</b>이 가장 저렴합니다" in _render(r)
+            allowed = not route.thin(r) and route.usable(route.tip_buckets(route.months_shown(r["months"])))
+            if claims != allowed:
                 odd.append(code)
         self.assertEqual(odd, [])
+
+    def test_real_thin_routes_show_charts_but_no_tip(self):
+        """🔴 오늘 실린 얇은 7장 — **막대는 그리고 팁은 안 쓴다.** 「표본이 아직 얇습니다」 바로 아래에서
+        「가장 저렴합니다」라고 단정하던 자리다(B66, 2026-09-21 라이브에서 실제로 그랬다)."""
+        self.assertTrue(THIN)
+        for code in THIN:
+            page = _render(ROUTES[code])
+            self.assertNotIn("가장 저렴합니다", page, code)
+            self.assertNotIn("가장 쌉니다", page, code)
+            self.assertIn("데이터가 쌓이면 저렴한 시기를 분석해 보여드립니다.", page, code)
+            self.assertIn("<svg viewBox", page, code)          # 막대는 남는다
+
+    def test_tip_ignores_buckets_thinner_than_three(self):
+        """팁이 가리키는 칸에 `n >= 3` — 표본 1건짜리 요일이 「가장 쌉니다」가 되지 않는다."""
+        weekdays = [{"wd": 1, "n": 9, "price": 150000}, {"wd": 3, "n": 9, "price": 140000},
+                    {"wd": 6, "n": 1, "price": 90000}]          # 토요일이 제일 싸지만 표본 1건
+        page = _render(_route(weekdays=weekdays))
+        self.assertIn("<b>수요일</b>이 가장 쌉니다 (140,000원)", page)
+        self.assertNotIn("토요일", page.split("</style>")[1].split("<section")[0])
+        # 막대에는 걸지 않는다 — **세 칸 다 그려진다**(막대는 사실, 팁은 권고).
+        # 요일 차트 구역만 잘라 센다 — 머리 `<title>`·추이 차트의 hit 영역까지 세면 눈이 먼다.
+        chart = page.split("출발 요일별 최저가")[1].split("</section>")[0]
+        self.assertEqual(chart.count("<title>"), 3)
+        for name in ("월", "수", "토"):                    # 막대 축 라벨은 한 글자다(`weekday_name`)
+            self.assertIn(">%s</text>" % name, chart)
+
+    def test_tip_disappears_when_too_few_thick_buckets(self):
+        """n≥3 인 칸이 하나뿐이면 비교가 아니다 — 팁을 안 쓴다(월이 이미 쓰던 규칙과 같은 값)."""
+        weekdays = [{"wd": 1, "n": 9, "price": 150000}, {"wd": 6, "n": 2, "price": 90000}]
+        page = _render(_route(weekdays=weekdays))
+        self.assertNotIn("가장 쌉니다", page)
+        self.assertIn("데이터가 쌓이면", page)
 
 
 def _days(n, end="2026-09-19"):
@@ -269,8 +302,10 @@ class ThinRouteCopyTest(unittest.TestCase):
         page = self._page(1)
         self.assertIn("수집 1일째 — 가격 1,784건으로 본 인천 → 후쿠오카 왕복 시세입니다. 표본이 아직 얇습니다.", page)
         self.assertIn('<span class="cap">지금까지 최저가</span>', page)
-        self.assertNotIn("최근 1일", page)
+        self.assertNotIn("최근 1일", re.search(r'class="tagline">(.*?)</p>', page).group(1))
         self.assertNotIn("항공권 시세입니다.</p>", page)
+        # 공유 문구도 얇은 판이다 — sitemap 에서 빠져도 카톡·직접 방문에는 나간다
+        self.assertIn('og:description" content="수집 1일째 — 인천 → 후쿠오카 왕복 시세를 모으는 중입니다. 매일 갱신합니다."', page)
 
     def test_thin_route_hides_the_median_column(self):
         """하루치의 중앙값은 최저가와 같은 숫자다 — 다른 이름으로 두 번 보여주면 비교 근거가 있는 척이 된다."""
