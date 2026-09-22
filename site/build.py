@@ -27,6 +27,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import coverage  # noqa: E402
+import pax  # noqa: E402
 import home   # noqa: E402
 import snapshot  # noqa: E402
 import route  # noqa: E402  (위 sys.path 설정 뒤여야 한다)
@@ -71,6 +72,22 @@ def main():
         for b in bad:
             print("  🔴 " + b)
         sys.exit("어휘를 덮지 못하는 매핑이 있다 — 배포하지 않는다")
+
+    # 🔴 **인원 링크는 「틀려도 화면이 멀쩡한」 종류다** — 칩은 그려지고 링크도 열리고,
+    # 인원만 조용히 1명으로 간다. 사용자는 `4명` 을 고르고 4명 값을 본다고 믿은 채 1인 가격을 본다.
+    # 우리가 화면에서 한 약속이 거짓이 되는데 **아무 예외도 안 난다.** 그래서 쓰기 전에 여기서 막는다.
+    # 백엔드도 생산 쪽에서 같은 것을 재지만, **소비 쪽에서 한 번 더** 잰다(기획 권고 2026-09-22) —
+    # 같은 사실을 두 곳이 각자 확인하면 한쪽이 갈릴 때 조용하지 않고 시끄럽다. (site/pax.py)
+    deals_list = snap["deals"]["deals"]
+    bad = pax.problems(deals_list)
+    if bad:
+        for b in bad[:20]:
+            print("  🔴 " + b)
+        if len(bad) > 20:
+            print("  … 그 밖 %d건" % (len(bad) - 20))
+        sys.exit("인원 링크(`pax_url`)가 계약과 다르다 — 배포하지 않는다")
+    n_ok, n_none, n_all = pax.summary(deals_list)
+    print("인원 링크 %d개 검사 — 치환 가능 %d · 인원 못 받음 %d" % (n_all, n_ok, n_none))
 
     # 🔴 **정적 자산을 먼저 깐다.** 빌드가 만드는 건 HTML·XML 뿐이고
     # `discover.js|css`·d3·지도 윤곽은 **산출물이 아니라 그냥 파일**이다.
