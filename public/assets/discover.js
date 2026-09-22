@@ -733,8 +733,14 @@
   }
   function svgToClient(x, y) { var pt = svg.createSVGPoint(); pt.x = x; pt.y = y; return pt.matrixTransform(svg.getScreenCTM()); }
   function photoHTML(c, max) { return '<div class="hc-photo" style="background:' + c.g + '"><span class="ph-tag">사진 준비중</span>' + ovTags(c, max) + '<span class="cityname">' + c.n + "</span></div>"; }
-  function bodyTop(c) {
-    return '<div class="hc-row"><span class="hc-price"><small>₩</small>' + c.price + ' <span class="tilde">~</span></span>' + stampHTML(c) + "</div>" +
+  // `detail` — **확장 상세인가.** 같은 머리를 두 자리가 쓴다(호버/축소 카드 · 확장 상세)인데
+  // 표식 규칙이 서로 다르다. 축소 카드는 **고르는 자리**라 피드 카드와 같이 하나만 짧게 쓰고,
+  // 확장 상세는 **결정하는 자리**라 도장·신기록을 **둘 다** 문장으로 보여 준다 (SPEC §CH3, 기획 2026-09-22).
+  // 🔴 자리로 가르지 않고 **하는 일**로 갈랐다 — 「호버냐」로 가르면 모바일에서 또 갈린다(B32와 같은 축).
+  function bodyTop(c, detail) {
+    var marks = detail ? stampHTML(c) + recLong(c) : (stampHTML(c) || recShort(c));
+    return '<div class="hc-row"><span class="hc-price"><small>₩</small>' + c.price + ' <span class="tilde">~</span></span>' +
+      '<span class="hc-marks">' + marks + "</span></div>" +
       '<div class="hc-date">' + c.date + (c.nights ? " · " + c.nights : "") + "</div>" +
       '<div class="hc-trans">' + c.trans + "</div>" + freshHTML(c);
   }
@@ -788,7 +794,7 @@
     // `×` 로 닫을 수 있어야 한다 (SPEC §CH4 열고닫기). 지금은 지도 배경을 눌러야만 닫혔는데,
     // 카드가 크면 **누를 배경이 안 보인다.**
     return '<button type="button" class="hc-x" aria-label="상세 닫기">×</button>' +
-      photoHTML(c, 4) + '<div class="hc-body">' + bodyTop(c) +
+      photoHTML(c, 4) + '<div class="hc-body">' + bodyTop(c, true) +
       '<div class="hc-detail">' +
       // **딥링크를 만들어 놓고 공유 수단이 없으면 반쪽이다.** 특히 모바일에서 주소창 복사는 어렵다.
       // 커뮤니티 시딩(`PRODUCT.md` §유입)이 이걸로 비로소 가능해진다. (SPEC §CH4)
