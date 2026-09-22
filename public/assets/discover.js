@@ -779,14 +779,71 @@
     for (var i = 0; i < (links || []).length; i++) if (links[i].ad) return true;
     return false;
   }
+  // ---- 인원 (SPEC §CH4 보강 · COPY.md §인원, 2026-09-22 확정) ----
+  // 사용자: 「몇 명이서 가는지가 안 정해져 있다」 → **처음에 묻지 않는다.** 고지하고, 상세에서 고른다.
+  //
+  // 🔴 **고르면 바뀌는 건 「예약처로 나가는 링크」뿐이다.** 화면의 가격·도장·신기록·비교 막대는
+  //    **그대로 1인**이다. 우리가 가진 값이 1인 왕복이라서다 — `×n` 총액을 계산해 보여주지 않는다.
+  //    모르는 것을 아는 척하지 않는다(유류할증·좌석 등급·아동 요금은 예약처가 안다).
+  //
+  // 기억은 **세션 안에서만** 한다. 다른 카드를 열어도 유지되지만 저장하지는 않는다 —
+  // 「지난주에 고른 4명」이 오늘 조용히 살아 있는 게 더 나쁘다.
+  var PAX = 1, PAX_MAX = 4;
+  function paxHTML() {
+    var s = '<div class="hc-sec">몇 명이 가요?</div><div class="paxrow" role="group" aria-label="인원 선택">';
+    for (var n = 1; n <= PAX_MAX; n++)
+      s += '<button type="button" class="paxchip' + (n === PAX ? " on" : "") +
+           '" data-pax="' + n + '" aria-pressed="' + (n === PAX) + '">' + n + '명</button>';
+    return s + "</div>";
+  }
+  // 🔴 **`{n}` 하나만 치환한다.** 그 밖의 URL 조작은 계약이 금지한다(백엔드 `3b41d52`) —
+  //    예약처마다 파라미터 이름이 다르고(스카이스캐너는 `adultsv2` 다, BB42) 제휴 래퍼가 URL 을 감싸기도 해서
+  //    **우리가 짐작해 만들면 조용히 틀린 링크가 나간다.** 아는 쪽이 한 벌을 통째로 준다.
+  //
+  // 1명이면 **손대지 않고 `url` 을 그대로 쓴다.** 계약상 `{n}`→`1` 은 `url` 과 바이트 동일하고
+  // 빌드가 그걸 검사하지만(`site/pax.py`), 기본 경로만은 **검사에 기대지 않고 원래 값 그대로** 둔다.
+  function bookURL(l) {
+    if (PAX === 1 || !l.pax_url) return l.url;
+    return l.pax_url.replace("{n}", PAX);
+  }
+  // 인원을 링크로 못 받는 예약처 — 문구는 **늘 그려 두고 보이기만 CSS 로** 가른다
+  // (`.hc-compare.paxmulti` 일 때만 보인다). 2명 이상일 때만 말하는 이유는, 1명이면 모든 링크가
+  // 1인이라 알릴 차이가 없고 매 예약처에 붙으면 **고지가 아니라 소음**이 되기 때문이다.
+  // ⚠️ `pax_url` 이 있나 없나로만 가른다 — **예약처 이름으로 추측하지 않는다**(`ad` 와 같은 이유).
+  function paxNote(l) {
+    return l.pax_url ? "" : ' <span class="cmp-pax">1인 기준으로 열려요</span>';
+  }
+  // 고르면 **카드를 다시 그리지 않는다.** 다시 그리면 카드 안 스크롤이 맨 위로 튀어
+  // 방금 읽던 자리를 잃는다 — 예약처 목록은 카드 **아래쪽**이라 그 손해가 크다.
+  // 바뀌는 것만 손으로 고친다: 칩 상태 · 「1인 기준」 표시 · 링크 주소 셋.
+  // 주소는 `data-u`(원래 url)·`data-p`(치환용)에서 다시 만든다 — 딜 객체를 다시 찾지 않아도 되고,
+  // **DOM 이 곧 근거**라 화면과 계산이 갈릴 자리가 없다.
+  function setPax(n) {
+    if (!(n >= 1 && n <= PAX_MAX) || n === PAX) return;
+    PAX = n;
+    var i, on, els = hc.querySelectorAll(".paxchip");
+    for (i = 0; i < els.length; i++) {
+      on = +els[i].getAttribute("data-pax") === PAX;
+      els[i].className = "paxchip" + (on ? " on" : "");
+      els[i].setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    var box = hc.querySelector(".hc-compare");
+    if (box) box.className = "hc-compare" + (PAX > 1 ? " paxmulti" : "");
+    els = hc.querySelectorAll(".cmp");
+    for (i = 0; i < els.length; i++) {
+      var p = els[i].getAttribute("data-p");
+      els[i].href = (PAX === 1 || !p) ? els[i].getAttribute("data-u") : p.replace("{n}", PAX);
+    }
+  }
   function compareHTML(links) {
     if (!links || !links.length) return "";
-    return '<div class="hc-compare">' + links.map(function (l) {
+    return '<div class="hc-compare' + (PAX > 1 ? " paxmulti" : "") + '">' + links.map(function (l) {
       // (광고)는 `ad` 가 참인 링크에만 붙인다 — 이름·순서·URL 모양으로 추측하지 않는다.
       // `tag`(전체 비교·한국 인기·중립·한국어)는 우리가 매기는 평가라 계속 숨긴다. (COPY.md 제휴 고지)
       // 시각적으로 약하게 둔다 — 눈에 띄게 만들면 고지가 아니라 강조가 된다.
-      return '<a class="cmp" href="' + l.url + '" target="_blank" rel="noopener sponsored">' +
-        '<span class="cmp-name">' + l.name + (l.ad ? ' <span class="cmp-ad">(광고)</span>' : "") + '</span>' +
+      return '<a class="cmp" href="' + bookURL(l) + '" data-u="' + l.url + '" data-p="' + (l.pax_url || "") + '"' +
+        ' target="_blank" rel="noopener sponsored">' +
+        '<span class="cmp-name">' + l.name + (l.ad ? ' <span class="cmp-ad">(광고)</span>' : "") + paxNote(l) + '</span>' +
         '<span class="cmp-go">최저가 보기 →</span></a>';
     }).join("") + "</div>";
   }
@@ -818,7 +875,11 @@
       // 규칙이라 기획이 **순서**로 바꿨다 — 표식은 링크에 붙어 다니고, 설명은 링크보다 먼저 읽힌다.
       // 광고 링크를 위로 올리지는 않는다 — 순서가 곧 추천이다. `tests/test_disclosure.py` 가 이 순서를 잠근다.
       (c.links && c.links.length
-        ? '<div class="hc-sec">어디가 제일 싼지 비교해보세요</div>' +
+        // 인원 블록은 **「어디가 제일 싼지」 머리말보다 앞**이다. 뒤에 두면 머리말과 목록 사이에 끼어
+        // **머리말이 자기 목록과 떨어진다**(실측 화면에서 머리말 둘이 붙어 보였다).
+        // 읽는 순서도 이쪽이 맞다 — 몇 명인지 정하고 나서 어디가 싼지 본다.
+        // `(광고)` 설명 → 목록 사슬은 그대로다(B61).
+        ? paxHTML() + '<div class="hc-sec">어디가 제일 싼지 비교해보세요</div>' +
           (adLinks(c.links) ? '<div class="hc-ad cap">(광고) 표시는 예약하시면 저희가 수수료를 받는 링크예요 · 가격은 같아요</div>' : "") +
           compareHTML(c.links)
         : '<div class="hc-none">예약처 링크를 준비하지 못했어요</div>') +
@@ -826,6 +887,11 @@
       // **설명은 여기 한 번만.** 카드는 스캔하는 자리라 짧아야 하고, 상세는 **결정하는 자리**다.
       // 변명하지 않는다(`죄송하지만`·`양해 부탁` 금지) — 사실만 적는다. 바로 아래 실시간 고지가
       // 이 문장의 결론이라 그 근처에 둔다. (COPY.md §2d)
+      // 인원 고지는 **가격 고지 바로 위**다(COPY.md §인원). 예약처 링크가 없는 날엔 안 띄운다 —
+      // 「인원을 고르면 예약처에서…」라고 해 놓고 **고를 칩도 예약처도 없는** 화면이 된다.
+      (c.links && c.links.length
+        ? '<div class="hc-ad">가격은 성인 1인 왕복 기준이에요. 인원을 고르면 예약처에서 그 인원으로 조회돼요.</div>'
+        : "") +
       '<div class="hc-ad">항공권 가격은 예약 사이트가 마지막으로 조회한 값이라 며칠 전일 수 있어요<br>' +
       '위 가격은 발견가(스캔 시점) · 실시간 최저가는 각 사이트에서 확인하세요</div>' +
       // 🔴 **홈에서 노선 페이지로 가는 유일한 진입로** (SPEC §CH6 IA-1, 2026-09-01 확정).
@@ -1015,6 +1081,7 @@
   hc.addEventListener("click", function (e) {
     if (e.target && e.target.classList.contains("hc-x")) { e.stopPropagation(); closeByUser(); return; }
     if (e.target && e.target.classList.contains("hc-share")) { e.stopPropagation(); shareCurrent(e.target); return; }
+    if (e.target && e.target.classList.contains("paxchip")) { e.stopPropagation(); setPax(+e.target.dataset.pax); return; }
     e.stopPropagation(); if (expandedI === null && active !== null) expand(active);
   });
 
