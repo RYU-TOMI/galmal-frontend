@@ -148,10 +148,16 @@ svg.map{position:absolute;inset:0;width:100%;height:100%;display:block;backgroun
 .plabel.off{display:none}
 .pin.act .plabel.off{display:block}
 .stagebar{position:absolute;left:18px;bottom:18px;display:flex;gap:6px;align-items:center}
-/* 필터 중에는 단계 버튼을 치우고 한 줄로 바꾼다 — 거리 단계 개념이 성립하지 않는다 (SPEC §CH2) */
-.stagebar.allregions .pill{display:none}
+/* 🔴 **필터 중에도 단계 버튼을 남긴다** (SPEC §CH1, 2026-09-22 · B70).
+   예전엔 `.stagebar.allregions .pill{display:none}` 로 치웠다 — 「필터 중에는 거리 단계 개념이 성립하지
+   않는다」는 생각이었는데, 그 결과 **필터를 켠 사용자가 지도를 가까이 볼 길이 하나도 없었다**(스테퍼의
+   `－가까이` 도 그 시점엔 잠겨 있다). 거리 단계는 이제 **집합이 아니라 뷰**를 고르는 것이라 필터 중에도 성립한다.
+   `전 지역에서 찾는 중` 안내는 버튼 옆에 같이 둔다 — 가까이 가면 먼 매칭이 지도 밖으로 나가므로
+   **그때 오히려 더 필요한 말**이다(목록엔 남아 있다는 뜻). */
 .stagebar .allnote{display:none;background:#fff;border:1px solid var(--line);border-radius:99px;padding:6px 13px;font-size:.78rem;font-weight:700;color:var(--sub);box-shadow:0 2px 8px rgba(20,40,40,.10)}
 .stagebar.allregions .allnote{display:inline-block}
+/* 좁은 화면에선 버튼이 먼저다 — 안내가 밀려 줄이 넘치면 안내를 접는다 */
+@media(max-width:520px){.stagebar.allregions .allnote{display:none}}
 /* 거리 단계 스테퍼 — 줌이 아니다. ＋=한 단계 멀리, －=한 단계 가까이 (SPEC §CH1) */
 .stepper{position:absolute;right:16px;top:16px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 4px 14px rgba(20,40,40,.12)}
 .stepper button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:52px;height:44px;border:0;background:none;color:var(--ink);cursor:pointer;font:inherit;padding:0}

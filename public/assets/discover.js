@@ -319,10 +319,15 @@
   function matchCount(vis) { var n = 0; for (var i = 0; i < vis.length; i++) if (!dimmed(vis[i])) n++; return n; }
   // 필터 중에는 단계 버튼을 **치운다** — 비활성으로 두지 않는다. 필터 중에는 "거리 단계"라는
   // 개념 자체가 성립하지 않기 때문이다. 자리에는 `전 지역에서 찾는 중` 한 줄이 들어간다.
+  // 🔴 단계바의 「켜짐」은 **여기 한 곳에서만** 켠다. 예전엔 `setStage()` 와 `applyHash()` 가 각자
+  // 켰는데, `applyFilter()` 가 `stageIdx` 를 옮기는 길이 생기자 **불과 지도가 어긋났다**(필터를 켠 직후
+  // 지도는 아주 멀리인데 불은 가까운 곳). `render()` 가 늘 부르므로 어느 길로 바뀌어도 따라온다.
   function syncStageBar() {
     var bar = document.querySelector(".stagebar"); if (!bar) return;
     var on = anyFilter();
     bar.classList.toggle("allregions", on);
+    var pills = bar.querySelectorAll(".pill");
+    for (var i = 0; i < pills.length; i++) pills[i].classList.toggle("on", i === stageIdx);
     var note = bar.querySelector(".allnote");
     if (on && !note) { note = document.createElement("span"); note.className = "allnote"; note.textContent = "전 지역에서 찾는 중"; bar.appendChild(note); }
   }
@@ -485,10 +490,15 @@
     if (!ORIGIN) return;
     fitDock();   // 라벨 회피가 도크를 재기 **전에** 상한을 먹인다 — 상한이 적용된 높이로 재야 한다(SPEC §CH2)
     tweenId++; svg.classList.remove("tweening");  // 진행 중 트윈이 있으면 무효화
-    // 필터 중에는 항상 `아주 멀리` 뷰다. "전 지역 매칭"이 확정 스펙인데 가까운 단계에서
-    // 필터를 켜면 매칭 딜이 화면 밖에 있다 — 피드엔 뜨는데 지도엔 없는 상태(F15)가 재현된다.
-    // 실측(서울 `해변` 22건): 화면 안이 가까운 곳 10 · 조금 더 멀리 16 · 아주 멀리 22. (SPEC §CH2)
-    var v = viewOf(anyFilter() ? "far" : STAGES[stageIdx]);
+    // 🔴 **뷰는 언제나 거리 단계를 따른다.** 예전엔 `anyFilter() ? "far" : …` 로 필터 중에 뷰를
+    // **아주 멀리에 잠갔다** — 버튼은 `stageIdx` 를 바꾸고 단계바 불도 켜지는데 여기서 그 값을 안 봐서
+    // **버튼은 동작하는데 화면만 안 따라왔다.** 사용자가 실사용에서 잡았다(2026-09-22):
+    // 「날짜를 지정하면 지도가 줌아웃 되는데 다시 가까이 갈 방법이 없어」. 그때 단계바는 CSS 로 숨겨져 있고
+    // 스테퍼의 `－가까이` 는 `stageIdx` 가 0 이라 잠겨 있어서 **누를 수 있는 버튼이 하나도 없었다.**
+    //
+    // 「필터를 켜면 아주 멀리」는 **한 번 옮기는 것**이지 잠그는 것이 아니다(SPEC §CH1, 2026-09-22 갈라 적음).
+    // 옮기는 일은 `applyFilter()` 가 한 번만 하고, 그 뒤 뷰의 주인은 사용자다.
+    var v = viewOf(STAGES[stageIdx]);
     setXform(v); CURV = v;                        // path 는 그대로 두고 transform 만 바꾼다
     var O = pt(ORIGIN.lon, ORIGIN.lat); ORIGIN.x = O[0]; ORIGIN.y = O[1];
     og.innerHTML = '<circle class="origin-ring" cx="' + O[0] + '" cy="' + O[1] + '" r="9"/>' +
@@ -969,16 +979,24 @@
   // ---- 단계 · 필터 도크 ----
   // 필터를 켜고 끌 때도 단계 전환과 같은 모션으로 움직인다(400ms · cubic-out · 배율 로그 보간).
   // 필터를 끄면 stageIdx 가 그대로라 직전 단계로 돌아온다. (SPEC §CH2)
+  // 필터가 직전에 켜져 있었나 — 「켜는 순간」을 알기 위해서다. 필터끼리 바꾸는 것은 켜는 게 아니다.
+  var wasFiltering = false;
   function applyFilter() {
     var from = CURV;
+    // 🔴 **필터를 켜는 순간 한 번만** 아주 멀리로 옮긴다 (SPEC §CH1·§CH2).
+    // 왜 옮기나: 「전 지역 매칭」이 확정 스펙이라 가까운 단계에서 필터를 켜면 매칭이 화면 밖에 있다 —
+    // 피드엔 뜨는데 지도엔 없는 상태(F15)다. 실측(서울 `해변` 22건): 화면 안이 가까운 곳 10 · 조금 더 멀리 16 · 아주 멀리 22.
+    // 왜 한 번만인가: 그 뒤로도 잠그면 **사용자가 가까이 갈 길이 없어진다**(B70).
+    // 끌 때는 되돌리지 않는다 — 사용자가 만진 뷰를 우리가 옮기지 않는다.
+    var nowFiltering = anyFilter();
+    if (nowFiltering && !wasFiltering) stageIdx = STAGES.length - 1;
+    wasFiltering = nowFiltering;
     updCount(); collapse(); render();
     if (from && CURV && !reduceMotion() && from.scale !== CURV.scale) tweenTo(from, CURV, 400);
   }
   function setStage(idx) {
     var from = CURV;                              // 지금 화면에 적용된 뷰
-    stageIdx = idx; collapse(); render();         // 목적지 단계의 딜 집합·좌표로 전부 그린다
-    var bs = document.querySelectorAll(".stagebar .pill");
-    for (var k = 0; k < bs.length; k++) bs[k].classList.toggle("on", k === idx);
+    stageIdx = idx; collapse(); render();         // 목적지 단계의 딜 집합·좌표로 전부 그린다 (불은 syncStageBar)
     // 전환 중 다른 단계를 누르면 진행 중인 트윈을 버리고 **현재 위치에서** 새 목표로 간다.
     if (from && CURV && !reduceMotion()) tweenTo(from, CURV, 400);
   }
@@ -1461,11 +1479,7 @@
       } else if (c) {
         // 딥링크 진입은 **이동 없이 그 위치에서 시작**한다 — 첫 화면부터 움직이면 어지럽다.
         var want = stageIdxOf(c);
-        if (want !== stageIdx) {
-          stageIdx = want; render();
-          var bs = document.querySelectorAll(".stagebar .pill");
-          for (var b = 0; b < bs.length; b++) bs[b].classList.toggle("on", b === stageIdx);
-        }
+        if (want !== stageIdx) { stageIdx = want; render(); }   // 불은 syncStageBar 가 맞춘다
         // 🔴 **첫 로드의 딥링크는 여기서 열지 않는다** — boot 이 첫 화면을 다시 그린 **뒤에** 연다.
         // 여기서 열면 `expand()` 가 지도를 밀기 시작하자마자 boot 의 rAF 재렌더가 `render()` 첫 줄
         // (`tweenId++`)로 그 이동을 취소하고 뷰를 단계 기본값으로 되돌린다. 300ms 뒤 카드는
