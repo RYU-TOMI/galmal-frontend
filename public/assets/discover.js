@@ -67,6 +67,37 @@
     if (!c.seen || c.seen.length < 16) return "";
     return fmtMD(c.seen.slice(0, 10)) + " " + c.seen.slice(11, 16) + " 기준";
   }
+  // ---- 데이터가 언제 것인가 (SPEC §CH6 C-15 · COPY §2d-2, 2026-09-22 확정) ----
+  //
+  // 🔴 **조용한 실패를 깨는 자리다.** 백엔드는 수집이 하한에 못 미친 날 `deals.json` 을 **새로 쓰지 않고**
+  // 어제 것을 그대로 서빙한다(보존, BB1). 가용성은 옳지만 **화면은 여전히 「오늘의 발견」이라고 말한다** —
+  // 사용자는 어제 가격을 오늘 가격으로 읽는다. 2026-09-01 에 정해 놓고 3주 동안 화면에 없었다.
+  //
+  // 날짜 판정은 **KST 로 한다.** `generated` 는 `+09:00` 이고 방문자는 해외일 수 있다 — 브라우저 로컬
+  // 날짜로 비교하면 **한국이 아닌 곳에서 멀쩡한 데이터가 「어제」로 뜬다.**
+  // 낡았을 때 날짜를 앞에 붙이는 이유는 「어제 자료」만으론 **어느 어제인지** 확인이 안 되기 때문이다
+  // (§2d 의 두 단 위계 — 위는 상대, 아래는 절대 — 와 같다).
+  // 이틀 이상은 `{N}일 전`이다. `어제` 로 고정하면 **그제인데 어제라고 말하게 된다** — 신선도에서
+  // 「나흘·닷새」를 버리고 `{N}일 전` 으로 통일한 것과 같은 함정이다.
+  function kstToday() {
+    return new Date(Date.now() + 9 * 36e5).toISOString().slice(0, 10);
+  }
+  function daysOld(day) {
+    var a = Date.parse(day + "T00:00:00Z"), b = Date.parse(kstToday() + "T00:00:00Z");
+    return (isNaN(a) || isNaN(b)) ? 0 : Math.round((b - a) / 864e5);
+  }
+  // `D.updated` 는 `"YYYY-MM-DD HH:MM"`(KST 벽시계) — `home.inline_deals()` 가 `generated` 에서 만든다.
+  function updatedHTML() {
+    var u = (D.updated || "").trim(), day = u.slice(0, 10), hm = u.slice(11, 16);
+    if (day.length !== 10 || hm.length !== 5) return "";      // 모르면 아무 말도 안 한다
+    var n = daysOld(day);
+    if (n <= 0) return " · " + hm + " 기준";
+    // 낡음은 **굵게 `--ink`** 다. 코랄은 이 화면에서 「싸다」의 색이라 쓰지 않고, 경고색도 만들지 않는다
+    // (신선도 배지가 경고하지 않는 것과 같은 이유 — 오래된 게 위험이 아니라 사실이다).
+    return " · " + fmtMD(day) + " " + hm + " 기준 · <b class=\"stale\">" +
+           (n === 1 ? "어제 자료예요" : n + "일 전 자료예요") + "</b>";
+  }
+
   // ---- 교통 표기 (COPY.md §2 카드 피드, 2026-08-22 확정) ----
   // **"왜 지금" 훅 줄은 폐기됐다.** 우리가 못 하는 주장을 하고 있었다 —
   // `경유로 확 싸진 특가` 가 피드의 54%에 붙었는데 **직항 대비 가격 데이터가 없다**(SPEC F18).
@@ -524,7 +555,8 @@
     });
     // 카드 피드
     feed.innerHTML = '<div class="feedhead"><div class="fh-top"><b>오늘의 발견</b><span>' +
-      (anyFilter() ? "조건에 맞는 " + matchCount(vis) + "곳" : ORIGIN.n + " 출발 · " + vis.length + "곳") + "</span></div>" +
+      (anyFilter() ? "조건에 맞는 " + matchCount(vis) + "곳" : ORIGIN.n + " 출발 · " + vis.length + "곳") +
+      updatedHTML() + "</span></div>" +
       '<div class="sortbar">' +
       '<button class="spill' + (sortMode === "value" ? " on" : "") + '" data-sort="value">가성비순</button>' +
       '<button class="spill' + (sortMode === "imminent" ? " on" : "") + '" data-sort="imminent">임박순</button>' +
