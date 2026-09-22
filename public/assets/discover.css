@@ -74,13 +74,11 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 .fprice{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:900;font-size:1.12rem;color:var(--accent);letter-spacing:-.02em;margin-top:2px}.fprice small{font-size:.66rem}
 /* 단위는 값이 아니다 — 가격과 **다른 무게**로 둔다. `~`(가격의 일부)와 헷갈리면 안 된다. */
 .unit{font-size:.62rem;font-weight:700;color:var(--sub);letter-spacing:0}
-/* 근거리 직항·경유는 **텍스트**다. 배지로 만들면 당연한 사실이 소식처럼 읽힌다. */
+/* 교통은 **거리와 무관하게 텍스트 하나**다(사용자 결정 2026-09-22).
+   중·장거리 직항만 배지(`.bdg`)였는데, 같은 말을 두 모양으로 그리니 **없는 구분**으로 읽혔다.
+   `.bdg` 는 이 배지만 쓰던 규칙이라 같이 지웠다 — 쓰는 데 없는 CSS 를 남기면 다음 사람이
+   「어디서 쓰나」부터 찾는다(B44 죽은 키와 같은 축). 날짜 배지는 `.when` 으로 따로 있다. */
 .trx{flex:none;font-size:.68rem;font-weight:700;color:var(--sub);letter-spacing:0}
-/* 직항 배지 — `--coast` 채움. **도장(코랄)과 색이 겹치면 안 된다**(DESIGN.md).
-   `--coast` 는 이미 지도 윤곽·차트에 쓰는 중립색이라 새 강조색을 만드는 게 아니다. */
-.bdg{flex:none;font-size:.6rem;font-weight:800;border-radius:99px;padding:2px 9px;
- background:var(--coast);color:#fff;letter-spacing:0;white-space:nowrap}
-.bdg i{font-style:normal;margin-right:3px;font-size:.9em;opacity:.92}
 .hc-trans{margin-top:3px}
 /* 신선도 배지 (DESIGN.md · design/freshness.html). **신호등 금지** — 명도·굵기·불투명도로만. */
 .fr{display:flex;align-items:center;gap:5px;font-size:.7rem;letter-spacing:-.01em;margin-top:4px}
