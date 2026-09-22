@@ -105,7 +105,9 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 .hc-none{font-size:.66rem;color:var(--sub);text-align:center;padding:12px 8px;background:var(--soft);border-radius:9px}
 /* 가격 기준 시각도 **고지**다(「조회 시점 기준」과 같은 성격) — 하한은 `.hc-ad` 주석. 9px·opacity .75(2.91:1)였다. */
 .hc-seen{font-size:.75rem;color:var(--sub);margin-top:6px;text-align:center}
-.tilde{font-size:.66rem;color:var(--sub);font-weight:700}
+/* `~` 는 **가격의 일부**다 — 「이 값부터」라는 뜻이라 가격과 떨어져 읽히면 안 된다.
+   작고 흐린 회색이라 값이 끝난 뒤의 군더더기처럼 보였다(사용자 2026-09-22). 크기·굵기·색을 가격에서 물려받는다. */
+.tilde{font:inherit;color:inherit}
 .fdate{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px;font-size:.74rem;font-weight:800;color:var(--ink)}
 .when{background:var(--accent);color:#fff;font-weight:800;font-size:.62rem;padding:2px 8px;border-radius:99px}
 /* 태그는 사진이 큰 자리에만 — 사진 위에 얹는다 (SPEC §CH2, design/density.html) */
@@ -243,7 +245,7 @@ svg.map{position:absolute;inset:0;width:100%;height:100%;display:block;backgroun
  gap:4px 7px;margin-left:auto;text-align:right}
 /* 🔴 가격은 **안 밀린다** — 표식이 넓어지면 `~` 가 아랫줄로 떨어져 「₩616,886」과 「~」가 갈라졌다(실측).
    가격은 이 카드에서 가장 먼저 읽는 값이라 자리를 표식에 내주지 않는다. 줄을 바꾸는 쪽은 표식이다. */
-.hc-price{flex:none;white-space:nowrap;font-weight:900;font-size:1.22rem;color:var(--accent);letter-spacing:-.02em}.hc-price small{font-size:.7rem;font-weight:900}.hc-price .tilde{font-size:.7rem;color:var(--sub);font-weight:700}
+.hc-price{flex:none;white-space:nowrap;font-weight:900;font-size:1.22rem;color:var(--accent);letter-spacing:-.02em}.hc-price small{font-size:.7rem;font-weight:900}
 .hc-cta{margin-top:8px;background:var(--accent);color:#fff;text-align:center;font-weight:800;font-size:.72rem;border-radius:8px;padding:7px 0}
 .hc-date{font-size:.66rem;color:var(--sub);font-weight:700;margin-top:3px}
 /* 확장(클릭) 상세 카드 */
