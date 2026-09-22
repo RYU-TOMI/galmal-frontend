@@ -72,6 +72,8 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 .rec{flex:none;white-space:nowrap;font-weight:900;font-size:.62rem;color:var(--accent);letter-spacing:-.01em}
 /* 교통은 **가격 줄 우측**이다 — 날짜 줄에 넣지 않는다 (COPY.md §2 카드 피드) */
 .fprice{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:900;font-size:1.12rem;color:var(--accent);letter-spacing:-.02em;margin-top:2px}.fprice small{font-size:.66rem}
+/* 단위는 값이 아니다 — 가격과 **다른 무게**로 둔다. `~`(가격의 일부)와 헷갈리면 안 된다. */
+.unit{font-size:.62rem;font-weight:700;color:var(--sub);letter-spacing:0}
 /* 근거리 직항·경유는 **텍스트**다. 배지로 만들면 당연한 사실이 소식처럼 읽힌다. */
 .trx{flex:none;font-size:.68rem;font-weight:700;color:var(--sub);letter-spacing:0}
 /* 직항 배지 — `--coast` 채움. **도장(코랄)과 색이 겹치면 안 된다**(DESIGN.md).

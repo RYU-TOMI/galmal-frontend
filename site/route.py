@@ -280,7 +280,7 @@ def render(r, index, meta, generated_date, region_name):
   <div class="hero">
     <div class="col">
       <span class="cap">{low_cap}</span>
-      <span class="figure">{cheapest:,}<small>원</small></span>
+      <span class="figure">{cheapest:,}<small>원</small> <span class="unit">1인 왕복</span></span>
     </div>{median_col}
     <div class="col" style="flex:1;min-width:220px">
       <span class="cap">언제 가면 싼가</span>
