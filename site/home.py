@@ -222,10 +222,12 @@ def inline_deals(payload):
 
     🔴 **이전용 어댑터다. 영구 코드가 아니다.**
 
-    v1 봉투는 `{schema, generated, origins, deals}` 인데 현행 인라인은
-    `{updated, origins, deals}` 다. `discover.js` 는 **`deals` 와 `origins` 만 읽고
-    `updated` 는 안 본다**(실측: `D.deals` 7회 · `D.origins` 12회 · `D.updated` 0회).
-    그래서 v1 봉투를 그대로 박아도 화면은 똑같이 동작한다.
+    v1 봉투는 `{schema, generated, origins, deals}` 인데 현행 인라인은 `{updated, origins, deals}` 다.
+
+    🔴 **2026-09-22 부터 `discover.js` 가 `updated` 를 읽는다**(C-15 — 피드 헤드의 `· 07:23 기준`).
+    예전 주석은 「`updated` 는 안 본다(실측 0회)」였는데 **더 이상 사실이 아니다.** 그래서 이 어댑터는
+    이전용이 아니라 **화면이 쓰는 값을 만드는 자리**가 됐다 — 없애려면 `discover.js` 가 `generated` 를
+    직접 읽도록 같이 고쳐야 한다(`updated` 는 오프셋을 버린 KST 벽시계라 모양이 다르다).
 
     그런데도 현행 바이트를 재현하는 이유는 **M2 T5 의 증명을 흐리지 않기 위해서다.**
     봉투만 바꿔도 `index.html` 은 크게 diff 가 나고, 그러면 「화면은 같다」를
@@ -234,8 +236,8 @@ def inline_deals(payload):
     직렬화 인자는 현행과 같아야 한다(`discover_data.py:290`) —
     `ensure_ascii=False, separators=(",", ":")`. 다르면 같은 데이터라도 바이트가 달라진다.
 
-    **없앨 조건**: 이전이 끝나고(M6 후) `discover.js` 가 `generated` 를 직접 읽게 되면
-    이 함수를 지우고 v1 봉투를 그대로 박는다. `updated` 는 그때 사라진다.
+    **없앨 조건**: `discover.js` 가 `generated` 를 직접 읽게 되면 이 함수를 지우고 v1 봉투를 그대로 박는다.
+    그때 **C-15 의 날짜 계산도 같이 옮겨야 한다**(오프셋이 붙은 `generated` 를 KST 로 읽는 코드로).
     """
     legacy = {"updated": payload["generated"][:16].replace("T", " "),
               "origins": payload["origins"],

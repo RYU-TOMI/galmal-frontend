@@ -28,6 +28,9 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 .feedhead{padding:2px 2px 2px}
 .fh-top{display:flex;justify-content:space-between;align-items:baseline}
 .feedhead b{font-size:1.05rem;font-weight:900;letter-spacing:-.02em}.feedhead span{font-size:.7rem;color:var(--sub)}
+/* 「어제 자료예요」 — 굵게 `--ink`. **코랄 금지**(이 화면에서 코랄은 「싸다」의 색이다), 경고색도 만들지 않는다.
+   오래된 것은 위험이 아니라 사실이다 — 신선도 배지가 경고하지 않는 것과 같은 이유. (COPY §2d-2) */
+.feedhead .stale{font-size:inherit;font-weight:800;color:var(--ink)}
 .sortbar{display:flex;gap:5px;margin-top:8px}
 .spill{font-size:.68rem;font-weight:700;padding:5px 10px;border-radius:99px;border:1px solid var(--line);background:#fff;color:var(--sub);cursor:pointer}
 .spill.on{background:var(--ink);color:#fff;border-color:var(--ink)}
