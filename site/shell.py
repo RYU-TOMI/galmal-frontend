@@ -209,6 +209,8 @@ CSS = """
           flex-wrap:wrap; gap:22px; align-items:flex-end; }
   .hero .figure { font-size:2.6rem; font-weight:900; letter-spacing:-0.03em; line-height:1.1; }
   .hero .figure small { font-size:1rem; font-weight:700; }
+  /* 단위 — 값과 **다른 무게**로. 홈 카드의 `.unit` 과 같은 규칙이다(SPEC §CH4 보강). */
+  .hero .figure .unit { font-size:.85rem; font-weight:700; color:var(--sub); letter-spacing:0; }
   .hero .cap { color:var(--sub); font-size:.85rem; }
   .hero .col { display:flex; flex-direction:column; gap:2px; }
   .chart { background:var(--card); border-radius:16px; padding:18px; }
@@ -322,7 +324,7 @@ def footer(contact):
     return f"""  <footer>
     <p>· 가격은 조회 시점 기준이며 실제 예약 가격은 예약처에서 달라질 수 있습니다.</p>
     <p>· "예약" 링크를 통해 예약이 이루어지면 운영자가 수수료를 받을 수 있습니다.</p>
-    <p>· 시세는 해당 노선·유형(직항/경유)의 최근 30일 수집 가격 중앙값입니다. 데이터: Travelpayouts(Aviasales)</p>
+    <p>· 시세는 성인 1인 왕복 기준입니다. 시세는 해당 노선·유형(직항/경유)의 최근 30일 수집 가격 중앙값입니다. 데이터: Travelpayouts(Aviasales)</p>
     <p>· {SITE_NAME} · 문의 {contact}</p>
   </footer>"""
 

@@ -608,7 +608,12 @@
         // 🔴 **둘이 같이 뜨지 않는다** — 도장 우선, 없으면 신기록 (SPEC §CH3).
         // 좁은 줄에 표식 둘이 겹치면 **어느 쪽도 안 읽힌다.** 고르는 자리는 카드, 둘 다 보여 주는 자리는 상세다.
         '<div class="fbody"><div class="frow"><b class="fcity">' + c.n + '</b>' + (stampHTML(c) || recShort(c)) + "</div>" +
-        '<div class="fprice"><span><small>₩</small>' + c.price + ' <span class="tilde">~</span></span>' + c.trans + "</div>" +
+        // 🔴 **`1인 왕복` 은 고지가 아니라 단위다** (SPEC §CH4 보강 · COPY.md §인원).
+        // 「원」이나 「왕복」처럼 **값에 붙어 다니는 말**이라 매 카드에 있어도 소음이 아니다 —
+        // 오히려 없으면 **한 사람 값인지 두 사람 값인지 모른 채** 카드를 비교하게 된다.
+        // 「1인」이 화면에 한 글자도 없었다(COPY 대조 0건).
+        '<div class="fprice"><span><small>₩</small>' + c.price + ' <span class="tilde">~</span>' +
+          ' <span class="unit">1인 왕복</span></span>' + c.trans + "</div>" +
         freshHTML(c) +
         '<div class="fdate"><span class="when">' + c.when + "</span>" + c.date + (c.nights ? " · " + c.nights : "") + "</div>" +
         (hero ? '<div class="gorow"><button class="go">갈래 → 자세히 보기</button></div>' : "") +
