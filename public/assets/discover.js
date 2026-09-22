@@ -128,6 +128,33 @@
   function stampHTML(c) {
     return c.dtier ? '<span class="stamp ' + c.dtier + '">평소보다 ' + c.disc + "</span>" : "";
   }
+
+  // ---- 신기록 «N일 중 최저» (SPEC §CH3, COPY.md §2) ----
+  // 🔴 **신기록은 절대 `%` 로 쓰지 않는다.** `41%↓`(도장)는 **얼마나 싼가**이고 `20일 중 최저`는
+  //    **언제 이후 처음인가**다 — 종류가 다른 사실이라 한 자로 재면 **더 드문 쪽이 초라해 보인다.**
+  //    `12%↓` 인데 17·19일 만의 최저인 딜이 지금 픽스처에 둘 있다. %로 쓰면 그 둘이 가장 약해 보인다.
+  //
+  // 자격은 **넷을 다** 넘어야 한다. 하나라도 빼면 말이 안 되는 자리가 생긴다:
+  //   `low` 있음   — 최저가 기록 자체가 없으면 「최저」를 말할 밑천이 없다
+  //   `obs >= 14`  — **며칠 봤나.** 사흘 보고 「최저」라고 하면 사흘 중 하나라는 뜻이다
+  //   `price < low`— 같으면 신기록이 아니라 동률이다
+  //   여유 5%      — `low` 를 1원 밑도는 것을 신기록이라 부르지 않는다(잡음 컷)
+  var MIN_OBS = 14, REC_MARGIN = 0.05;
+  function recordDays(dl) {
+    var low = dl.low || 0, obs = dl.obs_days || 0, p = dl.price;
+    if (!low || obs < MIN_OBS || p >= low || (1 - p / low) < REC_MARGIN) return 0;
+    return obs;
+  }
+  // **스캔용은 짧게, 확인용은 문장으로** — 카드 날짜 표기와 같은 원칙(기획 2026-09-22).
+  // 짧은 쪽에는 읽어 주는 말로 긴 쪽을 달아 둔다(SPEC §접근성) — 눈으로 읽는 사람과
+  // 귀로 듣는 사람이 **같은 사실**을 받는다. `20일 최저` 만 읽어 주면 무엇의 최저인지 안 말한다.
+  function recShort(c) {
+    return c.rec ? '<span class="rec" aria-label="' + c.rec + '일 중 가장 싼 가격이에요">' +
+      c.rec + '일 중 최저</span>' : "";
+  }
+  function recLong(c) {
+    return c.rec ? '<span class="rec">' + c.rec + '일 중 가장 싼 가격이에요</span>' : "";
+  }
   function toCity(dl) {
     return { n: dl.ko, lon: dl.lon, lat: dl.lat, tier: dl.tier, haul: HAUL2STAGE[dl.haul] || "far",
       price: (dl.price).toLocaleString("en-US"), disc: (dl.discount || 0) + "%↓", dtier: discTier(dl.discount || 0),
@@ -137,7 +164,7 @@
       // 🔴 **프론트가 만들 수 없는 값이다.** 허브 `SEL` 은 가상이라 인천인지 김포인지 `deals.json` 에 없다 —
       // 목적지만 보고 링크를 걸면 **부산 딜을 보다가 인천 노선 분석으로 들어간다.** 아는 쪽(백엔드)이 판정해 준다.
       // (SPEC §CH6 IA-1. 받아만 두고 안 쓰던 값이었다 — B65 에서 비로소 쓴다.)
-      route: dl.route || "", seen: dl.seen || "" };
+      route: dl.route || "", seen: dl.seen || "", rec: recordDays(dl) };
   }
 
   // ---- 파싱/공용 ----
@@ -578,7 +605,9 @@
         // 작은 썸네일(62px)엔 태그를 안 넣는다 — 사진이 태그를 담기엔 작다.
         // 히어로(104px 전폭)에만 사진 위로 얹는다. 그래서 작은 카드가 세로를 20% 덜 먹는다.
         '<div class="thumb" style="background:' + c.g + '">' + (hero ? '<span class="pick">진짜 갈래말래?</span>' + ovTags(c, isMobile() ? 2 : 4) : "") + "</div>" +
-        '<div class="fbody"><div class="frow"><b class="fcity">' + c.n + '</b>' + stampHTML(c) + "</div>" +
+        // 🔴 **둘이 같이 뜨지 않는다** — 도장 우선, 없으면 신기록 (SPEC §CH3).
+        // 좁은 줄에 표식 둘이 겹치면 **어느 쪽도 안 읽힌다.** 고르는 자리는 카드, 둘 다 보여 주는 자리는 상세다.
+        '<div class="fbody"><div class="frow"><b class="fcity">' + c.n + '</b>' + (stampHTML(c) || recShort(c)) + "</div>" +
         '<div class="fprice"><span><small>₩</small>' + c.price + ' <span class="tilde">~</span></span>' + c.trans + "</div>" +
         freshHTML(c) +
         '<div class="fdate"><span class="when">' + c.when + "</span>" + c.date + (c.nights ? " · " + c.nights : "") + "</div>" +
