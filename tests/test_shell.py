@@ -34,7 +34,11 @@ VOCAB = {"tags": {"top": ["해변"], "sub": {}}, "when": {"fixed": ["이번 달"
          "region_name": {"JP": "일본"}}
 INDEX = {"routes": [{"code": "ICN-FUK", "o_name": "인천", "d_name": "후쿠오카"}]}
 META = {"subscribe": {"address": "a@example.com", "subject_subscribe": "구독신청",
-                      "subject_unsubscribe": "구독취소", "route_token": "{code}"}}
+                      "subject_unsubscribe": "구독취소", "route_token": "{code}"},
+        # ⓘ 설명이 「최근 {N}일」이라고 말한다 — 없으면 `render_home` 이 터진다(2026-09-28).
+        # 손으로 만든 `meta` 라 계약이 넓어질 때마다 여기도 넓혀야 한다. 터지는 게 맞다:
+        # 조용히 빈 값이 화면으로 나가는 것보다 낫다.
+        "window_days": 30}
 ROUTE = {"code": "ICN-FUK", "o_name": "인천", "d_name": "후쿠오카", "region": "JP",
          "summary": {"cheapest": 132536, "median": 306708, "n": 1784},
          "months": [], "weekdays": [], "airlines": [], "trend": []}
@@ -42,7 +46,7 @@ ROUTE = {"code": "ICN-FUK", "o_name": "인천", "d_name": "후쿠오카", "regio
 
 def _home():
     payload = {"generated": "2026-09-19T16:04:43+09:00", "origins": {}, "deals": []}
-    return home.render_home(payload, home.inline_deals(payload), "{}", INDEX, VOCAB)
+    return home.render_home(payload, home.inline_deals(payload), "{}", INDEX, VOCAB, META)
 
 
 def _route():

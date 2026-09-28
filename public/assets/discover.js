@@ -779,6 +779,31 @@
   // ⚠️ 「평소보다 비싸요」라고 쓰지 않는다 — `price` 는 그날 최저가, `median` 은 거친 기준선이라
   //    몇 %p 차이를 「비싸다」고 단정할 만큼 정밀하지 않다. (SPEC §CH4)
   function pcNote(text) { return '<div class="hc-sec">평소 시세와 비교</div><div class="pc-none">' + text + "</div>"; }
+  // ---- ⓘ 설명 (사용자 2026-09-28 · COPY.md §2 S5 「ⓘ 설명」 · 기획 승인) ----
+  // 사용자: 「카드에 전체적으로 글자가 너무 많아서 (뭐 중앙값이라던가) 그 ⓘ 버튼 있잖아,
+  //          그거 위에 호버링하면 디테일한 정보 알려주는 식으로 해주는 게 좋을 것 같아」
+  //
+  // 🔴 **설명을 접는 것과 고지를 숨기는 것은 다르다.** 확장 상세 420자 중 **169자(40%)가 고지**인데
+  //    그건 이 뒤로 못 들어간다 — `(광고)` 수수료 고지와 「조회 시점 기준」은 법적 항목이고
+  //    B61 이 **순서까지** 정했다. **숨긴 고지는 고지가 아니다.**
+  //    여기 들어가는 건 「중앙값이 뭔가」라는 **뜻풀이**뿐이고 숫자·막대·`발견가` 줄은 그대로 보인다.
+  //
+  // 마지막 문장(`직항·경유는 가르지 않았어요`)은 **우리에게 불리한 사실이라 더더욱 뺄 수 없다** —
+  // 노선 페이지의 중앙값은 유형을 가르지만 홈의 `median` 은 안 가른다(계약이 그렇다).
+  // 노선 푸터 문장을 그대로 옮겼으면 거짓이 됐다(기획이 짚었다).
+  //
+  // 데스크톱은 호버+포커스, 모바일은 **탭으로 열고 다시 탭하면 닫힌다**(호버가 없다).
+  // 그래서 `<button>` 이고 `aria-expanded` 를 쓴다. 터치 목표 44px — 글리프는 작아도 된다.
+  var WINDOW_DAYS = window.__WINDOW || 0;
+  function medianTip() {
+    return "최근 " + WINDOW_DAYS + "일 동안 이 노선에서 모은 가격을 줄 세웠을 때 한가운데 값이에요. " +
+      "발견가가 이보다 얼마나 싼지를 %로 보여드려요. 직항·경유는 가르지 않았어요.";
+  }
+  function infoHTML(text) {
+    return '<button type="button" class="info" aria-expanded="false" aria-label="설명 보기">' +
+      '<span class="info-g" aria-hidden="true">i</span>' +
+      '<span class="info-tip" role="tooltip">' + text + '</span></button>';
+  }
   function priceCompare(c) {
     var now = num(c.price), med = c.median || 0;
     if (!med) return pcNote("아직 이 노선의 평소 시세를 모아두지 못했어요");
@@ -790,7 +815,9 @@
     var w = Math.max(12, Math.round(now / med * 100));
     return '<div class="hc-sec">평소 시세와 비교</div>' +
       '<div class="pc">' +
-      '<div class="pc-row"><span>평소 시세(중앙값)</span><span>₩' + med.toLocaleString("en-US") + "</span></div>" +
+      // 「중앙값」은 전문용어다 — **숫자는 그대로 두고 뜻만** ⓘ 뒤로 보낸다(기획 승인 2026-09-28).
+      '<div class="pc-row"><span>평소 시세' + infoHTML(medianTip()) + '</span><span>₩' +
+      med.toLocaleString("en-US") + "</span></div>" +
       '<div class="pc-bar"><div class="pc-fill" style="width:' + w + '%"></div></div>' +
       '<div class="pc-row now"><span>발견가</span><span>₩' + c.price + " · " + pct + "%↓</span></div>" +
       "</div>";
@@ -1134,6 +1161,11 @@
     if (e.target && e.target.classList.contains("hc-x")) { e.stopPropagation(); closeByUser(); return; }
     if (e.target && e.target.classList.contains("hc-share")) { e.stopPropagation(); shareCurrent(e.target); return; }
     if (e.target && e.target.classList.contains("paxchip")) { e.stopPropagation(); setPax(+e.target.dataset.pax); return; }
+    // ⓘ — 모바일엔 호버가 없다. 탭하면 열리고 다시 탭하면 닫힌다.
+    var inf = e.target && e.target.closest && e.target.closest(".info");
+    if (inf) { e.stopPropagation(); e.preventDefault();
+      inf.setAttribute("aria-expanded", inf.getAttribute("aria-expanded") === "true" ? "false" : "true");
+      return; }
     e.stopPropagation(); if (expandedI === null && active !== null) expand(active);
   });
 
