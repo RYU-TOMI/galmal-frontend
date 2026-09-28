@@ -305,13 +305,23 @@ class StampRoomTest(unittest.TestCase):
     잰 값이 안 움직이면 고친 게 원인이 아니다.
     """
 
-    def test_angle_is_untouched(self):
-        """🔒 기울기는 줄이지 않는다 — 자리에 따라 각도가 다르면 **같은 표식이 두 모양**이 된다
-        (직항 배지를 없앤 것과 같은 이유). 세 단계의 각도가 그대로여야 한다."""
-        for tier, deg in (("t1", "-7deg"), ("t2", "-8deg"), ("t3", "-9deg")):
-            rule = _rule(".stamp.%s" % tier)
-            self.assertIsNotNone(rule, tier)
-            self.assertIn("rotate(%s)" % deg, rule, tier)
+    def test_angles_are_one_set_everywhere(self):
+        """🔒 **자리마다 각이 다르면 같은 표식이 두 모양**이 된다(직항 배지를 없앤 것과 같은 이유).
+        2026-09-28 에 7·8·9° → 4·5·6° 로 줄였지만 **세 단계 모두, 모든 자리에서 같이** 줄였다.
+        줄인 이유는 기운 사각형이 세로로 더 먹는 양이 `폭 × sin(각)` 이라서다 —
+        79px 도장이 8° 에서 **+11px**(실측), 그게 아랫줄 글자를 건드렸다."""
+        for tier, deg in (("t1", "-4deg"), ("t2", "-5deg"), ("t3", "-6deg")):
+            self.assertIn("rotate(%s)" % deg, _rule(".stamp.%s" % tier) or "", tier)
+        # 떠오르는 t3 규칙도 같은 각이어야 한다 — 한 곳만 고치면 t3 만 다른 각이 된다.
+        for old in ("rotate(-7deg)", "rotate(-8deg)", "rotate(-9deg)"):
+            self.assertNotIn(old, CSS, old)
+
+    def test_lift_is_off_where_the_stamp_is_not_on_a_photo(self):
+        """⚠️ `translateY(-16px)` 는 도장이 **사진 위**에 얹혀 있을 때의 규칙이다(DESIGN.md).
+        2026-09-28 부터 확장 상세의 도장은 사진이 아니라 **가격 옆 줄**에 있다 —
+        그대로 두면 t3 만 가격 줄을 16px 뚫고 올라간다.
+        오늘 데이터에 t3(42%+)가 없어 화면으로 못 봤다. **나올 때까지 기다리지 않고 지금 막는다.**"""
+        self.assertIn(".hc-marks .stamp.t3{transform:rotate(-6deg)}", CSS)
 
     def test_marks_are_stacked_not_side_by_side(self):
         """🔴 **도장 위, 신기록 아래** — 오른쪽 정렬(사용자 안, 2026-09-28).
