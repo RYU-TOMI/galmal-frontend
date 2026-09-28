@@ -22,12 +22,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 JS = io.open(os.path.join(ROOT, "public", "assets", "discover.js"), encoding="utf-8").read()
 CSS = io.open(os.path.join(ROOT, "public", "assets", "discover.css"), encoding="utf-8").read()
 
-# 고지 — 이 문구들은 **절대** ⓘ 뒤로 못 들어간다
+# 🔴 **법적 고지** — 이 문구들은 **절대** ⓘ 뒤로 못 들어간다.
+# 제휴 수수료 고지와 「조회 시점 기준」은 `SESSIONS.md` 법적 항목이고 B61 이 순서까지 정했다.
 AD_NOTE = "(광고) 표시는 예약하시면 저희가 수수료를 받는 링크예요"
 PRICE_NOTE = "항공권 가격은 예약 사이트가 마지막으로 조회한 값이라"
 SCAN_NOTE = "위 가격은 발견가(스캔 시점)"
+DISCLOSURES = (AD_NOTE, PRICE_NOTE, SCAN_NOTE)
+
+# ⚠️ `가격은 성인 1인 왕복 기준이에요…` 는 **이 목록에서 뺐다**(2026-09-28, 사용자 결정).
+# 법적 항목이 아니라 **우리가 정한 설명**이고, 무엇보다 **그것이 말하는 사실이 화면에 남아 있다**:
+# 상세 가격 옆에 `1인 왕복` 단위가 붙는다. 접힌 건 「인원을 고르면 무슨 일이 일어나나」다.
+# 🔒 **단위가 사라지면 이 예외도 사라진다** — 아래 `test_folding_is_allowed_only_while_the_fact_shows` 가 건다.
 PAX_NOTE = "가격은 성인 1인 왕복 기준이에요"
-DISCLOSURES = (AD_NOTE, PRICE_NOTE, SCAN_NOTE, PAX_NOTE)
 
 
 def _fn(name):
@@ -110,13 +116,53 @@ class ShareTest(unittest.TestCase):
 class InfoTest(unittest.TestCase):
     """③ **설명을 접는 것과 고지를 숨기는 것을 가른다.**"""
 
-    def test_no_disclosure_ever_goes_behind_the_info(self):
-        """🔴 이 파일에서 가장 중요한 검사. ⓘ 안에 고지 문구가 하나라도 들어가면 실패다."""
-        tip = _fn("medianTip")
-        self.assertIsNotNone(tip, "medianTip() 를 못 찾았다")
-        for d in DISCLOSURES:
-            self.assertNotIn(d, tip, d)
-            self.assertNotIn(d, _fn("infoHTML") or "", d)
+    def _tips(self):
+        """ⓘ 뒤에 들어가는 **모든** 글을 모은다.
+
+        처음엔 `medianTip()` 하나만 봤다. 그런데 ⓘ 가 둘이 되자(인원) 그 검사는 새 ⓘ 를
+        **한 글자도 안 보고** 통과했다(2026-09-28). 검사가 자라지 않으면 조용히 눈을 감는다 —
+        그래서 **`infoHTML(...)` 에 넘기는 인자를 소스에서 찾아** 그 이름들을 다 훑는다.
+        """
+        # `function infoHTML(text)` 정의 자체는 부르는 자리가 아니다 — 빼고 찾는다.
+        args = set(re.findall(r"(?<!function )infoHTML\(([A-Za-z_][\w.]*)\s*(?:\(\))?\)", JS))
+        self.assertTrue(args, "infoHTML() 을 부르는 자리를 못 찾았다 — 검사를 할 수 없으면 실패다")
+        out = {}
+        for a in args:
+            name = a.rstrip("()")
+            body = _fn(name)
+            if body is None:                       # 함수가 아니라 상수면 그 값을 읽는다
+                m = re.search(r"var %s = (\"(?:[^\"\\\\]|\\\\.)*\");" % re.escape(name), JS)
+                self.assertIsNotNone(m, "%s 의 값을 못 찾았다" % name)
+                body = m.group(1)
+            out[name] = body
+        return out
+
+    def test_every_info_is_checked(self):
+        """탐침 — ⓘ 가 몇 개든 **전부** 모였나. 지금 둘(중앙값·인원)이다."""
+        tips = self._tips()
+        self.assertGreaterEqual(len(tips), 2, tips.keys())
+        self.assertIn("medianTip", tips)
+        self.assertIn("PAX_TIP", tips)
+
+    def test_no_legal_disclosure_ever_goes_behind_the_info(self):
+        """🔴 이 파일에서 가장 중요한 검사. **어느** ⓘ 안에든 법적 고지가 들어가면 실패다."""
+        for name, body in self._tips().items():
+            for d in DISCLOSURES:
+                self.assertNotIn(d, body, "%s 안에 %s" % (name, d))
+        self.assertNotIn("(광고)", _fn("infoHTML") or "")
+
+    def test_folding_is_allowed_only_while_the_fact_shows(self):
+        """🔴 **접은 건 설명이지 사실이 아니다.**
+
+        인원 문장을 ⓘ 뒤로 보낼 수 있었던 유일한 이유는 그것이 말하는 사실(`1인 왕복`)이
+        **상세 가격 옆에 그대로 보이기** 때문이다. 단위를 떼는 순간 「설명을 접은 것」이
+        「고지를 숨긴 것」이 된다 — 그때는 이 검사가 막는다.
+        """
+        body = _fn("bodyTop")
+        self.assertIsNotNone(body)
+        self.assertIn("1인 왕복", body)
+        self.assertIn("detail ?", body)
+        self.assertIn(PAX_NOTE, self._tips()["PAX_TIP"])
 
     def test_disclosures_still_stand_on_their_own(self):
         """탐침 — 고지가 화면에서 사라지지 않았는지. 셋 다 `detailHTML` 에 그대로 있어야 한다."""

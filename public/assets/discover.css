@@ -116,13 +116,16 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
    글리프는 16px 이지만 **터치 목표는 44px** 이다 — `::before` 로 보이지 않는 판을 깐다.
    접근성 표의 모바일 손잡이와 같은 값이라 규칙이 둘로 갈리지 않는다. */
 .info{position:relative;display:inline-flex;align-items:center;justify-content:center;
- width:16px;height:16px;margin-left:4px;padding:0;border:0;background:none;
- vertical-align:-3px;cursor:pointer}
+ width:16px;height:16px;margin-left:5px;padding:0;border:0;background:none;
+ vertical-align:-3px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .info::before{content:"";position:absolute;left:50%;top:50%;width:44px;height:44px;
  transform:translate(-50%,-50%)}
-.info-g{display:block;width:16px;height:16px;line-height:14px;border-radius:99px;
- border:1.2px solid var(--sub);color:var(--sub);font-size:.6rem;font-weight:900;
- font-style:italic;text-align:center}
+.info-g{display:block;width:16px;height:16px;fill:none;stroke:currentColor;
+ stroke-width:1.35;stroke-linecap:round;color:var(--sub)}
+.info-g .dot{fill:currentColor;stroke:none}
+/* 눌리는 것처럼 — 올리면 코랄로 바뀌고 열려 있는 동안도 코랄이다. */
+.info[aria-expanded="true"] .info-g{color:var(--accent)}
+@media(hover:hover){.info:hover .info-g{color:var(--accent)}}
 .info-tip{display:none;position:absolute;left:-2px;top:24px;z-index:6;width:236px;
  background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 11px;
  font-size:.75rem;font-weight:600;font-style:normal;line-height:1.55;color:var(--ink);
@@ -281,7 +284,15 @@ svg.map{position:absolute;inset:0;width:100%;height:100%;display:block;backgroun
 /* 🔴 가격은 **안 밀린다** — 표식이 넓어지면 `~` 가 아랫줄로 떨어져 「₩616,886」과 「~」가 갈라졌다(실측).
    가격은 이 카드에서 가장 먼저 읽는 값이라 자리를 표식에 내주지 않는다. 줄을 바꾸는 쪽은 표식이다. */
 .hc-price{flex:none;white-space:nowrap;font-weight:900;font-size:1.22rem;color:var(--accent);letter-spacing:-.02em}.hc-price small{font-size:.7rem;font-weight:900}
-.hc-cta{margin-top:8px;background:var(--accent);color:#fff;text-align:center;font-weight:800;font-size:.72rem;border-radius:8px;padding:7px 0}
+/* 🔴 미니카드는 **어디를 눌러도 상세가 열린다** — 그런데 손 모양이 안 떴다.
+   사용자: 「자세히 보기 누르려고 포인터 올리면 버튼 누르는 것 같지가 않아
+   (마우스 포인터가 I 텍스트 복사로 변함)」. 글자 위라 브라우저가 **글자 고르는 커서**를 줬다.
+   눌리는 것은 눌리는 것처럼 보여야 한다 — 카드 전체에 손 모양을 주고 글자 선택을 끈다.
+   **펼친 상세는 제외**다: 거긴 눌러도 아무 일이 없고, 문구를 복사할 수도 있어야 한다. */
+.hovercard:not(.expanded){cursor:pointer;-webkit-tap-highlight-color:transparent}
+.hovercard:not(.expanded) .hc-body{user-select:none;-webkit-user-select:none}
+.hc-cta{margin-top:8px;background:var(--accent);color:#fff;text-align:center;font-weight:800;font-size:.72rem;border-radius:8px;padding:7px 0;transition:background .12s}
+@media(hover:hover){.hovercard:not(.expanded):hover .hc-cta{background:#D8482C}}
 /* 출발 공항 — **사실 한 줄**이다. 배지로 만들지 않는다(직항 배지를 없앤 것과 같은 이유:
    같은 성격의 사실을 서로 다른 모양으로 그리면 없는 구분이 생긴다). 날짜 줄과 같은 무게. */
 .hc-oa{font-size:.66rem;color:var(--sub);font-weight:700;margin-top:3px}
