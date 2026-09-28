@@ -283,19 +283,21 @@ svg.map{position:absolute;inset:0;width:100%;height:100%;display:block;backgroun
 .hc-body{padding:9px 12px 11px}.hc-row{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:2px 8px}
 /* 표식 묶음 — 확장 상세에선 도장·신기록이 **둘 다** 온다. 좁은 폭에서 가격을 밀지 않게
    묶어서 오른쪽에 붙이고 **줄을 바꾼다**. 가격은 읽어야 하는 값이라 표식에 자리를 안 내준다. */
-/* 🔴 **도장은 기울어져 있고, 기운 만큼 위아래로 삐져나온다.**
-   사용자(2026-09-28): 「각도가 너무 기울어져서 아래 있는 글자를 침범해」.
-   실측(칭다오 31%↓): 도장 줄의 높이는 15px 인데 **기운 도장의 바깥 상자는 25px** 이라
-   아랫줄 `김포 출발 · 1인 왕복`(y 146~)을 **아래로 2px 파고들었다**(도장 y 123~148).
-   👉 줄 **사이**(`gap`)가 아니라 도장 **줄의 높이**가 모자란 것이었다 — `gap` 을 늘려도 안 변했다.
-      도장과 신기록은 나란히 **같은 줄**에 있어서, 그 줄이 벌어져야 한다.
+/* 🔴 **표식 둘은 세로로 쌓는다** — 도장 위, 신기록 아래. 오른쪽 정렬.
+   사용자(2026-09-28): 「각도가 너무 기울어져서 아래 있는 글자를 침범해. 각도를 줄이거나
+   가격 오른쪽 『20일 중 가장 싼 가격이에요』 위로 올리는 게 좋을 것 같아, **왼쪽 딜 카드처럼**」
+
+   처음엔 나란히 둔 채 도장에 여백만 줘서 침범을 막았다(여유 3px). 사용자가 「왜 넘기는 건 기각이냐」고
+   물어 **재 봤고, 쌓는 쪽이 나았다**: 여유 3px → **14px**, 대신 아래 내용이 11px 내려간다.
+   🔴 그 11px 은 **도장·신기록이 둘 다 있는 카드에만** 든다 — 오늘 142건 중 2건이고,
+   표식이 하나면 어느 쪽이든 한 줄이라 차이가 없다. 드문 경우에만 붙는 비용이다.
+
    🔒 **기울기는 줄이지 않는다** — 기울어진 사각형인 건 디자인 결정이고(DESIGN.md),
       자리에 따라 각도를 바꾸면 **같은 표식이 두 모양**이 된다(직항 배지를 없앤 것과 같은 이유).
-   대신 도장에 세로 여백을 준다: 여백은 **도장이 있을 때만** 줄을 키운다 —
-   `.hc-marks` 에 주면 신기록만 있는 카드에도 빈 자리가 생긴다. */
-.hc-marks{display:flex;align-items:baseline;justify-content:flex-end;flex-wrap:wrap;
- gap:4px 7px;margin-left:auto;text-align:right}
-.hc-marks .stamp{margin:5px 0}
+   도장의 세로 여백은 **도장에** 준다 — `.hc-marks` 에 주면 신기록만 있는 카드에도 빈 자리가 생긴다. */
+.hc-marks{display:flex;flex-direction:column;align-items:flex-end;
+ gap:3px;margin-left:auto;text-align:right}
+.hc-marks .stamp{margin:4px 0 2px}
 /* 🔴 가격은 **안 밀린다** — 표식이 넓어지면 `~` 가 아랫줄로 떨어져 「₩616,886」과 「~」가 갈라졌다(실측).
    가격은 이 카드에서 가장 먼저 읽는 값이라 자리를 표식에 내주지 않는다. 줄을 바꾸는 쪽은 표식이다. */
 .hc-price{flex:none;white-space:nowrap;font-weight:900;font-size:1.22rem;color:var(--accent);letter-spacing:-.02em}.hc-price small{font-size:.7rem;font-weight:900}
