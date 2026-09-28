@@ -295,7 +295,11 @@ svg.map{position:absolute;inset:0;width:100%;height:100%;display:block;backgroun
    🔒 **기울기는 줄이지 않는다** — 기울어진 사각형인 건 디자인 결정이고(DESIGN.md),
       자리에 따라 각도를 바꾸면 **같은 표식이 두 모양**이 된다(직항 배지를 없앤 것과 같은 이유).
    도장의 세로 여백은 **도장에** 준다 — `.hc-marks` 에 주면 신기록만 있는 카드에도 빈 자리가 생긴다. */
-.hc-marks{display:flex;flex-direction:column;align-items:flex-end;
+/* 🔴 `align-self:flex-start` 가 **꼭 있어야 한다.** 줄이 `align-items:baseline` 인데
+   표식 묶음이 세로 상자가 되면서 브라우저가 **아랫줄 글자의 기준선**을 가격의 기준선에 맞췄다 —
+   그래서 도장이 가격보다 **26px 아래**로 내려갔다(1440 실측, 사용자가 「도장이 너무 내려갔어」).
+   기준선 맞추기는 **한 줄짜리**에나 뜻이 있다. 쌓은 묶음은 위를 맞춘다. */
+.hc-marks{display:flex;flex-direction:column;align-items:flex-end;align-self:flex-start;
  gap:3px;margin-left:auto;text-align:right}
 .hc-marks .stamp{margin:4px 0 2px}
 /* 🔴 가격은 **안 밀린다** — 표식이 넓어지면 `~` 가 아랫줄로 떨어져 「₩616,886」과 「~」가 갈라졌다(실측).
