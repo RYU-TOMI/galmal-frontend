@@ -756,7 +756,11 @@
   // 🔴 자리로 가르지 않고 **하는 일**로 갈랐다 — 「호버냐」로 가르면 모바일에서 또 갈린다(B32와 같은 축).
   function bodyTop(c, detail) {
     var marks = detail ? stampHTML(c) + recLong(c) : (stampHTML(c) || recShort(c));
-    return '<div class="hc-row"><span class="hc-price"><small>₩</small>' + c.price + ' <span class="tilde">~</span></span>' +
+    // 🔴 **문장을 접기 전에 사실을 남긴다.** 인원 고지를 ⓘ 뒤로 보내면서(사용자 2026-09-28)
+    // 「이 값이 한 사람 값」이라는 **사실**이 상세에서 사라질 뻔했다 — 단위는 피드 카드에만 있었다.
+    // 접는 건 설명이지 사실이 아니다. 그래서 상세 가격에도 같은 단위를 붙인다.
+    return '<div class="hc-row"><span class="hc-price"><small>₩</small>' + c.price + ' <span class="tilde">~</span>' +
+      (detail ? ' <span class="unit">1인 왕복</span>' : "") + '</span>' +
       '<span class="hc-marks">' + marks + "</span></div>" +
       // 🔴 **헤더는 `서울 출발` 이라 말하지만 `SEL` 은 가상 허브다** (SPEC §CH4, 2026-09-01 확정).
       // 실제로는 인천이거나 김포고, **김포 딜을 보고 인천으로 갈까 헷갈릴 자리**다.
@@ -799,9 +803,15 @@
     return "최근 " + WINDOW_DAYS + "일 동안 이 노선에서 모은 가격을 줄 세웠을 때 한가운데 값이에요. " +
       "발견가가 이보다 얼마나 싼지를 %로 보여드려요. 직항·경유는 가르지 않았어요.";
   }
+  // 글리프는 **SVG 다.** 전에는 원 테두리 안에 기울인 `i` 글자였는데, 글꼴에 따라 굵기·기울기·
+  // 세로 위치가 제각각이라 **기기마다 다르게 생겼다**(사용자 2026-09-28: 「i 아이콘 너무 구리다」).
+  // 글자는 글꼴이 정하고 그림은 우리가 정한다 — 같은 이유로 공유도 SVG 다.
+  var INFO_SVG = '<svg class="info-g" viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
+    '<circle cx="8" cy="8" r="6.6"/><path d="M8 7.3v3.9"/>' +
+    '<circle class="dot" cx="8" cy="4.9" r="0.95"/></svg>';
   function infoHTML(text) {
     return '<button type="button" class="info" aria-expanded="false" aria-label="설명 보기">' +
-      '<span class="info-g" aria-hidden="true">i</span>' +
+      INFO_SVG +
       '<span class="info-tip" role="tooltip">' + text + '</span></button>';
   }
   function priceCompare(c) {
@@ -839,8 +849,14 @@
   // 기억은 **세션 안에서만** 한다. 다른 카드를 열어도 유지되지만 저장하지는 않는다 —
   // 「지난주에 고른 4명」이 오늘 조용히 살아 있는 게 더 나쁘다.
   var PAX = 1, PAX_MAX = 4;
+  var PAX_TIP = "가격은 성인 1인 왕복 기준이에요. 인원을 고르면 예약처에서 그 인원으로 조회돼요.";
   function paxHTML() {
-    var s = '<div class="hc-sec">몇 명이 가요?</div><div class="paxrow" role="group" aria-label="인원 선택">';
+    // 설명은 **머리말 옆 ⓘ** 뒤에 있다(사용자 2026-09-28). 문구는 `COPY.md` §인원 그대로 — 한 글자도 안 고쳤다.
+    // 🔴 이건 **고지를 숨긴 게 아니다**: 「1인 왕복」이라는 사실은 바로 위 가격 옆에 **단위로 보인다.**
+    //    접힌 건 「인원을 고르면 무슨 일이 일어나나」라는 설명이다.
+    //    `(광고)` 수수료 고지와 「조회 시점 기준」은 **법적 항목**이라 여전히 못 접는다(B61 순서 그대로).
+    var s = '<div class="hc-sec">몇 명이 가요?' + infoHTML(PAX_TIP) + '</div>' +
+      '<div class="paxrow" role="group" aria-label="인원 선택">';
     for (var n = 1; n <= PAX_MAX; n++)
       s += '<button type="button" class="paxchip' + (n === PAX ? " on" : "") +
            '" data-pax="' + n + '" aria-pressed="' + (n === PAX) + '">' + n + '명</button>';
@@ -942,11 +958,8 @@
       // **설명은 여기 한 번만.** 카드는 스캔하는 자리라 짧아야 하고, 상세는 **결정하는 자리**다.
       // 변명하지 않는다(`죄송하지만`·`양해 부탁` 금지) — 사실만 적는다. 바로 아래 실시간 고지가
       // 이 문장의 결론이라 그 근처에 둔다. (COPY.md §2d)
-      // 인원 고지는 **가격 고지 바로 위**다(COPY.md §인원). 예약처 링크가 없는 날엔 안 띄운다 —
-      // 「인원을 고르면 예약처에서…」라고 해 놓고 **고를 칩도 예약처도 없는** 화면이 된다.
-      (c.links && c.links.length
-        ? '<div class="hc-ad">가격은 성인 1인 왕복 기준이에요. 인원을 고르면 예약처에서 그 인원으로 조회돼요.</div>'
-        : "") +
+      // (인원 고지는 2026-09-28 부터 「몇 명이 가요?」 옆 ⓘ 안에 있다 — `PAX_TIP`.
+      //  같은 문장을 두 곳에 두지 않는다: 이 저장소가 다섯 번 사고를 낸 이유가 그것이다.)
       '<div class="hc-ad">항공권 가격은 예약 사이트가 마지막으로 조회한 값이라 며칠 전일 수 있어요<br>' +
       '위 가격은 발견가(스캔 시점) · 실시간 최저가는 각 사이트에서 확인하세요</div>' +
       // 🔴 **홈에서 노선 페이지로 가는 유일한 진입로** (SPEC §CH6 IA-1, 2026-09-01 확정).

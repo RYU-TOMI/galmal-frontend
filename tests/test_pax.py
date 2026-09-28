@@ -241,21 +241,32 @@ class OrderTest(unittest.TestCase):
         body = _detail()
         self.assertLess(body.index("paxHTML()"), body.index("어디가 제일 싼지"))
 
-    def test_pax_note_sits_directly_above_the_price_note(self):
-        body = _detail()
-        self.assertLess(body.index(NOTE), body.index(PRICE_NOTE))
-        self.assertLess(body.index("compareHTML(c.links)"), body.index(NOTE))
+    def test_the_fact_is_visible_even_though_the_sentence_is_folded(self):
+        """🔴 **접은 건 설명이지 사실이 아니다** (사용자 2026-09-28, 문장을 ⓘ 뒤로 옮김).
+
+        문장(`가격은 성인 1인 왕복 기준이에요…`)은 이제 「몇 명이 가요?」 옆 ⓘ 안에 있다.
+        그래서 **「이 값이 한 사람 값」이라는 사실이 상세에서 사라질 뻔했다** — 단위는 피드 카드에만
+        있었다. 사실은 화면에 남기고 설명만 접는다: 상세 가격 옆에 같은 `1인 왕복` 단위가 붙는다.
+        이 둘은 **같이 움직여야 한다** — 단위를 떼면 문장을 접은 것이 곧 사실을 숨긴 것이 된다.
+        """
+        self.assertIn("PAX_TIP", _fn("paxHTML"))
+        self.assertIn('var PAX_TIP = "%s";' % NOTE, JS)
+        body = _fn("bodyTop")
+        self.assertIn("detail ? ' <span class=\"unit\">%s</span>'" % UNIT, body)
+        self.assertLess(body.index("hc-price"), body.index('class=\\"unit\\"')
+                        if 'class=\\"unit\\"' in body else body.index("unit"))
+
+    def test_the_sentence_lives_in_exactly_one_place(self):
+        """같은 문장을 두 곳에 두지 않는다 — 이 저장소가 **다섯 번** 사고를 낸 이유가 그것이다."""
+        self.assertEqual(JS.count(NOTE), 1)
 
     def test_pax_ui_is_hidden_when_there_are_no_links(self):
         """예약처가 없는 날 「인원을 고르면 예약처에서…」는 **없는 것을 설명하는** 말이 된다.
-        칩도 고지도 `c.links` 가 있을 때만 그린다 — 두 자리가 **각각** 막혀 있는지 본다."""
+        칩과 설명이 이제 한 덩이(`paxHTML`)라 막는 자리도 하나다 — 그 하나가 제대로 막는지 본다."""
         body = _detail()
         guards = [m.start() for m in re.finditer(r"c\.links && c\.links\.length", body)]
-        self.assertEqual(len(guards), 2, "인원 칩·인원 고지 두 자리가 각각 `c.links` 로 막혀 있어야 한다")
-        chips, note = body.index("paxHTML()"), body.index(NOTE)
-        self.assertLess(guards[0], chips)     # 첫 조건이 칩을 막는다
-        self.assertLess(chips, guards[1])     # 둘째 조건은 그 뒤에 따로 있다
-        self.assertLess(guards[1], note)      # 그리고 고지를 막는다
+        self.assertEqual(len(guards), 1, "인원 블록이 `c.links` 로 막혀 있어야 한다")
+        self.assertLess(guards[0], body.index("paxHTML()"))
 
 
 class ShapeTest(unittest.TestCase):
