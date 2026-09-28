@@ -28,6 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import coverage  # noqa: E402
 import pax  # noqa: E402
+import origin  # noqa: E402
 import home   # noqa: E402
 import snapshot  # noqa: E402
 import route  # noqa: E402  (위 sys.path 설정 뒤여야 한다)
@@ -88,6 +89,19 @@ def main():
         sys.exit("인원 링크(`pax_url`)가 계약과 다르다 — 배포하지 않는다")
     n_ok, n_none, n_all = pax.summary(deals_list)
     print("인원 링크 %d개 검사 — 치환 가능 %d · 인원 못 받음 %d" % (n_all, n_ok, n_none))
+
+    # 🔴 **`서울` 은 인천+김포다** — 헤더는 `서울 출발` 이라 말하지만 `SEL` 은 가상 허브다.
+    # 공항 이름을 못 얻으면 화면에서 그 줄이 **말없이 빈다**(빈 문자열은 예외가 아니다).
+    # `route` 앞 절반과도 대조한다 — 같은 사실이 두 필드에 있으니 갈리면 한쪽이 거짓말이다. (site/origin.py)
+    bad = origin.problems(deals_list, snap["vocab"])
+    if bad:
+        for b in bad[:20]:
+            print("  🔴 " + b)
+        if len(bad) > 20:
+            print("  … 그 밖 %d건" % (len(bad) - 20))
+        sys.exit("출발 공항(`oa`)이 계약·어휘와 맞지 않다 — 배포하지 않는다")
+    o_named, o_cross, o_all = origin.summary(deals_list, snap["vocab"])
+    print("출발 공항 %d개 검사 — 이름 얻음 %d · 노선으로 대조 %d" % (o_all, o_named, o_cross))
 
     # 🔴 **정적 자산을 먼저 깐다.** 빌드가 만드는 건 HTML·XML 뿐이고
     # `discover.js|css`·d3·지도 윤곽은 **산출물이 아니라 그냥 파일**이다.
