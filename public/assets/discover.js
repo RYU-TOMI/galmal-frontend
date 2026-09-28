@@ -566,7 +566,13 @@
     //
     // 「필터를 켜면 아주 멀리」는 **한 번 옮기는 것**이지 잠그는 것이 아니다(SPEC §CH1, 2026-09-22 갈라 적음).
     // 옮기는 일은 `applyFilter()` 가 한 번만 하고, 그 뒤 뷰의 주인은 사용자다.
-    var v = viewOf(STAGES[stageIdx]);
+    // 🔴 **뷰의 주인이 둘이다** (PH5c, 2026-09-22 사용자 확정 · SPEC §CH1).
+    //   `userV` 가 있으면 **사용자가 만진 뷰**다 — 줌·팬으로 직접 정한 값.
+    //   없으면 거리 단계에서 **파생**된 값(지금까지의 유일한 길).
+    // `render()` 는 정렬·필터·출발지 등 **뷰와 무관한 이유로도** 불린다. 그때마다 단계 뷰로
+    // 되돌리면 **사용자가 맞춰 둔 화면을 우리가 뺏는다.** 그래서 있으면 그걸 쓴다.
+    // 지우는 자리는 단 둘 — 단계 버튼(빠른 이동)과 필터를 **켜는 순간**(한 번만 넓힌다).
+    var v = userV || viewOf(STAGES[stageIdx]);
     setXform(v); CURV = v;                        // path 는 그대로 두고 transform 만 바꾼다
     var O = pt(ORIGIN.lon, ORIGIN.lat); ORIGIN.x = O[0]; ORIGIN.y = O[1];
     og.innerHTML = '<circle class="origin-ring" cx="' + O[0] + '" cy="' + O[1] + '" r="9"/>' +
@@ -678,6 +684,44 @@
   // render() 는 목적지 뷰로 전부 그린다. 트윈은 그 위에서 **좌표만** 움직인다 —
   // path 는 T5 덕에 transform 한 줄이고, 핀은 cx/cy 만 고치면 되므로 DOM 재생성이 없다.
   var CURV = null, tweenId = 0;
+
+  // ---- 자유 줌·팬 (PH5c T1 · SPEC §CH1, 2026-09-22 사용자 확정) ----
+  // 사용자: 「지도를 좀 둘러보려고 했는데 안 돼」. 2026-08-22 의 「자유 줌 기각」을 뒤집은 결정이다.
+  //
+  // 🔴 **한 프레임의 일은 늘어나지 않는다.** 뷰가 바뀔 때 도는 건 `moveOnly()` 하나고,
+  // 세계 지도는 `transform` 만 바뀐다(`path(WORLD)` 는 초기화 때 한 번뿐).
+  // 실측(착수 전, 2026-09-28): 6배 느린 CPU 에서 프레임당 3.9ms — 예산 16.7ms 의 23%.
+  // 자유 줌은 **프레임 수가 늘 뿐 한 프레임의 일은 같다.**
+  var userV = null;                 // 사용자가 만진 뷰. `null` 이면 단계에서 파생한다.
+  // 배율 한계 — **지구가 무대보다 작아지지 않고**(하한), 가까운 곳의 4배까지(상한).
+  // 값을 박지 않고 그때그때 단계 뷰에서 구한다: 두 값 다 출발지·화면 비율에 따라 달라진다.
+  function kBounds() {
+    return { lo: viewOf("far").scale / BASE, hi: viewOf("near").scale * 4 / BASE };
+  }
+  function clampK(k) { var b = kBounds(); return Math.max(b.lo, Math.min(b.hi, k)); }
+  // 아핀 상태(k·tx·ty) → 뷰(lon·lat·scale). `setXform` 의 역이다.
+  function viewFromXform(k, tx, ty) {
+    var ll = proj.invert([(W / 2 - tx) / k, (H / 2 - ty) / k]);
+    return { lon: norm(ll[0]), lat: ll[1], scale: k * BASE };
+  }
+  // 사용자가 뷰를 잡았다 — 진행 중 트윈을 **버린다.** 잡는 순간부터 우리가 움직이지 않는다.
+  function takeView(v) {
+    userV = v; tweenId++; svg.classList.remove("tweening");
+    moveOnly(v);
+  }
+  // 🔴 **커서 아래의 땅이 그 자리에 머문다.** 화면 가운데를 기준으로 확대하면
+  // 보려던 곳이 옆으로 흘러가 버린다 — 지도를 벌릴 때 사람이 기대하는 건 손가락 밑이 고정되는 것이다.
+  function zoomAbout(cx, cy, factor) {
+    var p = clientToSvg(cx, cy), k0 = XF.k, k1 = clampK(k0 * factor);
+    if (Math.abs(k1 - k0) < 1e-9) return;
+    var bx = (p.x - XF.tx) / k0, by = (p.y - XF.ty) / k0;   // 커서 밑의 기준 평면 점
+    takeView(viewFromXform(k1, p.x - bx * k1, p.y - by * k1));
+  }
+  function panByClient(dx, dy) {
+    // 화면 픽셀 → viewBox 픽셀. 무대가 잘려 있어 둘의 비율이 1이 아니다.
+    var a = clientToSvg(0, 0), b = clientToSvg(dx, dy);
+    takeView(viewFromXform(XF.k, XF.tx + (b.x - a.x), XF.ty + (b.y - a.y)));
+  }
   function reduceMotion() {
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
@@ -749,6 +793,12 @@
     arc.getBoundingClientRect(); arc.style.transition = "stroke-dashoffset .42s ease"; arc.style.strokeDashoffset = 0;
   }
   function svgToClient(x, y) { var pt = svg.createSVGPoint(); pt.x = x; pt.y = y; return pt.matrixTransform(svg.getScreenCTM()); }
+  // 화면 좌표 → viewBox 좌표. `preserveAspectRatio="…slice"` 라 단순 비율이 아니다 —
+  // 브라우저가 가진 행렬의 역을 쓴다. 손으로 계산하면 잘린 쪽에서 어긋난다.
+  function clientToSvg(x, y) {
+    var p = svg.createSVGPoint(); p.x = x; p.y = y;
+    return p.matrixTransform(svg.getScreenCTM().inverse());
+  }
   function photoHTML(c, max) { return '<div class="hc-photo" style="background:' + c.g + '"><span class="ph-tag">사진 준비중</span>' + ovTags(c, max) + '<span class="cityname">' + c.n + "</span></div>"; }
   // `detail` — **확장 상세인가.** 같은 머리를 두 자리가 쓴다(호버/축소 카드 · 확장 상세)인데
   // 표식 규칙이 서로 다르다. 축소 카드는 **고르는 자리**라 피드 카드와 같이 하나만 짧게 쓰고,
@@ -1285,6 +1335,61 @@
   syncStepper();
   // 지도 판을 통째로 벗어나면 유예 없이 바로 지운다 — 유예는 「핀과 카드 사이」를 위한 것이지
   // 「지도를 떠났는데도 남는 것」을 위한 게 아니다.
+  // ---- 입력: 휠 = 줌 · 드래그 = 팬 · 두 손가락 = 핀치 (PH5c T1) ----
+  // 🔴 **`svg` 에만 건다.** 무대(`stageEl`)에 걸면 필터 도크·단계바 위에서 굴려도 지도가 움직인다 —
+  //    도크는 안에서 스크롤되는 상자다(B54 의 높이 상한). 그 스크롤을 뺏으면 안 된다.
+  svg.addEventListener("wheel", function (e) {
+    e.preventDefault();                       // 지도 위에서는 페이지가 안 움직인다
+    // 줄당 약 16px, 페이지당 한 화면 — 브라우저마다 단위가 다르다(`deltaMode`).
+    var d = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+    // 지수로 받는다: 배율은 곱으로 느껴지지 더하기로 느껴지지 않는다(트윈이 로그 보간인 것과 같은 이유).
+    zoomAbout(e.clientX, e.clientY, Math.exp(-d * 0.0015));
+  }, { passive: false });
+
+  // 드래그 — 포인터 이벤트 하나로 마우스·터치·펜을 같이 받는다.
+  // 🔴 **`click` 을 죽이지 않는다.** 핀 클릭(상세)·배경 클릭(닫기)이 살아 있어야 한다.
+  //    그래서 **움직인 거리**로 가른다: 조금 움직였으면 클릭, 많이 움직였으면 팬이다(시트 탭 판정과 같은 축).
+  var PAN_SLOP = 6, ptrs = {}, panning = false, moved = 0, lastX = 0, lastY = 0, pinchD = 0;
+  function ptrList() { var k, a = []; for (k in ptrs) a.push(ptrs[k]); return a; }
+  svg.addEventListener("pointerdown", function (e) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+    lastX = e.clientX; lastY = e.clientY; moved = 0;
+    var a = ptrList();
+    if (a.length === 2) pinchD = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+  });
+  svg.addEventListener("pointermove", function (e) {
+    if (!ptrs[e.pointerId]) return;
+    ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var a = ptrList();
+    if (a.length >= 2) {                       // 핀치 — 두 손가락 사이가 벌어진 만큼 확대
+      var d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+      if (pinchD > 0 && d > 0) {
+        zoomAbout((a[0].x + a[1].x) / 2, (a[0].y + a[1].y) / 2, d / pinchD);
+        moved += Math.abs(d - pinchD);
+      }
+      pinchD = d; return;
+    }
+    var dx = e.clientX - lastX, dy = e.clientY - lastY;
+    moved += Math.abs(dx) + Math.abs(dy);
+    if (!panning && moved < PAN_SLOP) return;  // 아직 클릭일 수 있다
+    if (!panning) { panning = true; svg.classList.add("panning"); try { svg.setPointerCapture(e.pointerId); } catch (x) { /* 무시 */ } }
+    lastX = e.clientX; lastY = e.clientY;
+    panByClient(dx, dy);
+  });
+  function endPtr(e) {
+    delete ptrs[e.pointerId];
+    if (ptrList().length < 2) pinchD = 0;
+    if (!ptrList().length) { panning = false; svg.classList.remove("panning"); }
+  }
+  svg.addEventListener("pointerup", endPtr);
+  svg.addEventListener("pointercancel", endPtr);
+  svg.addEventListener("pointerleave", endPtr);
+  // 팬으로 끝난 제스처는 클릭으로 세지 않는다 — 안 그러면 지도를 끌 때마다 상세가 닫힌다.
+  svg.addEventListener("click", function (e) {
+    if (moved >= PAN_SLOP) { e.stopPropagation(); moved = 0; }
+  }, true);
+
   stageEl.addEventListener("mouseleave", function () { if (hoverable()) { hoverHold(); clearHi(); } });
   // 미니카드 위에 있는 동안은 살려 둔다 — 카드로 마우스를 옮기는 중에 사라지면 누를 수가 없다.
   // 호버로 여는 길(데스크톱)도 같은 자리 계산을 받아야 한다 — `mouseenter` 는 안 올라오니 `mouseover` 다.

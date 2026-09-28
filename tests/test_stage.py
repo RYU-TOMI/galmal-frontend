@@ -92,7 +92,8 @@ class StageTest(unittest.TestCase):
 
     def test_view_locked_to_far_is_caught(self):
         """탐침 — 2026-09-22 까지 실제로 있던 코드. 이게 B70 이다."""
-        old = JS.replace("var v = viewOf(STAGES[stageIdx]);",
+        # PH5c 부터 뷰의 주인이 둘이다(`userV || viewOf(...)`) — 탐침도 그 모양을 따라간다.
+        old = JS.replace("var v = userV || viewOf(STAGES[stageIdx]);",
                          'var v = viewOf(anyFilter() ? "far" : STAGES[stageIdx]);')
         self.assertNotEqual(old, JS, "탐침이 아무것도 안 바꿨다 — render() 모양이 달라졌으면 탐침을 고친다")
         bad = problems(old, CSS)

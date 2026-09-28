@@ -264,9 +264,17 @@ class StageClickTest(unittest.TestCase):
 
     KEEP = ".hovercard,#pins,.stagebar,#stepper,#fdock,.emptyday"
 
-    def test_listener_is_on_the_stage_not_the_svg(self):
+    def test_closing_listens_on_the_stage_not_just_the_svg(self):
+        """닫는 것은 **무대 전체**가 받는다 — `svg` 에만 걸면 위에 얹힌 것들이 클릭을 삼킨다.
+
+        PH5c 부터 `svg` 에도 `click` 이 하나 붙는데 **하는 일이 다르다**: 팬으로 끝난 제스처를
+        클릭으로 세지 않게 **막는** 것이다(캡처 단계). 지도를 끌 때마다 상세가 닫히면 안 된다.
+        그래서 「svg 에 click 이 없다」가 아니라 **「닫는 일은 무대가 한다」**를 잰다."""
         self.assertIn('stageEl.addEventListener("click"', JS)
-        self.assertNotIn('svg.addEventListener("click"', JS)
+        m = re.search(r'svg\.addEventListener\("click", function \(e\) \{(.*?)\}, true\);', JS, re.S)
+        self.assertIsNotNone(m, "svg 의 click 은 캡처 단계의 팬 억제여야 한다")
+        self.assertIn("stopPropagation", m.group(1))
+        self.assertNotIn("closeByUser", m.group(1), "닫는 일을 svg 가 하면 안 된다")
 
     def test_keep_list_has_no_dead_selectors(self):
         """🔴 **무대 안에 실제로 있는 것만 적는다.** 처음 적은 아홉 중 셋이 죽어 있었다(실측):
