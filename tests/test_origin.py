@@ -26,6 +26,7 @@ sys.path.insert(0, os.path.join(ROOT, "site"))
 
 import home     # noqa: E402
 import origin   # noqa: E402
+import route    # noqa: E402
 
 JS = io.open(os.path.join(ROOT, "public", "assets", "discover.js"), encoding="utf-8").read()
 CSS = io.open(os.path.join(ROOT, "public", "assets", "discover.css"), encoding="utf-8").read()
@@ -41,6 +42,10 @@ DEALS = PAYLOAD["deals"]
 VOCAB = _fx("vocab.json")
 INDEX = _fx("routes", "index.json")
 META = _fx("meta.json")
+# `build_all()` 이 받는 모양 그대로 — 빌드가 쓰는 길로 구워야 「소스엔 있는데 산출물엔 없는」 일이 안 생긴다.
+_SNAP = {"meta": META, "index": INDEX,
+         "routes": {r["code"]: _fx("routes", r["code"] + ".json") for r in INDEX["routes"]},
+         "vocab": VOCAB}
 
 
 def _fn(name):
@@ -141,14 +146,14 @@ class VocabTest(unittest.TestCase):
         self.assertIn("oa: AIRPORT[dl.oa]", _fn("toCity"))
 
     def test_home_ships_the_table_from_vocab(self):
-        page = home.render_home(PAYLOAD, "[]", "{}", INDEX, VOCAB, META)
+        page = home.render_home(PAYLOAD, "[]", "{}", INDEX, VOCAB, META, "2026-09-28")
         self.assertIn("window.__AIRPORTS=", page)
         for code, name in VOCAB["airport_name"].items():
             self.assertIn('"%s":"%s"' % (code, name), page)
 
     def test_home_does_not_invent_a_table(self):
         """탐침 — 어휘에서 오는지, 아니면 `home.py` 가 들고 있는지. 어휘를 비우면 빈 표가 나가야 한다."""
-        page = home.render_home(PAYLOAD, "[]", "{}", INDEX, dict(VOCAB, airport_name={}), META)
+        page = home.render_home(PAYLOAD, "[]", "{}", INDEX, dict(VOCAB, airport_name={}), META, "2026-09-28")
         self.assertIn("window.__AIRPORTS={};", page)
 
 
@@ -196,3 +201,63 @@ class ShapeTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SiteNameTest(unittest.TestCase):
+    """홈이 **자기 이름을 말한다** — B75 (기획 2026-09-28, `decisions/2026-09.md`).
+
+    동명 서비스 때문에 「갈래말래」 브랜드 검색에서 우리 홈이 밀린다. 이름은 유지하고,
+    검색엔진에 사이트 이름을 **우리가** 말한다.
+
+    🔴 **「없다」가 아니라 「어긋나 있었다」**가 이 건의 실체다: 노선 43장은 `WebPage.isPartOf` 로
+    사이트 이름을 말하고 있었는데 **정작 그 `url` 이 가리키는 홈에는 JSON-LD 가 0개**였다.
+    자식들만 부모 이름을 말하고 부모는 침묵했다 — 사이트 이름 신호는 보통 홈에서 읽힌다.
+    """
+
+    ALT = "갈래말래 항공권"
+
+    def _home(self):
+        return home.render_home(PAYLOAD, "[]", "{}", INDEX, VOCAB, META, "2026-09-28")
+
+    def _nodes(self, page):
+        import re as _re
+        out = []
+        for b in _re.findall(r'<script type="application/ld\+json">(.*?)</script>', page, _re.S):
+            d = json.loads(b)
+            out.extend(d if isinstance(d, list) else [d])
+        return out
+
+    def test_home_declares_the_site(self):
+        nodes = self._nodes(self._home())
+        sites = [n for n in nodes if n.get("@type") == "WebSite"]
+        self.assertTrue(sites, "홈에 WebSite 노드가 없다 — 이 건의 본체다")
+        self.assertEqual(sites[0]["name"], "갈래말래")
+        self.assertEqual(sites[0]["alternateName"], self.ALT)
+        self.assertEqual(sites[0]["url"], "https://galmal.kr/")
+
+    def test_home_page_node_dates_the_data_not_the_build(self):
+        """`dateModified` 는 **데이터 생성 시각**이다 — 노선 페이지와 같은 원칙.
+        페이지가 주장하는 건 「이 데이터가 언제 것인가」지 「우리가 언제 빌드했나」가 아니다."""
+        pages = [n for n in self._nodes(self._home()) if n.get("@type") == "WebPage"]
+        self.assertTrue(pages)
+        self.assertEqual(pages[0]["dateModified"], "2026-09-28")
+        self.assertEqual(pages[0]["url"], "https://galmal.kr/")
+
+    def test_one_site_node_for_both_surfaces(self):
+        """🔴 **각자 적으면 한쪽만 자란다** — 이 저장소가 다섯 번 겪은 그것.
+        실제로 그럴 뻔했다: `alternateName` 을 홈에만 넣었으면 노선 43장은 옛 이름만 말한다."""
+        self.assertIn("website_node()", io.open(
+            os.path.join(ROOT, "site", "route.py"), encoding="utf-8").read())
+        src = io.open(os.path.join(ROOT, "site", "home.py"), encoding="utf-8").read()
+        self.assertIn("website_node()", src)
+        # 손으로 적은 사본이 남아 있으면 안 된다
+        for p in ("home.py", "route.py"):
+            body = io.open(os.path.join(ROOT, "site", p), encoding="utf-8").read()
+            self.assertNotIn('"@type": "WebSite"', body, p + " 에 사본이 남았다")
+
+    def test_every_route_page_says_it_too(self):
+        """**여집합으로 센다** — 한 장이라도 빠지면 실패."""
+        pages = route.build_all(_SNAP)
+        missing = [n for n, p in pages.items() if self.ALT not in p]
+        self.assertEqual(missing, [])
+        self.assertGreater(len(pages), 1)

@@ -46,7 +46,7 @@ ROUTE = {"code": "ICN-FUK", "o_name": "인천", "d_name": "후쿠오카", "regio
 
 def _home():
     payload = {"generated": "2026-09-19T16:04:43+09:00", "origins": {}, "deals": []}
-    return home.render_home(payload, home.inline_deals(payload), "{}", INDEX, VOCAB, META)
+    return home.render_home(payload, home.inline_deals(payload), "{}", INDEX, VOCAB, META, "2026-09-19")
 
 
 def _route():
