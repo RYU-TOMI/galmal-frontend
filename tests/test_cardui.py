@@ -377,6 +377,16 @@ class CardWidthTest(unittest.TestCase):
     def test_wide_desktop_matches_the_feed_card(self):
         self.assertIn("@media(min-width:1000px){.hovercard.expanded{width:340px}}", CSS)
 
+    def test_compact_card_fits_a_mark_beside_the_price(self):
+        """미니(호버) 카드도 같은 병이었다 — 폭 **184px**, 안쪽 160px 에
+        `가격 100 + 사이 8 + 도장 80 = 188` 이라 도장이 아랫줄로 밀렸다(사용자 2026-09-28).
+        184 도 **스펙에 없는 값**이고 코드에만 있었다 — 238 과 같은 종류다.
+
+        🔒 **오늘 값이 아니라 최악으로 잡는다**: 가장 긴 가격 123px + 가장 넓은 도장(t3) 93px
+        + 사이 8 + 안쪽 여백 24 = **248px**. 오늘 도장(80px)에만 맞췄으면 42% 딜이 뜨는 날 다시 내려간다.
+        """
+        self.assertIn(".hovercard{position:absolute;width:250px;", CSS)
+
     def test_narrow_desktop_keeps_the_old_width(self):
         """🔴 **없는 자리를 우겨 넣지 않는다.** 861~999px 에서는 무대가 521~659px 인데 도크가 270px 을 쓴다 —
         900px 실측으로 도크 왼쪽까지 **266px** 뿐이라 340px 카드는 도크를 통째로 덮었다.

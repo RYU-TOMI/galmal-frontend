@@ -35,7 +35,7 @@ galmal-backend 크론(매일 KST 아침) → api.galmal.kr/v1/*.json 발행
 | `site/shell.py` · `charts.py` · `fmt.py` · `seo.py` | `<head>`·CSS · SVG 차트 · 날짜 표기 · sitemap |
 | `public/` | 그대로 서빙되는 파일 — `assets/discover.js|css`·d3·`og.png` · `data/world.geojson` |
 | `fixtures/v1/` | v1 사본 **47개**(라이브 `2026-09-28T03:18:50+09:00`, 딜 142 · 노선 43). **세 갈래가 다 있어야 한다** — 얇은 7/두꺼운 36 · 신기록 도장 겹침 2/안 겹침 1 · `SEL` 허브 인천 65/**김포 11**. **손으로 고치지 않는다** — `fixtures/capture.py <URL>` |
-| `tests/` | 단위 테스트 **252개** — 출력에서 `^OK` 확인 |
+| `tests/` | 단위 테스트 **254개** — 출력에서 `^OK` 확인 |
 
 ### 0-2. 빌드가 막는 것 (틀리면 **한 파일도 쓰기 전에** 멈춘다 → 배포 안 됨 → 사이트는 직전 배포본)
 
