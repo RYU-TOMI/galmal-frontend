@@ -873,12 +873,17 @@
   function detailHTML(c) {
     // `×` 로 닫을 수 있어야 한다 (SPEC §CH4 열고닫기). 지금은 지도 배경을 눌러야만 닫혔는데,
     // 카드가 크면 **누를 배경이 안 보인다.**
+    // 🔴 **공유는 아이콘, `×` 옆이다** (사용자 2026-09-28, 기획 승인).
+    // 전에는 비교 섹션 위 **전폭 버튼**이라 상세에서 가장 큰 요소였다 — 사용자: 「공유가 너무 가운데 크게 있어」.
+    // 공유는 **부차적 행동**이고 그 자리는 「평소 시세와 비교」가 먼저 와야 한다.
+    // 전폭 CTA 는 예약처 링크뿐이다(DESIGN.md). 딥링크를 만들어 놓고 공유 수단이 없으면 반쪽이라
+    // **없애는 게 아니라 자리를 낮춘다** — 모바일에서 주소창 복사는 어렵다(SPEC §CH4).
     return '<button type="button" class="hc-x" aria-label="상세 닫기">×</button>' +
+      '<button type="button" class="hc-share" aria-label="공유" data-msg="링크를 복사했어요">' + SHARE_SVG + '</button>' +
       photoHTML(c, 4) + '<div class="hc-body">' + bodyTop(c, true) +
       '<div class="hc-detail">' +
       // **딥링크를 만들어 놓고 공유 수단이 없으면 반쪽이다.** 특히 모바일에서 주소창 복사는 어렵다.
       // 커뮤니티 시딩(`PRODUCT.md` §유입)이 이걸로 비로소 가능해진다. (SPEC §CH4)
-      '<button type="button" class="hc-share">공유</button>' +
       priceCompare(c) +
       // 🔴 **노선 페이지 진입로는 「평소 시세와 비교」 바로 아래다** (사용자 결정 2026-09-21).
       // 맨 아래(가격 고지 밑)에 뒀더니 **사용자가 「찾는 거 너무 힘들다」고 했다** — 카드 안 스크롤로
@@ -1090,11 +1095,14 @@
   // 않게 하려는 것이고, 뒤로가기가 자연스럽게 동작한다(상세 → 지도). (SPEC §CH4)
   // `navigator.share` 가 있으면 그걸(모바일), 없으면 **클립보드 복사 + 짧은 피드백**. (COPY.md:164-165)
   // 공유하는 건 **지금 주소 그대로**다 — 상세가 열려 있으면 이미 `#{허브}-{목적지}` 다.
+  var SHARE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 15V4M12 4 8.5 7.5M12 4l3.5 3.5"/><path d="M5.5 12.5V19h13v-6.5"/></svg>';
   function shareCurrent(btn) {
     var url = location.href, done = function () {
       if (!btn) return;
-      var old = btn.textContent; btn.textContent = "링크를 복사했어요"; btn.disabled = true;
-      setTimeout(function () { btn.textContent = old; btn.disabled = false; }, 1600);
+      // 🔴 아이콘 버튼이라 **글자를 바꿔 끼울 수 없다** — 그러면 SVG 가 지워진다.
+      // 확인 문구는 CSS 가 `data-msg` 를 읽어 띄운다. 문구는 COPY.md 그대로 `링크를 복사했어요`.
+      btn.classList.add("copied"); btn.disabled = true;
+      setTimeout(function () { btn.classList.remove("copied"); btn.disabled = false; }, 1600);
     };
     if (navigator.share) {
       // 취소해도 reject 된다 — 사용자가 그만둔 것이지 실패가 아니므로 아무 말도 하지 않는다.
