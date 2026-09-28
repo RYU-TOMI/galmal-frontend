@@ -1285,6 +1285,18 @@
     var inf = e.target && e.target.closest && e.target.closest(".info");
     if (inf) placeTip(inf);
   });
+  // 🔴 **마우스가 떠나면 닫힌다** (사용자 2026-09-28: 「마우스를 아래로 내리니까 안 사라져서 불편해」).
+  // 눌러서 연 것은 `aria-expanded="true"` 로 **붙박이**가 된다 — 터치엔 그게 맞지만
+  // 마우스에는 아니다. 마우스로 여는 사람은 **지나가는 김에** 읽는 것이지 열어 두려는 게 아니다.
+  // 그래서 **호버가 되는 기기에서만** 떠날 때 접는다. 터치 기기는 탭으로 열고 탭으로 닫는 그대로다.
+  hc.addEventListener("mouseout", function (e) {
+    if (!matchMedia("(hover:hover)").matches) return;
+    var inf = e.target && e.target.closest && e.target.closest(".info");
+    if (!inf) return;
+    // 말풍선 안으로 들어간 것은 떠난 게 아니다 — 같은 버튼 안이면 무시한다.
+    if (e.relatedTarget && inf.contains(e.relatedTarget)) return;
+    inf.setAttribute("aria-expanded", "false");
+  });
   hc.addEventListener("mouseenter", hoverHold);
   hc.addEventListener("mouseleave", hoverOut);
   // 🔴 **지도 빈 곳을 누르면 상세가 닫힌다** (사용자 2026-09-28: 「옆에 빈 지도를 눌렀을 때 상세 창이 사라졌으면」).

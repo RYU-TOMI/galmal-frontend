@@ -228,7 +228,8 @@ class InfoTest(unittest.TestCase):
         self.assertIn("width:44px", before)
         self.assertIn("height:44px", before)
         rule = _rule(".info")
-        self.assertIn("width:1.15em", rule)
+        # 크기는 **옆 글자와 같다**(2026-09-28: 「글자랑 크기가 딱 맞았으면」) — `1em`.
+        self.assertIn("width:1em", rule)
         self.assertNotIn("width:16px", rule, "크기를 px 로 못 박으면 머리말이 바뀔 때 혼자 커진다")
         self.assertIn("width:100%", _rule(".info-g"))
 
@@ -291,3 +292,53 @@ class StageClickTest(unittest.TestCase):
         m = re.search(r'stageEl\.addEventListener\("click", function \(e\) \{(.*?)\n  \}\);', JS, re.S)
         self.assertIsNotNone(m)
         self.assertIn("closeByUser()", m.group(1))
+
+
+class StampRoomTest(unittest.TestCase):
+    """기운 도장이 **아랫줄을 파고들지 않게** (사용자 2026-09-28).
+
+    실측(칭다오 31%↓, 1440·390 둘 다): 도장 줄의 높이는 15px 인데 **기운 도장의 바깥 상자는 25px** 이라
+    아랫줄 `인천 출발 · 1인 왕복` 을 아래로 파고들었다.
+
+    🔴 **원인을 두 번 틀리게 짚었다.** 처음엔 줄 **사이**(`gap`)로 보고 16px 로 늘렸는데 **하나도 안 변했다** —
+    도장과 신기록은 나란히 **같은 줄**에 있어서 벌어져야 할 것은 사이가 아니라 **그 줄의 높이**였다.
+    잰 값이 안 움직이면 고친 게 원인이 아니다.
+    """
+
+    def test_angle_is_untouched(self):
+        """🔒 기울기는 줄이지 않는다 — 자리에 따라 각도가 다르면 **같은 표식이 두 모양**이 된다
+        (직항 배지를 없앤 것과 같은 이유). 세 단계의 각도가 그대로여야 한다."""
+        for tier, deg in (("t1", "-7deg"), ("t2", "-8deg"), ("t3", "-9deg")):
+            rule = _rule(".stamp.%s" % tier)
+            self.assertIsNotNone(rule, tier)
+            self.assertIn("rotate(%s)" % deg, rule, tier)
+
+    def test_room_is_made_by_the_stamp_not_the_row(self):
+        """여백은 **도장이 있을 때만** 줄을 키운다 — 줄에 주면 신기록만 있는 카드에도 빈 자리가 생긴다."""
+        self.assertIn(".hc-marks .stamp{margin:5px 0}", CSS)
+        self.assertNotIn("gap:16px", _rule(".hc-marks") or "")
+
+
+class InfoHoverTest(unittest.TestCase):
+    """마우스로 연 말풍선은 **마우스가 떠나면 닫힌다** (사용자 2026-09-28).
+
+    탭으로 연 것은 붙박이(`aria-expanded="true"`)가 맞다 — 터치엔 닫을 다른 길이 없다.
+    그런데 마우스로 여는 사람은 **지나가는 김에** 읽는 것이지 열어 두려는 게 아니다.
+    사용자: 「마우스를 아래로 내리니까 안 사라져서 불편해」.
+    """
+
+    def test_closes_on_leave_only_where_hover_exists(self):
+        m = re.search(r'hc\.addEventListener\("mouseout", function \(e\) \{(.*?)\n  \}\);', JS, re.S)
+        self.assertIsNotNone(m, "mouseout 핸들러를 못 찾았다")
+        body = m.group(1)
+        self.assertIn('matchMedia("(hover:hover)")', body)
+        self.assertIn('setAttribute("aria-expanded", "false")', body)
+
+    def test_moving_into_the_tip_is_not_leaving(self):
+        """말풍선 안으로 들어간 것은 떠난 게 아니다 — 그렇게 안 하면 읽으러 가는 순간 닫힌다."""
+        m = re.search(r'hc\.addEventListener\("mouseout", function \(e\) \{(.*?)\n  \}\);', JS, re.S)
+        self.assertIn("inf.contains(e.relatedTarget)", m.group(1))
+
+    def test_tap_toggle_survives(self):
+        """터치 기기는 탭으로 열고 탭으로 닫는 그대로다."""
+        self.assertIn('inf.setAttribute("aria-expanded", open ? "true" : "false");', JS)
