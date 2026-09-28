@@ -221,12 +221,27 @@ class InfoTest(unittest.TestCase):
         self.assertIn('inf.setAttribute("aria-expanded"', JS)
 
     def test_touch_target_is_44px(self):
-        """글리프는 16px 이어도 **누를 판은 44px** 이다 — 모바일 손잡이와 같은 값."""
+        """글리프가 작아도 **누를 판은 44px** 이다 — 모바일 손잡이와 같은 값.
+        글리프 크기는 `em` 이라 주변 글자를 따라간다(2026-09-28) — 그래서 **판만 고정값**이다."""
         before = _rule(".info::before")
         self.assertIsNotNone(before)
         self.assertIn("width:44px", before)
         self.assertIn("height:44px", before)
-        self.assertIn("width:16px", _rule(".info"))
+        rule = _rule(".info")
+        self.assertIn("width:1.15em", rule)
+        self.assertNotIn("width:16px", rule, "크기를 px 로 못 박으면 머리말이 바뀔 때 혼자 커진다")
+        self.assertIn("width:100%", _rule(".info-g"))
+
+    def test_tip_is_kept_inside_the_card(self):
+        """🔴 말풍선이 카드 밖으로 나가면 **글이 잘린다**(실측: 폭 238px 카드에서 68px 넘침).
+        넘치는 양은 ⓘ 가 줄 어디에 있느냐가 정하고 그건 글자 길이가 정한다 — CSS 로는 못 막는다.
+        그래서 **열릴 때 재서 밀어 넣는다.** 탭으로 여는 길과 호버로 여는 길 **둘 다** 걸려야 한다."""
+        body = _fn("placeTip")
+        self.assertIsNotNone(body, "placeTip() 를 못 찾았다")
+        self.assertIn("getBoundingClientRect", body)
+        self.assertIn("tip.style.left", body)
+        self.assertIn("if (open) placeTip(inf);", JS)          # 탭
+        self.assertIn('hc.addEventListener("mouseover"', JS)   # 호버
 
     def test_hover_path_exists_too(self):
         self.assertIn(".info:hover .info-tip", CSS)
@@ -236,3 +251,43 @@ class InfoTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StageClickTest(unittest.TestCase):
+    """빈 지도를 누르면 상세가 닫힌다 (사용자 2026-09-28).
+
+    예전엔 `svg` 에만 걸려 있어서 **지도 위에 얹힌 것들이 클릭을 삼켰다** —
+    실측으로 지도 왼쪽 위를 누르면 `.prompt`(안내 말풍선)가 받고 아무 일도 안 났다.
+    이제 **무대 전체**에서 받고 **눌러야 할 것만** 뺀다.
+    """
+
+    KEEP = ".hovercard,#pins,.stagebar,#stepper,#fdock,.emptyday"
+
+    def test_listener_is_on_the_stage_not_the_svg(self):
+        self.assertIn('stageEl.addEventListener("click"', JS)
+        self.assertNotIn('svg.addEventListener("click"', JS)
+
+    def test_keep_list_has_no_dead_selectors(self):
+        """🔴 **무대 안에 실제로 있는 것만 적는다.** 처음 적은 아홉 중 셋이 죽어 있었다(실측):
+        `.gm-zoom`(홈엔 없다) · `.originwrap`·`#firstnote`(머리에 있어 무대 클릭 대상이 될 수 없다).
+        쓰지 않는 선택자를 남기면 다음 사람이 「여기 뭐가 있나」부터 찾는다(B44 죽은 키와 같은 축)."""
+        self.assertIn('var KEEP = "%s";' % self.KEEP, JS)
+        # ⚠️ **목록만 본다.** 처음엔 파일 전체에서 찾았다가 틀렸다 —
+        # `.originwrap`·`#firstnote` 는 **딜 0건 화면을 치우는 `off` 목록에서 여전히 쓰는** 살아 있는 선택자다.
+        # 「이 목록에서 죽었다」와 「파일에서 죽었다」는 다른 말이고, 검사는 재려는 것만 재야 한다.
+        for dead in (".gm-zoom", ".originwrap", "#firstnote"):
+            self.assertNotIn(dead, self.KEEP, dead)
+        self.assertEqual(len(self.KEEP.split(",")), 6)
+        # `.gm-zoom` 만은 홈 어디에도 없어야 한다 — 노선 페이지 CSS 의 이름이다.
+        self.assertNotIn(".gm-zoom", re.sub(r"(?m)^\s*//.*$", "", JS))
+
+    def test_the_hint_never_swallows_a_click(self):
+        """안내 말풍선은 **누르는 것이 아니다** — 그 위를 눌러도 지도를 누른 것으로 친다."""
+        self.assertIn("pointer-events:none", _rule(".prompt"))
+        self.assertNotIn(".prompt", self.KEEP)
+
+    def test_close_goes_through_the_user_path(self):
+        """`collapse()` 가 아니라 `closeByUser()` 다 — 공유 링크로 들어온 사람의 히스토리를 지킨다(B58)."""
+        m = re.search(r'stageEl\.addEventListener\("click", function \(e\) \{(.*?)\n  \}\);', JS, re.S)
+        self.assertIsNotNone(m)
+        self.assertIn("closeByUser()", m.group(1))

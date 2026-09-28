@@ -756,18 +756,19 @@
   // 🔴 자리로 가르지 않고 **하는 일**로 갈랐다 — 「호버냐」로 가르면 모바일에서 또 갈린다(B32와 같은 축).
   function bodyTop(c, detail) {
     var marks = detail ? stampHTML(c) + recLong(c) : (stampHTML(c) || recShort(c));
-    // 🔴 **문장을 접기 전에 사실을 남긴다.** 인원 고지를 ⓘ 뒤로 보내면서(사용자 2026-09-28)
-    // 「이 값이 한 사람 값」이라는 **사실**이 상세에서 사라질 뻔했다 — 단위는 피드 카드에만 있었다.
-    // 접는 건 설명이지 사실이 아니다. 그래서 상세 가격에도 같은 단위를 붙인다.
-    return '<div class="hc-row"><span class="hc-price"><small>₩</small>' + c.price + ' <span class="tilde">~</span>' +
-      (detail ? ' <span class="unit">1인 왕복</span>' : "") + '</span>' +
+    return '<div class="hc-row"><span class="hc-price"><small>₩</small>' + c.price + ' <span class="tilde">~</span></span>' +
       '<span class="hc-marks">' + marks + "</span></div>" +
       // 🔴 **헤더는 `서울 출발` 이라 말하지만 `SEL` 은 가상 허브다** (SPEC §CH4, 2026-09-01 확정).
       // 실제로는 인천이거나 김포고, **김포 딜을 보고 인천으로 갈까 헷갈릴 자리**다.
       // 허브가 `SEL` 이 아닌 딜(부산·대구·제주)에도 붙인다 — 일관성(COPY.md §2 S5).
       // 여기가 **가격 줄 바로 아래**다. 「어디서 뜨는 비행기인가」는 날짜보다 먼저 확인할 사실이다 —
       // 공항이 다르면 날짜는 볼 필요도 없다.
-      (detail && c.oa ? '<div class="hc-oa">' + c.oa + ' 출발</div>' : "") +
+      // 🔴 **문장을 접기 전에 사실을 남긴다.** 인원 설명을 ⓘ 뒤로 보내면서(사용자 2026-09-28)
+      // 「이 값이 한 사람 값」이라는 **사실**이 상세에서 사라질 뻔했다 — 단위는 피드 카드에만 있었다.
+      // 처음엔 가격 옆에 붙였는데 **1.22rem 가격 옆의 0.62rem 단위가 따로 놀았다**(사용자 지적).
+      // 여기가 맞는 자리다: 출발 공항과 **같은 종류의 사실**(이 값이 무엇에 대한 값인가)이고 글자 크기도 같다.
+      // `oa` 가 없어도 단위는 나간다 — 접기를 떠받치는 건 **단위**지 공항이 아니다.
+      (detail ? '<div class="hc-oa">' + (c.oa ? c.oa + ' 출발 · ' : "") + '1인 왕복</div>' : "") +
       '<div class="hc-date">' + c.date + (c.nights ? " · " + c.nights : "") + "</div>" +
       '<div class="hc-trans">' + c.trans + "</div>" + freshHTML(c);
   }
@@ -809,6 +810,23 @@
   var INFO_SVG = '<svg class="info-g" viewBox="0 0 16 16" aria-hidden="true" focusable="false">' +
     '<circle cx="8" cy="8" r="6.6"/><path d="M8 7.3v3.9"/>' +
     '<circle class="dot" cx="8" cy="4.9" r="0.95"/></svg>';
+  // 🔴 **말풍선은 카드 안에 있어야 한다** (사용자 2026-09-28: 「i 버튼 누르면 뜨는 정보가 짤려 옆으로」).
+  // 실측: 데스크톱 확장 카드 폭 238px 인데 말풍선이 **오른쪽으로 68px 넘쳤다.**
+  // CSS 로는 못 막는다 — 넘치는 양이 ⓘ 가 줄 어디에 있느냐에 따라 달라지고, 그건 글자 길이가 정한다.
+  // 그래서 **열릴 때 재서 밀어 넣는다.** 호버로 열리는 길에도 같이 걸어야 해서 `mouseover` 로도 부른다.
+  function placeTip(inf) {
+    var tip = inf && inf.querySelector(".info-tip");
+    if (!tip) return;
+    tip.style.left = "0px";
+    // 🔴 **카드보다 넓으면 미는 것으로는 못 담는다.** 폭부터 카드 안쪽에 맞춘다 —
+    // 실측에서 폭 238px 카드에 230px 말풍선이라, 아무리 밀어도 오른쪽이 잘렸다.
+    var card = hc.getBoundingClientRect(), pad = 10;
+    tip.style.maxWidth = Math.max(140, Math.round(card.width - pad * 2)) + "px";
+    var box = tip.getBoundingClientRect(), dx = 0;
+    if (box.right > card.right - pad) dx = (card.right - pad) - box.right;
+    if (box.left + dx < card.left + pad) dx = (card.left + pad) - box.left;
+    tip.style.left = Math.round(dx) + "px";
+  }
   function infoHTML(text) {
     return '<button type="button" class="info" aria-expanded="false" aria-label="설명 보기">' +
       INFO_SVG +
@@ -1177,7 +1195,9 @@
     // ⓘ — 모바일엔 호버가 없다. 탭하면 열리고 다시 탭하면 닫힌다.
     var inf = e.target && e.target.closest && e.target.closest(".info");
     if (inf) { e.stopPropagation(); e.preventDefault();
-      inf.setAttribute("aria-expanded", inf.getAttribute("aria-expanded") === "true" ? "false" : "true");
+      var open = inf.getAttribute("aria-expanded") !== "true";
+      inf.setAttribute("aria-expanded", open ? "true" : "false");
+      if (open) placeTip(inf);
       return; }
     e.stopPropagation(); if (expandedI === null && active !== null) expand(active);
   });
@@ -1260,9 +1280,29 @@
   // 「지도를 떠났는데도 남는 것」을 위한 게 아니다.
   stageEl.addEventListener("mouseleave", function () { if (hoverable()) { hoverHold(); clearHi(); } });
   // 미니카드 위에 있는 동안은 살려 둔다 — 카드로 마우스를 옮기는 중에 사라지면 누를 수가 없다.
+  // 호버로 여는 길(데스크톱)도 같은 자리 계산을 받아야 한다 — `mouseenter` 는 안 올라오니 `mouseover` 다.
+  hc.addEventListener("mouseover", function (e) {
+    var inf = e.target && e.target.closest && e.target.closest(".info");
+    if (inf) placeTip(inf);
+  });
   hc.addEventListener("mouseenter", hoverHold);
   hc.addEventListener("mouseleave", hoverOut);
-  svg.addEventListener("click", function (e) { if (e.target === svg || e.target.classList.contains("land")) closeByUser(); });
+  // 🔴 **지도 빈 곳을 누르면 상세가 닫힌다** (사용자 2026-09-28: 「옆에 빈 지도를 눌렀을 때 상세 창이 사라졌으면」).
+  // 예전엔 `svg` 에만 걸려 있어서 **지도 위에 얹힌 것들이 클릭을 삼켰다** — 실측으로 확인했다:
+  // 지도 왼쪽 위를 누르면 `.prompt`(안내 말풍선)가 받고 있었고 아무 일도 안 났다.
+  // 그래서 **무대 전체**에서 받고, **눌러야 할 것들만 빼고** 닫는다. 빼는 것이 곧 「여긴 기능이 있다」는 목록이다.
+  // 🔒 **무대 안에 실제로 있는 것만 적는다.** 처음엔 아홉을 적었는데 브라우저로 세어 보니 셋이 이 목록에선 죽어 있었다:
+  //   `.gm-zoom` 은 홈에 아예 없고(노선 페이지 CSS 다), `.originwrap`·`#firstnote` 는 **머리에 있어**
+  //   무대 클릭의 대상이 될 수 없다(둘 다 딜 0건 화면을 치우는 `off` 목록에서는 여전히 쓴다).
+  //   안 걸리는 선택자를 목록에 남기면 다음 사람이 「이건 왜 여기 있나」부터 찾는다.
+  // `.prompt` 는 일부러 뺐다 — 안내 말풍선은 **누르는 것이 아니라서** `pointer-events:none` 이고,
+  //   그 위를 눌러도 지도를 누른 것으로 친다. 그게 사용자가 기대한 동작이다.
+  var KEEP = ".hovercard,#pins,.stagebar,#stepper,#fdock,.emptyday";
+  stageEl.addEventListener("click", function (e) {
+    var t = e.target;
+    if (t && t.closest && t.closest(KEEP)) return;
+    closeByUser();
+  });
 
   // 초기 예산값은 출발지를 고를 때 resetBudget() 이 잡는다.
   function updCount() {
