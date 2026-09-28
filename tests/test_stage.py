@@ -72,7 +72,9 @@ def problems(js, css):
         out.append("CSS 가 필터 중 단계 버튼을 숨긴다 — 그러면 누를 버튼이 없다(B70)")
 
     # 4. 「켜짐」을 켜는 곳이 하나
-    lit = len(re.findall(r'classList\.toggle\("on",\s*\w+\s*===\s*(?:idx|stageIdx)\)', re.sub(r"(?m)^\s*//.*$", "", js)))
+    # PH5c 부터 조건이 자랐다 — `!userV && i === stageIdx`(줌·팬 중에는 어느 단계도 아니다).
+    # **세는 것은 「켜는 자리의 개수」**지 조건식의 모양이 아니다. 그래서 앞부분을 열어 둔다.
+    lit = len(re.findall(r'classList\.toggle\("on",\s*[^)]*===\s*(?:idx|stageIdx)\)', re.sub(r"(?m)^\s*//.*$", "", js)))
     if lit == 0:
         out.append("단계바의 「켜짐」을 켜는 곳이 없다")
     elif lit > 1:
@@ -107,8 +109,9 @@ class StageTest(unittest.TestCase):
         """탐침 — 켤 때마다(=조건 없이) 옮기면 그것도 잠금이다."""
         ap = fn(JS, "applyFilter")
         self.assertIn("wasFiltering", ap)
-        old = JS.replace("if (nowFiltering && !wasFiltering) stageIdx = STAGES.length - 1;",
-                         "if (nowFiltering) stageIdx = STAGES.length - 1;")
+        # PH5c 부터 사용자 뷰(`userV`)도 같이 버린다 — 탐침도 그 모양을 따라간다.
+        old = JS.replace("if (nowFiltering && !wasFiltering) { stageIdx = STAGES.length - 1; userV = null; }",
+                         "if (nowFiltering) { stageIdx = STAGES.length - 1; userV = null; }")
         self.assertNotEqual(old, JS)
         self.assertTrue(any("켜는 순간" in b for b in problems(old, CSS)))
 
