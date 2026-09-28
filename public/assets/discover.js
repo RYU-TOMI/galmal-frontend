@@ -395,7 +395,10 @@
     var on = anyFilter();
     bar.classList.toggle("allregions", on);
     var pills = bar.querySelectorAll(".pill");
-    for (var i = 0; i < pills.length; i++) pills[i].classList.toggle("on", i === stageIdx);
+    // 🔴 **줌·팬을 하면 불이 꺼진다**(PH5c T3). 사용자가 만진 뷰는 어느 단계도 아니다 —
+    // 그런데 불이 켜져 있으면 「지금 가까운 곳을 보고 있다」는 **거짓말**이 된다.
+    // 그 상태에서 같은 버튼을 다시 누르는 것도 뜻이 있다(그 뷰로 돌아가기).
+    for (var i = 0; i < pills.length; i++) pills[i].classList.toggle("on", !userV && i === stageIdx);
     var note = bar.querySelector(".allnote");
     if (on && !note) { note = document.createElement("span"); note.className = "allnote"; note.textContent = "전 지역에서 찾는 중"; bar.appendChild(note); }
   }
@@ -708,6 +711,10 @@
   function takeView(v) {
     userV = v; tweenId++; svg.classList.remove("tweening");
     moveOnly(v);
+    // 버튼 상태(한계에 닿았나)와 단계 불(어느 단계도 아니다)이 **매 프레임 따라온다**.
+    // 둘 다 DOM 클래스 몇 개라 프레임 예산에 든다 — 실측 3.9ms/프레임(6배 느린 CPU).
+    if (typeof syncStepper === "function") syncStepper();
+    syncStageBar();
   }
   // 🔴 **커서 아래의 땅이 그 자리에 머문다.** 화면 가운데를 기준으로 확대하면
   // 보려던 곳이 옆으로 흘러가 버린다 — 지도를 벌릴 때 사람이 기대하는 건 손가락 밑이 고정되는 것이다.
@@ -1296,14 +1303,22 @@
     // 피드엔 뜨는데 지도엔 없는 상태(F15)다. 실측(서울 `해변` 22건): 화면 안이 가까운 곳 10 · 조금 더 멀리 16 · 아주 멀리 22.
     // 왜 한 번만인가: 그 뒤로도 잠그면 **사용자가 가까이 갈 길이 없어진다**(B70).
     // 끌 때는 되돌리지 않는다 — 사용자가 만진 뷰를 우리가 옮기지 않는다.
+    // PH5c: 「한 번 옮긴다」는 **사용자 뷰도 함께 버린다**는 뜻이다. `stageIdx` 만 바꾸면
+    // `render()` 가 `userV` 를 먼저 보므로 화면이 안 움직인다 — 필터를 켰는데 매칭이
+    // 화면 밖에 그대로 있게 된다(F15 가 다시 열린다).
+    // 그 뒤로는 줌·팬이 전부 먹고, **필터를 꺼도 뷰를 되돌리지 않는다.**
     var nowFiltering = anyFilter();
-    if (nowFiltering && !wasFiltering) stageIdx = STAGES.length - 1;
+    if (nowFiltering && !wasFiltering) { stageIdx = STAGES.length - 1; userV = null; }
     wasFiltering = nowFiltering;
     updCount(); collapse(); render();
     if (from && CURV && !reduceMotion() && from.scale !== CURV.scale) tweenTo(from, CURV, 400);
   }
+  // 🔴 **단계 버튼은 「빠른 이동」이다** (PH5c T3 · SPEC §CH1). 줌·팬으로 어디에 가 있든
+  // 누르면 그 뷰로 **날아간다** — 그래서 `userV` 를 버린다. 사용자가 스스로 「여기로 가겠다」고
+  // 말한 자리이므로, 만져 둔 뷰를 지키는 규칙(T1)의 예외가 아니라 **그 규칙이 끝나는 자리**다.
   function setStage(idx) {
     var from = CURV;                              // 지금 화면에 적용된 뷰
+    userV = null;
     stageIdx = idx; collapse(); render();         // 목적지 단계의 딜 집합·좌표로 전부 그린다 (불은 syncStageBar)
     // 전환 중 다른 단계를 누르면 진행 중인 트윈을 버리고 **현재 위치에서** 새 목표로 간다.
     if (from && CURV && !reduceMotion()) tweenTo(from, CURV, 400);
@@ -1316,20 +1331,28 @@
   });
   var sbs = document.querySelectorAll(".stagebar .pill");
   for (var b = 0; b < sbs.length; b++) (function (el, idx) { el.addEventListener("click", function () { setStage(idx); }); })(sbs[b], b);
-  // 단계 스테퍼 — 줌이 아니라 한 단계씩 넘기는 버튼. 양 끝에서는 비활성. (SPEC §CH1)
+  // ---- `＋/－` = **줌 버튼** (PH5c T2 · SPEC §CH1) ----
+  // 🔴 **원래 뜻으로 돌아왔다.** 2026-08-22 에 「죽어 있던 버튼을 단계 스테퍼로 재활용」했는데,
+  // 그건 자유 줌이 없던 시절의 임시였다. 이제 휠이 없는 사람(트랙패드 설정·접근성)에게
+  // **줌으로 가는 유일한 길**이다.
+  //
+  // 한 번에 한 단(1.6배). 화면 **가운데**를 기준으로 확대한다 — 버튼에는 커서 자리가 없다.
+  // 비활성은 **배율 한계**로 정한다(예전엔 단계 끝). 더 갈 데가 없으면 눌리지 않는다.
   var stepEls = document.querySelectorAll(".stepper button");
-  function stepDelta(el) { return el.getAttribute("data-step") === "out" ? 1 : -1; }
+  var ZOOM_STEP = 1.6;
+  function stepFactor(el) { return el.getAttribute("data-step") === "out" ? 1 / ZOOM_STEP : ZOOM_STEP; }
   function syncStepper() {
-    for (var k = 0; k < stepEls.length; k++) {
-      var n = stageIdx + stepDelta(stepEls[k]);
-      stepEls[k].disabled = (n < 0 || n >= STAGES.length);
+    var b = kBounds(), k = XF.k;
+    for (var m = 0; m < stepEls.length; m++) {
+      var f = stepFactor(stepEls[m]);
+      stepEls[m].disabled = f < 1 ? (k <= b.lo * 1.001) : (k >= b.hi * 0.999);
     }
   }
   for (var z = 0; z < stepEls.length; z++) (function (el) {
     el.addEventListener("click", function () {
-      var n = stageIdx + stepDelta(el);
-      if (n < 0 || n >= STAGES.length) return;
-      setStage(n);
+      var r = svg.getBoundingClientRect();
+      zoomAbout(r.left + r.width / 2, r.top + r.height / 2, stepFactor(el));
+      syncStepper();
     });
   })(stepEls[z]);
   syncStepper();
