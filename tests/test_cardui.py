@@ -313,9 +313,19 @@ class StampRoomTest(unittest.TestCase):
             self.assertIsNotNone(rule, tier)
             self.assertIn("rotate(%s)" % deg, rule, tier)
 
+    def test_marks_are_stacked_not_side_by_side(self):
+        """🔴 **도장 위, 신기록 아래** — 오른쪽 정렬(사용자 안, 2026-09-28).
+        나란히 두면 기운 도장이 아랫줄에 3px 까지 붙는다. 쌓으면 **14px** 이 난다.
+        대신 아래 내용이 11px 내려가는데, 그 비용은 **표식이 둘 다 있는 카드에만** 든다
+        (오늘 142건 중 2건). 표식이 하나면 어느 쪽이든 한 줄이다."""
+        rule = _rule(".hc-marks")
+        self.assertIn("flex-direction:column", rule)
+        self.assertIn("align-items:flex-end", rule)
+        self.assertNotIn("flex-wrap", rule, "쌓는 배치엔 줄바꿈이 필요 없다")
+
     def test_room_is_made_by_the_stamp_not_the_row(self):
         """여백은 **도장이 있을 때만** 줄을 키운다 — 줄에 주면 신기록만 있는 카드에도 빈 자리가 생긴다."""
-        self.assertIn(".hc-marks .stamp{margin:5px 0}", CSS)
+        self.assertIn(".hc-marks .stamp{margin:", CSS)
         self.assertNotIn("gap:16px", _rule(".hc-marks") or "")
 
 
