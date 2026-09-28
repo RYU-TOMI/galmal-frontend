@@ -352,3 +352,35 @@ class InfoHoverTest(unittest.TestCase):
     def test_tap_toggle_survives(self):
         """터치 기기는 탭으로 열고 탭으로 닫는 그대로다."""
         self.assertIn('inf.setAttribute("aria-expanded", open ? "true" : "false");', JS)
+
+
+class CardWidthTest(unittest.TestCase):
+    """확장 상세의 폭 — **결정하는 자리가 스캔하는 자리보다 좁으면 안 된다** (사용자 2026-09-28).
+
+    238px 이었다. 피드 카드는 340px 이다(`SPEC` §CH3). 30% 좁은 쪽이 **결정하는 자리**였고,
+    그 좁음이 하루에 세 가지를 만들었다(실측):
+      · 도장·신기록이 가격 옆에 못 붙는다 — 안쪽 214px < 가격 110 + 표식 190
+      · ⓘ 말풍선을 카드 폭에 맞춰 깎아야 한다
+      · 고지가 세 줄씩 접힌다
+    """
+
+    def test_wide_desktop_matches_the_feed_card(self):
+        self.assertIn("@media(min-width:1000px){.hovercard.expanded{width:340px}}", CSS)
+
+    def test_narrow_desktop_keeps_the_old_width(self):
+        """🔴 **없는 자리를 우겨 넣지 않는다.** 861~999px 에서는 무대가 521~659px 인데 도크가 270px 을 쓴다 —
+        900px 실측으로 도크 왼쪽까지 **266px** 뿐이라 340px 카드는 도크를 통째로 덮었다.
+        덮으면 그 뒤의 필터를 못 쓴다(B16 과 같은 뿌리)."""
+        self.assertIn(".hovercard.expanded{width:238px;", CSS)
+
+    def test_edge_clamp_is_measured_not_copied(self):
+        """🔴 위치 계산에 `120`(=238/2)이 **손으로 박혀 있었다.** 폭만 바꾸면 카드가 무대 밖으로 나간다 —
+        같은 사실(카드 폭)이 CSS 와 JS 두 곳에 있으면 갈린다. 이제 실제 폭에서 잰다.
+
+        ⚠️ 여유를 **더하지 않는다.** `halfW + 8` 로 했더니 861px 에서 도크를 덮었다(실측) —
+        예전 `120` 은 `119 + 1` 이라 **반폭 그 자체**가 원래 뜻이었다."""
+        body = re.search(r"function positionCard\(c, at\) \{(.*?)\n  \}\n", JS, re.S)
+        self.assertIsNotNone(body)
+        code = re.sub(r"(?m)^\s*//.*$", "", body.group(1))
+        self.assertIn("var edge = Math.min(halfW, box.width / 2);", code)
+        self.assertNotIn("120", code, "카드 폭의 사본이 다시 박혔다")
