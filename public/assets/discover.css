@@ -115,18 +115,22 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 /* ⓘ — **설명을 접는 자리**이지 고지를 숨기는 자리가 아니다(고지는 `.hc-ad` 에 그대로 있다).
    글리프는 16px 이지만 **터치 목표는 44px** 이다 — `::before` 로 보이지 않는 판을 깐다.
    접근성 표의 모바일 손잡이와 같은 값이라 규칙이 둘로 갈리지 않는다. */
+/* 크기는 **주변 글자를 따른다**(사용자 2026-09-28: 「평소 시세 폰트 크기가 맞으면 좋겠어」).
+   16px 로 못 박았더니 `.pc-row`(.7rem)·`.hc-sec`(.63rem) 어디에 놓든 혼자 컸다.
+   `em` 이면 머리말이 바뀌어도 따라간다 — 숫자를 두 곳에 적지 않는 것과 같은 이유다. */
 .info{position:relative;display:inline-flex;align-items:center;justify-content:center;
- width:16px;height:16px;margin-left:5px;padding:0;border:0;background:none;
- vertical-align:-3px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+ font:inherit;width:1.15em;height:1.15em;margin-left:4px;padding:0;border:0;background:none;
+ vertical-align:-.16em;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .info::before{content:"";position:absolute;left:50%;top:50%;width:44px;height:44px;
  transform:translate(-50%,-50%)}
-.info-g{display:block;width:16px;height:16px;fill:none;stroke:currentColor;
- stroke-width:1.35;stroke-linecap:round;color:var(--sub)}
+.info-g{display:block;width:100%;height:100%;fill:none;stroke:currentColor;
+ stroke-width:1.5;stroke-linecap:round;color:var(--sub)}
 .info-g .dot{fill:currentColor;stroke:none}
 /* 눌리는 것처럼 — 올리면 코랄로 바뀌고 열려 있는 동안도 코랄이다. */
 .info[aria-expanded="true"] .info-g{color:var(--accent)}
 @media(hover:hover){.info:hover .info-g{color:var(--accent)}}
-.info-tip{display:none;position:absolute;left:-2px;top:24px;z-index:6;width:236px;
+/* 왼쪽 위치는 열릴 때 JS 가 잰다(`placeTip`) — 카드 폭이 238px 인데 68px 넘친 적이 있다. */
+.info-tip{display:none;position:absolute;left:0;top:calc(1.15em + 7px);z-index:6;width:230px;max-width:82vw;
  background:#fff;border:1px solid var(--line);border-radius:10px;padding:9px 11px;
  font-size:.75rem;font-weight:600;font-style:normal;line-height:1.55;color:var(--ink);
  text-align:left;white-space:normal;box-shadow:0 10px 26px rgba(20,40,40,.18)}
@@ -266,7 +270,7 @@ svg.map{position:absolute;inset:0;width:100%;height:100%;display:block;backgroun
  border-radius:10px;padding:11px 12px;font-size:.76rem;color:var(--accent2);font-weight:700}
 .miss-go{align-self:flex-start;color:var(--accent);font-weight:800;text-decoration:underline}
 .feednote{background:var(--soft);border:1px dashed var(--line2,#cfd8d7);border-radius:10px;padding:11px 12px;font-size:.76rem;color:var(--sub);font-weight:600;text-align:center}
-.prompt{position:absolute;left:18px;top:16px;background:#ffffffdd;border:1px solid var(--line);border-radius:11px;padding:9px 13px;font-size:.74rem;color:var(--sub)}
+.prompt{pointer-events:none;position:absolute;left:18px;top:16px;background:#ffffffdd;border:1px solid var(--line);border-radius:11px;padding:9px 13px;font-size:.74rem;color:var(--sub)}
 .prompt b{color:var(--ink);font-weight:800}
 /* 지도 위 플로팅 카드(핀/항로 끝) */
 .hovercard{position:absolute;width:184px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 12px 32px rgba(20,40,40,.26);border:1px solid var(--line);transform:translate(-50%,0) scale(.96);opacity:0;pointer-events:none;transition:opacity .14s ease,transform .14s ease;z-index:8}  /* 도크(7)보다 위 — 사용자가 연 카드가 도크에 가리면 안 된다 */

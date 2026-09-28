@@ -163,10 +163,17 @@ class PlacementTest(unittest.TestCase):
 
     def test_detail_only(self):
         """축소(호버) 카드는 고르는 자리다 — 확장 상세가 결정하는 자리(SPEC §CH4)."""
-        self.assertIn('(detail && c.oa ?', _detail_body())
+        body = _detail_body()
+        self.assertIn('(detail ?', body)
+        self.assertIn("hc-oa", body)
+        self.assertLess(body.index("detail ?"), body.index("hc-oa"))
 
     def test_wording(self):
-        self.assertIn("' 출발</div>'", _detail_body().replace('"', "'"))
+        """`{공항명} 출발` 은 그대로다. 2026-09-28 부터 **같은 줄에 `1인 왕복` 단위가 따라붙는다** —
+        둘 다 「이 값이 무엇에 대한 값인가」라는 같은 종류의 사실이라 한 줄에 산다."""
+        body = _detail_body().replace('"', "'")
+        self.assertIn("' 출발 · '", body)
+        self.assertIn("1인 왕복", body)
 
     def test_hidden_when_unknown(self):
         """이름을 못 얻으면 **빈 줄이 아니라 아무것도** 안 그린다 — 빌드가 막지만 화면도 안 무너진다."""

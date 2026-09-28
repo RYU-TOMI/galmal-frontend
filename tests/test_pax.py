@@ -251,10 +251,14 @@ class OrderTest(unittest.TestCase):
         """
         self.assertIn("PAX_TIP", _fn("paxHTML"))
         self.assertIn('var PAX_TIP = "%s";' % NOTE, JS)
+        # 단위는 **확장 상세에만** 있고, 가격 바로 아래 「{공항} 출발」 줄에 붙는다.
+        # 처음엔 가격 옆이었는데 1.22rem 가격 옆의 작은 단위가 따로 놀아 옮겼다(사용자 2026-09-28).
+        # 자리는 옮겨도 **상세에서 보인다**는 조건은 그대로다 — 그게 접기를 떠받치는 것이다.
         body = _fn("bodyTop")
-        self.assertIn("detail ? ' <span class=\"unit\">%s</span>'" % UNIT, body)
-        self.assertLess(body.index("hc-price"), body.index('class=\\"unit\\"')
-                        if 'class=\\"unit\\"' in body else body.index("unit"))
+        self.assertIn(UNIT, body)
+        self.assertIn("detail ?", body)
+        self.assertLess(body.index("hc-price"), body.index(UNIT))
+        self.assertLess(body.index(UNIT), body.index("hc-date"))
 
     def test_the_sentence_lives_in_exactly_one_place(self):
         """같은 문장을 두 곳에 두지 않는다 — 이 저장소가 **다섯 번** 사고를 낸 이유가 그것이다."""
