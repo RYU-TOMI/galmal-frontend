@@ -40,6 +40,7 @@ PAYLOAD = _fx("deals.json")
 DEALS = PAYLOAD["deals"]
 VOCAB = _fx("vocab.json")
 INDEX = _fx("routes", "index.json")
+META = _fx("meta.json")
 
 
 def _fn(name):
@@ -140,14 +141,14 @@ class VocabTest(unittest.TestCase):
         self.assertIn("oa: AIRPORT[dl.oa]", _fn("toCity"))
 
     def test_home_ships_the_table_from_vocab(self):
-        page = home.render_home(PAYLOAD, "[]", "{}", INDEX, VOCAB)
+        page = home.render_home(PAYLOAD, "[]", "{}", INDEX, VOCAB, META)
         self.assertIn("window.__AIRPORTS=", page)
         for code, name in VOCAB["airport_name"].items():
             self.assertIn('"%s":"%s"' % (code, name), page)
 
     def test_home_does_not_invent_a_table(self):
         """탐침 — 어휘에서 오는지, 아니면 `home.py` 가 들고 있는지. 어휘를 비우면 빈 표가 나가야 한다."""
-        page = home.render_home(PAYLOAD, "[]", "{}", INDEX, dict(VOCAB, airport_name={}))
+        page = home.render_home(PAYLOAD, "[]", "{}", INDEX, dict(VOCAB, airport_name={}), META)
         self.assertIn("window.__AIRPORTS={};", page)
 
 

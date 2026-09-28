@@ -107,12 +107,19 @@ def chip_problems(page_html, vocab):
     return out
 
 
-def render_home(payload, deals_json, world_json, index, vocab):
+def render_home(payload, deals_json, world_json, index, vocab, meta):
     # 공항 표시명은 **어휘에서 온다**(CONTRACT §5 · COPY.md §2 S5). `discover.js` 에 `{"ICN":"인천"}` 을
     # 적어 두면 그 순간 손 사본이 둘이 되고, 이 저장소는 그걸로 **다섯 번** 사고를 냈다.
     # 분위기·날짜 칩은 HTML 에 그려져 있어 JS 가 그 칩에서 읽지만, 공항 이름은 그릴 자리가 없다 — 그래서 실어 보낸다.
     # 빌드가 「모든 딜의 `oa` 가 이 표에 있나」를 이미 검사했다(`site/origin.py`).
     airports_json = json.dumps(vocab.get("airport_name") or {}, ensure_ascii=False, separators=(",", ":"))
+    # ⓘ 설명이 「최근 {N}일」이라고 말한다 — 그 `N` 은 **창(window)이라 백엔드가 정한다**
+    # (`CLAUDE.md`: 임계는 프론트가, 창은 백엔드가 정한다). 프론트가 `30` 을 적어 두면 백엔드가 창을
+    # 바꾼 날 화면만 옛 숫자를 말한다 — 예외도 안 나고 사람만 모르는, 가장 비싼 모양이다.
+    # 없으면 **여기서 터뜨린다**: 「최근 일」이라고 쓰인 화면이 나가는 것보다 빌드가 멈추는 게 낫다.
+    window_days = (meta or {}).get("window_days")
+    if not window_days:
+        raise ValueError("meta.window_days 가 없다 — ⓘ 설명이 「최근 일」이 된다")
     # `generated`(ISO 8601 + 오프셋) -> 화면 문자열. 표시는 프론트 몫이라고 계약이
     # 명시한 자리다(P7). 현행 `updated` 와 같은 모양 `YYYY-MM-DD HH:MM` 을 만든다.
     updated = html.escape(payload["generated"][:16].replace("T", " "))
@@ -147,6 +154,7 @@ def render_home(payload, deals_json, world_json, index, vocab):
         f"<script>window.__DEALS={deals_json};</script>\n"
         f"<script>window.__WORLD={world_json};</script>\n"
         f"<script>window.__AIRPORTS={airports_json};</script>\n"
+        f"<script>window.__WINDOW={int(window_days)};</script>\n"
         '<script src="assets/d3-array.min.js"></script>\n'
         '<script src="assets/d3-geo.min.js"></script>\n'
         '<script src="assets/discover.js"></script>'

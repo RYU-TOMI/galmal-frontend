@@ -140,7 +140,7 @@ def main():
     payload = snap["deals"]
     with open(a.world, encoding="utf-8") as f:
         world = f.read()
-    page = home.render_home(payload, home.inline_deals(payload), world, index, snap["vocab"])
+    page = home.render_home(payload, home.inline_deals(payload), world, index, snap["vocab"], meta)
     # 🔴 `discover.js` 가 어휘 목록을 **이 칩에서 읽으므로** 칩이 계약과 다르면 내보내지 않는다.
     bad = home.chip_problems(page, snap["vocab"])
     if bad:
