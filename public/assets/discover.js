@@ -1020,7 +1020,14 @@
       var uL = ur.left - box.left - 8;                       // 8px 는 숨 쉴 틈
       if (left + halfW > uL) left = uL - halfW;
     }
-    left = Math.max(120, Math.min(box.width - 120, left)); hc.style.left = left + "px"; hc.style.top = top + "px";
+    // 🔴 가장자리 물림은 **실제 반폭**에서 구한다. 예전엔 `120` 이 손으로 박혀 있었는데
+    // 그건 `238/2` 의 사본이었다 — 카드를 340px 로 넓히자 카드가 무대 밖으로 100px 넘쳤다.
+    // 같은 사실(카드 폭)이 CSS 와 JS 두 곳에 있으면 갈린다. 여기서는 **재서 쓴다.**
+    // 여유를 더하지 않는다 — 예전 `120` 은 `238/2 = 119` 에 1px 붙인 값이라
+    // **반폭 그 자체**가 원래 뜻이다. 8px 을 더했더니 861px 에서 도크를 덮었다(실측).
+    var edge = Math.min(halfW, box.width / 2);
+    left = Math.max(edge, Math.min(box.width - edge, left));
+    hc.style.left = left + "px"; hc.style.top = top + "px";
   }
   // ---- 상세를 열면 지도가 그 핀으로 미끄러진다 (SPEC §CH4, 2026-09-01 확정) ----
   // 사용자가 고른 인터랙션이다 — *"어디로 가는지 정확히 알 수 있잖아"*.
