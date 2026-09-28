@@ -43,7 +43,7 @@ from datetime import date, datetime, timezone
 
 from charts import NOT_ENOUGH, bar_chart, line_chart
 from fmt import fmt_date, fmt_month, weekday_name
-from shell import BASE_URL, SITE_NAME, logo, page
+from shell import BASE_URL, SITE_NAME, logo, page, website_node
 
 # 지역 표시명은 여기 없다 — `/v1/vocab.json` 의 `region_name` 에서 받는다(CONTRACT §5).
 # 예전엔 9개를 손으로 적었다. 노선 응답이 `region` 코드만 주기 때문이었는데, 백엔드
@@ -339,7 +339,8 @@ def render(r, index, meta, generated_date, region_name):
          # 시각)에서 뽑는다 — 페이지가 주장하는 건 "이 데이터가 언제 것인가"지
          # "우리가 언제 빌드했나"가 아니다. 기획 확정(`CONTRACT.md` 파생 목록).
          "dateModified": generated_date,
-         "isPartOf": {"@type": "WebSite", "name": SITE_NAME, "url": f"{BASE_URL}/"}},
+         # 사이트 노드는 **홈과 같은 것**을 쓴다(`shell.website_node()`) — 각자 적으면 한쪽만 자란다.
+         "isPartOf": website_node()},
     ]
 
     # 링크 미리보기 문구는 `<title>`과 다르다(`COPY.md` §2c). 카톡 말풍선은 이미 아는

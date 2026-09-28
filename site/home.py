@@ -14,7 +14,7 @@
 import html
 import json
 
-from shell import BASE_URL, OG_IMAGE, SITE_NAME, logo, verification_meta
+from shell import BASE_URL, OG_IMAGE, SITE_NAME, jsonld_block, logo, verification_meta, website_node
 
 # 로고는 `shell.logo()` 가 그린다 — 모든 페이지가 같은 함수를 쓴다(DESIGN.md §로고, B53).
 # 예전엔 같은 기하를 여기 손으로 옮겨 적은 사본이 있었다(각도 `-28.6` 을 숫자로). 지금 출력은 그 사본과 바이트까지 같다.
@@ -107,7 +107,7 @@ def chip_problems(page_html, vocab):
     return out
 
 
-def render_home(payload, deals_json, world_json, index, vocab, meta):
+def render_home(payload, deals_json, world_json, index, vocab, meta, generated_date):
     # 공항 표시명은 **어휘에서 온다**(CONTRACT §5 · COPY.md §2 S5). `discover.js` 에 `{"ICN":"인천"}` 을
     # 적어 두면 그 순간 손 사본이 둘이 되고, 이 저장소는 그걸로 **다섯 번** 사고를 냈다.
     # 분위기·날짜 칩은 HTML 에 그려져 있어 JS 가 그 칩에서 읽지만, 공항 이름은 그릴 자리가 없다 — 그래서 실어 보낸다.
@@ -150,6 +150,19 @@ def render_home(payload, deals_json, world_json, index, vocab, meta):
     og_desc = ("시간 남는데 싸게 다녀올 곳. 한국 출발 항공권을 매일 스캔해 "
                "오늘 싼 여행지를 지도에 펼칩니다.")
 
+    # 🔴 **홈이 자기 이름을 말한다** (B75, 2026-09-28).
+    # 노선 43장은 `WebPage.isPartOf` 로 사이트 이름을 말하고 있었는데 **정작 홈은 아무 말도 안 했다**
+    # (JSON-LD 0개). 사이트 이름 신호는 보통 홈에서 읽히니, 가장 말해야 할 자리만 비어 있던 셈이다.
+    # 노선 페이지와 **같은 모양**으로 만든다 — 사이트 노드는 `shell.website_node()` 하나를 같이 쓰고,
+    # `dateModified` 는 빌드 시각이 아니라 **데이터 생성 시각**에서 뽑는다(`machine_date`, UTC 날짜).
+    # 페이지가 주장하는 건 「이 데이터가 언제 것인가」지 「우리가 언제 빌드했나」가 아니다.
+    structured = [
+        {"@context": "https://schema.org", **website_node()},
+        {"@context": "https://schema.org", "@type": "WebPage",
+         "name": title, "description": desc, "url": f"{BASE_URL}/", "inLanguage": "ko-KR",
+         "dateModified": generated_date, "isPartOf": website_node()},
+    ]
+
     scripts = (
         f"<script>window.__DEALS={deals_json};</script>\n"
         f"<script>window.__WORLD={world_json};</script>\n"
@@ -179,6 +192,7 @@ def render_home(payload, deals_json, world_json, index, vocab, meta):
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="assets/discover.css">
+{jsonld_block(structured)}
 </head><body>
 <div class="hdr">
   {logo(gid=HOME_LOGO_GID)}

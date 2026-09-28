@@ -207,8 +207,8 @@ class InfoTest(unittest.TestCase):
         meta = _fx("meta.json")
         for bad in ({}, None, dict(meta, window_days=0), dict(meta, window_days=None)):
             self.assertRaises(ValueError, home.render_home,
-                              payload, "[]", "{}", index, vocab, bad)
-        page = home.render_home(payload, "[]", "{}", index, vocab, meta)
+                              payload, "[]", "{}", index, vocab, bad, "2026-09-28")
+        page = home.render_home(payload, "[]", "{}", index, vocab, meta, "2026-09-28")
         self.assertIn("window.__WINDOW=%d;" % meta["window_days"], page)
 
     def test_the_unflattering_sentence_stays(self):
