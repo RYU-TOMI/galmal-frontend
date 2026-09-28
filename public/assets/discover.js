@@ -708,7 +708,40 @@
     return { lon: norm(ll[0]), lat: ll[1], scale: k * BASE };
   }
   // 사용자가 뷰를 잡았다 — 진행 중 트윈을 **버린다.** 잡는 순간부터 우리가 움직이지 않는다.
+  // 버튼 줌은 **미끄러진다** — 사용자: 「띡띡 움직이는 느낌이 강해서 애니메이션이 필요할 듯」.
+  // 휠·드래그는 이미 연속이라 그대로 두고, **한 번에 튀는 것**만 부드럽게 한다.
+  // `tweenTo` 를 안 쓰는 이유: 그건 단계 이동용이라 `userV` 를 안 건드린다 —
+  // 매 프레임 `userV` 를 같이 옮기지 않으면 중간에 `render()` 가 불릴 때 화면이 튄다.
+  function tweenUser(to, ms) {
+    var from = CURV, id = ++tweenId, t0 = 0;
+    syncStageBar();                           // 불은 **출발할 때** 끈다 — 도착까지 기다리면 거짓말이 길어진다
+    if (!from || reduceMotion()) { takeView(to); return; }
+    var dLon = norm(to.lon - from.lon), ratio = to.scale / from.scale;
+    function step(now) {
+      if (id !== tweenId) return;             // 휠·드래그가 가로챘다 — 사용자가 이기게 둔다
+      if (!t0) t0 = now;
+      var t = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - t, 3);
+      var v = { lon: from.lon + dLon * e, lat: from.lat + (to.lat - from.lat) * e,
+                scale: from.scale * Math.pow(ratio, e) };
+      userV = v; moveOnly(v);
+      if (t < 1) requestAnimationFrame(step);
+      else { userV = to; moveOnly(to); syncStepper(); }
+    }
+    requestAnimationFrame(step);
+  }
+  // 목표 뷰만 구한다(적용하지 않는다) — 버튼은 이 값으로 미끄러진다.
+  function zoomTarget(cx, cy, factor) {
+    var p = clientToSvg(cx, cy), k0 = XF.k, k1 = clampK(k0 * factor);
+    if (Math.abs(k1 - k0) < 1e-9) return null;
+    var bx = (p.x - XF.tx) / k0, by = (p.y - XF.ty) / k0;
+    return viewFromXform(k1, p.x - bx * k1, p.y - by * k1);
+  }
   function takeView(v) {
+    // 🔴 **지도를 움직이면 상세가 닫힌다** (사용자 2026-09-28: 「상세 열고 지도 움직이면 꺼지는 게 나을 듯」).
+    // 상세는 **핀 자리에 놓인 카드**라 지도가 움직이면 가리키던 곳에서 떨어진다 — 그러면 카드가
+    // 무엇에 대한 것인지 화면이 말해 주지 못한다(호버 미니카드를 떼면 지우기로 한 것과 같은 이유).
+    // `collapse()` 가 아니라 `closeByUser()` 다 — **사용자가 한 일**이라 `×` 와 같은 길로 닫는다(B58).
+    if (expandedI !== null) closeByUser();
     userV = v; tweenId++; svg.classList.remove("tweening");
     moveOnly(v);
     // 버튼 상태(한계에 닿았나)와 단계 불(어느 단계도 아니다)이 **매 프레임 따라온다**.
@@ -719,10 +752,8 @@
   // 🔴 **커서 아래의 땅이 그 자리에 머문다.** 화면 가운데를 기준으로 확대하면
   // 보려던 곳이 옆으로 흘러가 버린다 — 지도를 벌릴 때 사람이 기대하는 건 손가락 밑이 고정되는 것이다.
   function zoomAbout(cx, cy, factor) {
-    var p = clientToSvg(cx, cy), k0 = XF.k, k1 = clampK(k0 * factor);
-    if (Math.abs(k1 - k0) < 1e-9) return;
-    var bx = (p.x - XF.tx) / k0, by = (p.y - XF.ty) / k0;   // 커서 밑의 기준 평면 점
-    takeView(viewFromXform(k1, p.x - bx * k1, p.y - by * k1));
+    var v = zoomTarget(cx, cy, factor);
+    if (v) takeView(v);
   }
   function panByClient(dx, dy) {
     // 화면 픽셀 → viewBox 픽셀. 무대가 잘려 있어 둘의 비율이 1이 아니다.
@@ -752,6 +783,17 @@
           var L = c._lab || { dx: 0, dy: PIN_R + 11 };
           kids[j].setAttribute("x", p[0] + L.dx); kids[j].setAttribute("y", p[1] + L.dy);
         }
+      }
+    }
+    // 🔴 **미니카드와 항로는 핀에 붙어 있어야 한다** (사용자 2026-09-28:
+    // 「점에 고정 안 되고 화면을 따라가」). 둘 다 **그 핀이 무엇인지 가리키는** 것들이라,
+    // 지도가 움직이는데 제자리에 있으면 **엉뚱한 곳을 가리키게 된다.**
+    // 펼친 상세는 여기 해당 없다 — 움직이면 **닫기로** 했다(길고 결정하는 자리라 따라다니면 어지럽다).
+    if (active !== null && expandedI === null && hc.classList.contains("show")) {
+      var ac = cityByI(active);
+      if (ac && ac.x != null) {
+        positionCard(ac, null);
+        if (arc.getAttribute("d")) arc.setAttribute("d", arcPath(ac));   // 모양만, 애니메이션은 그대로
       }
     }
   }
@@ -792,10 +834,19 @@
     if (act && act.nextSibling) pins.appendChild(act);
     var cs = document.querySelectorAll(".fcard"); for (var j = 0; j < cs.length; j++) cs[j].classList.toggle("on", +cs[j].dataset.i === active);
   }
+  // 항로의 **모양만** 고친다 — 그리는 애니메이션은 다시 시작하지 않는다.
+  // 지도를 끄는 동안 매 프레임 `drawArc` 를 부르면 선이 계속 처음부터 그려져 깜빡인다.
+  function arcPath(c) {
+    var mx = (ORIGIN.x + c.x) / 2, my = (ORIGIN.y + c.y) / 2;
+    var dx = c.x - ORIGIN.x, dy = c.y - ORIGIN.y, len = Math.hypot(dx, dy) || 1;
+    var lift = Math.min(90, len * 0.24);
+    return "M" + ORIGIN.x + "," + ORIGIN.y + " Q" + (mx - dy / len * lift) + "," +
+      (my + dx / len * lift) + " " + c.x + "," + c.y;
+  }
   function drawArc(c) {
     var mx = (ORIGIN.x + c.x) / 2, my = (ORIGIN.y + c.y) / 2, dx = c.x - ORIGIN.x, dy = c.y - ORIGIN.y, len = Math.hypot(dx, dy) || 1;
     var lift = Math.min(90, len * 0.24), cx = mx - dy / len * lift, cy = my + dx / len * lift;
-    arc.setAttribute("d", "M" + ORIGIN.x + "," + ORIGIN.y + " Q" + cx + "," + cy + " " + c.x + "," + c.y);
+    arc.setAttribute("d", arcPath(c));
     var L = arc.getTotalLength(); arc.style.transition = "none"; arc.style.strokeDasharray = L; arc.style.strokeDashoffset = L;
     arc.getBoundingClientRect(); arc.style.transition = "stroke-dashoffset .42s ease"; arc.style.strokeDashoffset = 0;
   }
@@ -1351,7 +1402,8 @@
   for (var z = 0; z < stepEls.length; z++) (function (el) {
     el.addEventListener("click", function () {
       var r = svg.getBoundingClientRect();
-      zoomAbout(r.left + r.width / 2, r.top + r.height / 2, stepFactor(el));
+      var v = zoomTarget(r.left + r.width / 2, r.top + r.height / 2, stepFactor(el));
+      if (v) tweenUser(v, 220);
       syncStepper();
     });
   })(stepEls[z]);
@@ -1361,12 +1413,30 @@
   // ---- 입력: 휠 = 줌 · 드래그 = 팬 · 두 손가락 = 핀치 (PH5c T1) ----
   // 🔴 **`svg` 에만 건다.** 무대(`stageEl`)에 걸면 필터 도크·단계바 위에서 굴려도 지도가 움직인다 —
   //    도크는 안에서 스크롤되는 상자다(B54 의 높이 상한). 그 스크롤을 뺏으면 안 된다.
+  // 감도. 0.0015(한 칸 1.20배) → 0.0028(1.40배) → **0.0056(1.96배)**.
+  // 사용자가 두 번 말했다: 「너무 무겁다, 많이 확대해야 된다」 → 「조금 더, 지금 2배 정도」(2026-09-28).
+  // 한 번에 못 맞힌 값이라 **고친 이력을 남긴다** — 다음에 만질 사람이 왕복한 걸 알아야 또 안 왕복한다.
+  // 지수로 받는 건 그대로다:
+  // 배율은 곱으로 느껴지지 더하기로 느껴지지 않는다(트윈이 로그 보간인 것과 같은 이유).
+  var ZOOM_WHEEL = 0.0056;
   svg.addEventListener("wheel", function (e) {
     e.preventDefault();                       // 지도 위에서는 페이지가 안 움직인다
     // 줄당 약 16px, 페이지당 한 화면 — 브라우저마다 단위가 다르다(`deltaMode`).
-    var d = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
-    // 지수로 받는다: 배율은 곱으로 느껴지지 더하기로 느껴지지 않는다(트윈이 로그 보간인 것과 같은 이유).
-    zoomAbout(e.clientX, e.clientY, Math.exp(-d * 0.0015));
+    var u = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+    var dx = e.deltaX * u, dy = e.deltaY * u;
+    // 트랙패드 핀치는 브라우저가 **`ctrlKey` 를 켜서** 보낸다. 진짜 Ctrl+휠과 구분되지 않지만
+    // 둘 다 「줌」이 맞아서 가를 이유가 없다.
+    if (e.ctrlKey) { zoomAbout(e.clientX, e.clientY, Math.exp(-dy * ZOOM_WHEEL)); return; }
+    // 🔴 **휠인가 트랙패드인가 — 브라우저가 안 알려준다.** 표준에 그 구분이 없어서 추측할 수밖에 없다.
+    // 사용자: 「노트북인데 손가락 두 개로 움직일 수 있으면 좋겠다」(2026-09-28).
+    // 어림잡는 근거 둘: ① 가로 성분이 있으면 트랙패드다(휠에는 가로가 없다)
+    //                  ② 세로만 있고 값이 크고 **딱 떨어지면** 휠이다(트랙패드는 잘고 소수가 섞인다)
+    // 틀리면 어느 쪽이든 **되돌릴 수 있는 동작**이라 크게 다치지 않는다 — 그래서 추측을 쓴다.
+    if (dx === 0 && Math.abs(dy) >= 40 && dy % 1 === 0) {
+      zoomAbout(e.clientX, e.clientY, Math.exp(-dy * ZOOM_WHEEL));
+    } else {
+      panByClient(-dx, -dy);                  // 스크롤이므로 내용은 손가락 **반대**로 움직인다
+    }
   }, { passive: false });
 
   // 드래그 — 포인터 이벤트 하나로 마우스·터치·펜을 같이 받는다.
