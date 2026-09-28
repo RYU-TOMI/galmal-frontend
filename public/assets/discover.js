@@ -162,6 +162,7 @@
   function recLong(c) {
     return c.rec ? '<span class="rec">' + c.rec + '일 중 가장 싼 가격이에요</span>' : "";
   }
+  var AIRPORT = window.__AIRPORTS || {};
   function toCity(dl) {
     return { n: dl.ko, lon: dl.lon, lat: dl.lat, tier: dl.tier, haul: HAUL2STAGE[dl.haul] || "far",
       price: (dl.price).toLocaleString("en-US"), disc: (dl.discount || 0) + "%↓", dtier: discTier(dl.discount || 0),
@@ -171,7 +172,9 @@
       // 🔴 **프론트가 만들 수 없는 값이다.** 허브 `SEL` 은 가상이라 인천인지 김포인지 `deals.json` 에 없다 —
       // 목적지만 보고 링크를 걸면 **부산 딜을 보다가 인천 노선 분석으로 들어간다.** 아는 쪽(백엔드)이 판정해 준다.
       // (SPEC §CH6 IA-1. 받아만 두고 안 쓰던 값이었다 — B65 에서 비로소 쓴다.)
-      route: dl.route || "", seen: dl.seen || "", rec: recordDays(dl) };
+      // `oa` — **실제 출발 공항.** 허브 `SEL` 은 가상이라 인천인지 김포인지 이 값으로만 안다.
+      // 이름은 어휘에서 온다(`window.__AIRPORTS`) — 손 사본을 두지 않는다. 빌드가 덮는지 이미 검사했다.
+      oa: AIRPORT[dl.oa] || "", route: dl.route || "", seen: dl.seen || "", rec: recordDays(dl) };
   }
 
   // ---- 파싱/공용 ----
@@ -753,6 +756,12 @@
     var marks = detail ? stampHTML(c) + recLong(c) : (stampHTML(c) || recShort(c));
     return '<div class="hc-row"><span class="hc-price"><small>₩</small>' + c.price + ' <span class="tilde">~</span></span>' +
       '<span class="hc-marks">' + marks + "</span></div>" +
+      // 🔴 **헤더는 `서울 출발` 이라 말하지만 `SEL` 은 가상 허브다** (SPEC §CH4, 2026-09-01 확정).
+      // 실제로는 인천이거나 김포고, **김포 딜을 보고 인천으로 갈까 헷갈릴 자리**다.
+      // 허브가 `SEL` 이 아닌 딜(부산·대구·제주)에도 붙인다 — 일관성(COPY.md §2 S5).
+      // 여기가 **가격 줄 바로 아래**다. 「어디서 뜨는 비행기인가」는 날짜보다 먼저 확인할 사실이다 —
+      // 공항이 다르면 날짜는 볼 필요도 없다.
+      (detail && c.oa ? '<div class="hc-oa">' + c.oa + ' 출발</div>' : "") +
       '<div class="hc-date">' + c.date + (c.nights ? " · " + c.nights : "") + "</div>" +
       '<div class="hc-trans">' + c.trans + "</div>" + freshHTML(c);
   }

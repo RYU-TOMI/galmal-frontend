@@ -108,6 +108,11 @@ def chip_problems(page_html, vocab):
 
 
 def render_home(payload, deals_json, world_json, index, vocab):
+    # 공항 표시명은 **어휘에서 온다**(CONTRACT §5 · COPY.md §2 S5). `discover.js` 에 `{"ICN":"인천"}` 을
+    # 적어 두면 그 순간 손 사본이 둘이 되고, 이 저장소는 그걸로 **다섯 번** 사고를 냈다.
+    # 분위기·날짜 칩은 HTML 에 그려져 있어 JS 가 그 칩에서 읽지만, 공항 이름은 그릴 자리가 없다 — 그래서 실어 보낸다.
+    # 빌드가 「모든 딜의 `oa` 가 이 표에 있나」를 이미 검사했다(`site/origin.py`).
+    airports_json = json.dumps(vocab.get("airport_name") or {}, ensure_ascii=False, separators=(",", ":"))
     # `generated`(ISO 8601 + 오프셋) -> 화면 문자열. 표시는 프론트 몫이라고 계약이
     # 명시한 자리다(P7). 현행 `updated` 와 같은 모양 `YYYY-MM-DD HH:MM` 을 만든다.
     updated = html.escape(payload["generated"][:16].replace("T", " "))
@@ -141,6 +146,7 @@ def render_home(payload, deals_json, world_json, index, vocab):
     scripts = (
         f"<script>window.__DEALS={deals_json};</script>\n"
         f"<script>window.__WORLD={world_json};</script>\n"
+        f"<script>window.__AIRPORTS={airports_json};</script>\n"
         '<script src="assets/d3-array.min.js"></script>\n'
         '<script src="assets/d3-geo.min.js"></script>\n'
         '<script src="assets/discover.js"></script>'
