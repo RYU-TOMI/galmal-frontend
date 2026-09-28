@@ -586,7 +586,8 @@
         '<circle class="core" cx="' + c.x + '" cy="' + c.y + '" r="' + r + '" fill="' + c._col + '"/>' +
         (L ? '<text class="plabel' + (L.off ? " off" : "") + '" x="' + L.x + '" y="' + L.y +
              '" text-anchor="' + L.anchor + '">' + c.n + "</text>" : "");
-      (function (el, i) { el.addEventListener("mouseenter", function () { highlight(i, true); });
+      (function (el, i) { el.addEventListener("mouseenter", function () { hoverIn(i, true); });
+        el.addEventListener("mouseleave", hoverOut);
         el.addEventListener("click", function (e) { e.stopPropagation(); pinTap(i); }); })(g, c._i);
       pins.appendChild(g);
     });
@@ -628,7 +629,8 @@
         '<div class="fdate"><span class="when">' + c.when + "</span>" + c.date + (c.nights ? " · " + c.nights : "") + "</div>" +
         (hero ? '<div class="gorow"><button class="go">갈래 → 자세히 보기</button></div>' : "") +
         "</div>";
-      (function (el, i) { el.addEventListener("mouseenter", function () { highlight(i, false); });
+      (function (el, i) { el.addEventListener("mouseenter", function () { hoverIn(i, false); });
+        el.addEventListener("mouseleave", hoverOut);
         el.addEventListener("click", function () { expand(i); }); })(card, c._i);
       feed.appendChild(card);
     });
@@ -1020,6 +1022,27 @@
     if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function highlight(i, scroll) { if (expandedI !== null) return; showCard(i, scroll, false); }
+
+  // ---- 호버 미니카드: **떼면 사라진다, 다만 후하게** (사용자 2026-09-28) ----
+  // 사용자: 「점에서 마우스를 떼면 미니카드가 사라지는 게 나을 것 같아. 지금은 계속 남고」
+  //
+  // 예전엔 `mouseleave` 가 **지도 판 전체**(`stageEl`)에만 걸려 있었다. 그래서 핀에서 벗어나도
+  // 지도 안에 있으면 카드가 그대로 남는다 — **지금 아무것도 가리키지 않는데 무언가를 가리키고 있는**
+  // 상태다. 사용자는 그 카드가 무엇에 대한 것인지 알 방법이 없다.
+  //
+  // 그렇다고 떼자마자 지우면 핀과 카드 사이 몇 px 를 지나는 동안 **깜빡인다.** 그래서 유예를 둔다 —
+  // 나가면 예약하고, **핀·피드 카드·미니카드 어디로든 다시 들어오면 취소**한다.
+  // 사용자가 「판정을 후하게 하더라도」라고 한 게 이 뜻이다.
+  var HOVER_GRACE = 260, hoverT = null;
+  function hoverable() { return matchMedia("(hover:hover)").matches; }
+  function hoverHold() { if (hoverT) { clearTimeout(hoverT); hoverT = null; } }
+  function hoverIn(i, scroll) { hoverHold(); highlight(i, scroll); }
+  function hoverOut() {
+    // 펼친 상세는 이 규칙 밖이다 — 그건 `×`·배경으로 닫는다(SPEC §CH4). 마우스가 스쳤다고 닫히면 안 된다.
+    if (!hoverable() || expandedI !== null) return;
+    hoverHold();
+    hoverT = setTimeout(function () { hoverT = null; clearHi(); }, HOVER_GRACE);
+  }
   // `instant` — 트윈 없이 **그 자리에서** 연다. 딥링크 첫 진입이 쓴다(아래 boot).
   function expand(i, instant) {
     // **같은 것을 다시 누르면 닫힌다** (SPEC §CH4 열고닫기). 지금은 다시 그려서 아무 일도 안
@@ -1180,7 +1203,12 @@
     });
   })(stepEls[z]);
   syncStepper();
-  stageEl.addEventListener("mouseleave", function () { if (matchMedia("(hover:hover)").matches) clearHi(); });
+  // 지도 판을 통째로 벗어나면 유예 없이 바로 지운다 — 유예는 「핀과 카드 사이」를 위한 것이지
+  // 「지도를 떠났는데도 남는 것」을 위한 게 아니다.
+  stageEl.addEventListener("mouseleave", function () { if (hoverable()) { hoverHold(); clearHi(); } });
+  // 미니카드 위에 있는 동안은 살려 둔다 — 카드로 마우스를 옮기는 중에 사라지면 누를 수가 없다.
+  hc.addEventListener("mouseenter", hoverHold);
+  hc.addEventListener("mouseleave", hoverOut);
   svg.addEventListener("click", function (e) { if (e.target === svg || e.target.classList.contains("land")) closeByUser(); });
 
   // 초기 예산값은 출발지를 고를 때 resetBudget() 이 잡는다.
@@ -1566,6 +1594,13 @@
     // 제주 화면에 그대로 남는다(실측으로 발견).
     if (!initial) hideNote();
     syncDropSel();
+    // 🔴 **출발지를 바꾸면 떠 있던 카드를 반드시 지운다** (사용자 2026-09-28: 「부산 출발로 바꿨는데도
+    // 카드가 남아있어」). `expandedI = null` 만으로는 안 지워진다 — 그건 상태고, `show` 클래스가 화면이다.
+    // 안 지우면 **다른 출발지의 딜**이 그대로 남는다. 서울 딜을 보다 부산으로 바꿨는데 화면엔 서울 딜이 있다.
+    // `collapse()` 를 부르지 않는 이유: 그쪽은 히스토리를 만지는데 바로 위에서 `writeHash` 로 이미 맞췄다.
+    hoverHold();
+    hc.classList.remove("show", "expanded");
+    document.body.classList.remove("detail-open");
     stageIdx = 0; expandedI = null; active = null; render();
     // 지도가 통째로 다른 나라로 날아가는 유일한 전환이라 600ms 다(SPEC §CH1 트윈 표).
     // 첫 로드는 전환이 아니라 **그냥 그 화면**이라 트윈하지 않는다.
