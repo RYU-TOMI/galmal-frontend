@@ -30,7 +30,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # 🔴 **테스트가 문지기다.** 빨간 채로는 한 파일도 안 나간다 — `build` 가 이걸 `needs` 한다.
+  # 단계는 `test.yml` 에 **한 벌만** 있다(B48, 2026-09-28).
+  #
+  # 야간 크론(`repository_dispatch`)에도 걸린다. 그래서 테스트가 빨간 날은 **사이트가 안 나가고
+  # 직전 배포본이 그대로 산다** — 빌드가 막는 다섯 게이트와 **같은 방침**이다.
+  # 실패는 사용자에게 가는 GitHub 실패 메일로 보인다.
+  test:
+    uses: ./.github/workflows/test.yml
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
