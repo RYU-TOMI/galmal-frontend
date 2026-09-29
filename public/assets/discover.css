@@ -233,6 +233,13 @@ body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:no
    자리를 가져가며 칩이 눌렸다). `flex:none` 이 없으면 칩은 줄어들려 하고, 줄어들 수 없으면 글자를 접는다. */
 .stagebar .pill{white-space:nowrap;flex:none}
 @media(max-width:1000px){.stagebar{gap:5px}.stagebar .pill{padding:6px 7px}}
+/* 🔴 **모바일에서는 옆으로 넘긴다** (CH8 에서 낸 회귀를 그 자리에서 막는다).
+   칩이 3개(242px)에서 10개(445px)로 늘어, 390px 화면에서 실측 「국내」 칩이 L418 —
+   **화면 밖이라 누를 수 없었다.** 두 줄로 접지 않기로 했고(기획) 글자를 더 줄일 수도 없으니
+   **가로 스크롤**이다. 모바일 재설계(PH5b)는 그대로 뒤에 있다 — 여기서는 「닿을 수 없는 버튼」만 없앤다.
+   스크롤바는 지도 위라 숨긴다(자리를 차지하면 칩이 또 눌린다). */
+@media(max-width:520px){.stagebar{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none}
+  .stagebar::-webkit-scrollbar{display:none}}
 /* 🔴 **필터 중에도 단계 버튼을 남긴다** (SPEC §CH1, 2026-09-22 · B70).
    예전엔 `.stagebar.allregions .pill{display:none}` 로 치웠다 — 「필터 중에는 거리 단계 개념이 성립하지
    않는다」는 생각이었는데, 그 결과 **필터를 켠 사용자가 지도를 가까이 볼 길이 하나도 없었다**(스테퍼의

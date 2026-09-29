@@ -243,6 +243,14 @@ class FitTest(unittest.TestCase):
         900px 화면의 무대에서 쓸 수 있는 폭은 542 다 — 기준을 520 → 940px 로 옮겼다."""
         self.assertIn("@media(max-width:940px){.stagebar.allregions .allnote{display:none}}", CSS)
 
+    def test_phones_can_reach_every_chip(self):
+        """🔴 CH8 이 낸 회귀를 막는다. 칩이 3개(242px)에서 10개(445px)로 늘어, 390px 화면에서
+        실측 「국내」 칩이 L418 — **화면 밖이라 누를 수 없었다.** 두 줄로 접지 않기로 했고
+        글자도 더 줄일 수 없으니 가로 스크롤이다. 고친 뒤: 스크롤폭 445 / 보이는폭 370,
+        끝까지 밀면 마지막 칩이 화면 안에 들어온다."""
+        self.assertRegex(CSS, r"@media\(max-width:520px\)\{\.stagebar\{overflow-x:auto")
+        self.assertIn(".stagebar::-webkit-scrollbar{display:none}", CSS)
+
     def test_narrow_desktops_get_tighter_chips(self):
         """실측: 칩 10개에 554px 필요한데 861px 화면의 무대는 503px 였다.
         글꼴이 아니라 **패딩**을 줄인다 — 12px 하한(B57) 아래로 내려가지 않는다."""
