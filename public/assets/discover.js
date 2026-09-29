@@ -1539,6 +1539,15 @@
   }
   // 브라우저의 기본 「끌어 옮기기」도 막는다 — 글자를 잡아 끌면 반투명 미리보기가 따라다닌다.
   svg.addEventListener("dragstart", function (e) { e.preventDefault(); });
+  // 더블클릭 = 한 단 확대 (PH5c T6 · SPEC §CH1). **누른 자리** 기준이다 — 버튼과 달리
+  // 커서 자리가 있으니 거기를 붙잡는다. 버튼과 같은 배율(1.6배)·같은 미끄러짐(220ms)이다.
+  // ⚠️ 핀 위 더블클릭은 **첫 클릭이 이미 상세를 연다.** 그건 그대로 두고 확대만 얹는다 —
+  //    「눌러서 열고 한 번 더 눌러 들여다본다」가 어긋나지 않는다.
+  svg.addEventListener("dblclick", function (e) {
+    e.preventDefault();
+    var v = zoomTarget(e.clientX, e.clientY, ZOOM_STEP);
+    if (v) tweenUser(v, 220);
+  });
   svg.addEventListener("pointerup", endPtr);
   svg.addEventListener("pointercancel", endPtr);
   svg.addEventListener("pointerleave", endPtr);
