@@ -228,6 +228,10 @@ body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:no
    글자를 줄이지 않고 **좌우 패딩만** 12→7px 로 줄인다(글꼴은 12.48px 그대로 — 12px 하한 위, B57).
    `nowrap` 은 접히는 대신 **넘치게** 만들므로 자체로는 답이 아니다. 둘을 같이 쓴다. */
 .stagebar{flex-wrap:nowrap}
+/* 🔴 **칩 글자가 접히지 않는다.** 실측(861px · 필터 켬): 「중화권」 칩 높이가 29 → **44px** 이 됐다 —
+   바가 두 줄로 접힌 게 아니라 **칩 안의 글자가** 두 줄이 된 것이었다(`전 지역에서 찾는 중` 이
+   자리를 가져가며 칩이 눌렸다). `flex:none` 이 없으면 칩은 줄어들려 하고, 줄어들 수 없으면 글자를 접는다. */
+.stagebar .pill{white-space:nowrap;flex:none}
 @media(max-width:1000px){.stagebar{gap:5px}.stagebar .pill{padding:6px 7px}}
 /* 🔴 **필터 중에도 단계 버튼을 남긴다** (SPEC §CH1, 2026-09-22 · B70).
    예전엔 `.stagebar.allregions .pill{display:none}` 로 치웠다 — 「필터 중에는 거리 단계 개념이 성립하지
@@ -237,8 +241,11 @@ body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:no
    **그때 오히려 더 필요한 말**이다(목록엔 남아 있다는 뜻). */
 .stagebar .allnote{display:none;background:#fff;border:1px solid var(--line);border-radius:99px;padding:6px 13px;font-size:.78rem;font-weight:700;color:var(--sub);box-shadow:0 2px 8px rgba(20,40,40,.10)}
 .stagebar.allregions .allnote{display:inline-block}
-/* 좁은 화면에선 버튼이 먼저다 — 안내가 밀려 줄이 넘치면 안내를 접는다 */
-@media(max-width:520px){.stagebar.allregions .allnote{display:none}}
+/* 좁은 화면에선 버튼이 먼저다 — 안내가 밀려 줄이 넘치면 안내를 접는다.
+   🔴 기준을 520 → 940px 로 올렸다(CH8). 칩이 3개에서 10개로 늘어 실측 필요 폭이
+   칩 445 + 여백 6 + 안내 102 = 553px 인데, 900px 화면의 무대에서 쓸 수 있는 폭은 542 다.
+   버튼이 먼저라는 규칙은 그대로고, 그 규칙이 걸리는 폭만 데이터에 맞춰 옮겼다. */
+@media(max-width:940px){.stagebar.allregions .allnote{display:none}}
 /* 거리 단계 스테퍼 — 줌이 아니다. ＋=한 단계 멀리, －=한 단계 가까이 (SPEC §CH1) */
 .stepper{position:absolute;right:16px;top:16px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 4px 14px rgba(20,40,40,.12)}
 .stepper button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:52px;height:44px;border:0;background:none;color:var(--ink);cursor:pointer;font:inherit;padding:0}

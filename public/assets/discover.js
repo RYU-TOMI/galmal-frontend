@@ -174,7 +174,9 @@
       // (SPEC §CH6 IA-1. 받아만 두고 안 쓰던 값이었다 — B65 에서 비로소 쓴다.)
       // `oa` — **실제 출발 공항.** 허브 `SEL` 은 가상이라 인천인지 김포인지 이 값으로만 안다.
       // 이름은 어휘에서 온다(`window.__AIRPORTS`) — 손 사본을 두지 않는다. 빌드가 덮는지 이미 검사했다.
-      oa: AIRPORT[dl.oa] || "", route: dl.route || "", seen: dl.seen || "", rec: recordDays(dl) };
+      // `region` — 지역 칩이 「어디로 날아갈까」를 이 값으로 정한다(CH8). 어휘 키 그대로 나른다.
+      oa: AIRPORT[dl.oa] || "", route: dl.route || "", seen: dl.seen || "", rec: recordDays(dl),
+      region: dl.region || "" };
   }
 
   // ---- 파싱/공용 ----
@@ -236,6 +238,13 @@
   var BUDGET_MAX = 1000000;   // 출발지를 고를 때 데이터에서 다시 잡는다 — resetBudget()
 
   var ORIGIN = null, CITY = [], stageIdx = 0, active = null, expandedI = null;
+  // 🔴 `regionKey` — **켜진 지역 칩**. `null` 이면 어느 지역도 아니다(첫 화면 · 줌·팬한 뒤 · 필터가 넓힌 뒤).
+  // `""` 는 「전체」 칩이다 — `null` 과 다르다. 하나로 합치면 「전체」를 눌러도 불이 안 켜진다.
+  var regionKey = null;
+  function regionHasDeals(key) {
+    for (var i = 0; i < CITY.length; i++) if (CITY[i].region === key) return true;
+    return false;
+  }
   var sortMode = "value", mood = null, dateMode = "", dateCustom = null, nightsMode = "", budget = 1e12;
 
   // ---- 날짜 필터 — 날짜를 다시 계산하지 않고 `when` 값으로 거른다 (SPEC §CH2, B26) ----
@@ -255,6 +264,8 @@
     return out;
   }
   var WHEN_CHIPS = chipList(".fchip.date[data-when]", "date");
+  // 지역 칩 — 빈 문자열이 「전체」다(= 옛 `아주 멀리` 뷰). 순서·목록은 빌드가 계약과 대조했다.
+  var REGIONS = chipList(".stagebar .pill", "region");
   function matchesDate(c, mode) {
     if (!mode) return true;                                   // 아무때
     if (mode === "custom") {                                  // 여기서만 날짜를 본다
@@ -326,20 +337,14 @@
   // 경도를 정렬해 가장 큰 빈 구간을 찾고, 필요한 호 = 360 − 빈 구간, 중심 = 빈 구간의 정반대.
   // 고정값은 "오늘 데이터에서만 맞는 값"이라 목적지가 하나 늘고 줄 때마다 조용히 틀려진다.
   function norm(d) { return ((d + 180) % 360 + 360) % 360 - 180; }
+  // 🔴 계산은 `spanOf()` 한 벌이다 — 「전체」와 지역이 **같은 규칙**으로 중심을 찾는다.
+  // 두 벌이었으면 날짜변경선 처리가 한쪽에서만 고쳐지는 날이 온다.
   function farArc() {
-    var ls = [], seen = {}, i;
-    if (ORIGIN) ls.push(ORIGIN.lon);
+    var ls = [], i;
+    if (ORIGIN) ls.push(ORIGIN.lon);               // 「전체」에는 출발지가 들어간다(지역에는 안 들어간다)
     for (i = 0; i < CITY.length; i++) ls.push(CITY[i].lon);
-    ls = ls.filter(function (v) { var k = v.toFixed(4); if (seen[k]) return false; seen[k] = 1; return true; })
-           .sort(function (a, b) { return a - b; });
-    if (ls.length < 2) return { arc: 60, lon: ls.length ? ls[0] : 127 };
-    var gap = -1, gEnd = ls[0];
-    for (i = 0; i < ls.length; i++) {
-      var a = ls[i], b = ls[(i + 1) % ls.length], d = ((b - a) % 360 + 360) % 360;
-      if (d > gap) { gap = d; gEnd = b; }
-    }
-    var arc = 360 - gap;
-    return { arc: arc, lon: norm(gEnd + arc / 2) };   // 데이터 구간의 한가운데
+    var a = spanOf(ls);
+    return a.arc > 0 ? a : { arc: 60, lon: a.lon };   // 한 점뿐이면 60° 를 편다
   }
   // 무대에서 실제로 쓸 수 있는 띠 = 보이는 viewBox 가로에서 slice 크롭과 라벨 여유를 뺀 구간.
   // ⚠️ 필터 도크 폭은 빼지 않는다. 빼면 배율이 161→117로 줄어 지도가 화면의 46%밖에
@@ -376,6 +381,46 @@
     var lat = (Math.PI * s < b.vbH) ? 0 : FAR_LAT;
     return { lon: a.lon, lat: lat, scale: s };
   }
+  // ---- 지역 뷰: 그 지역 딜을 **화면에 담는 가장 가까운 배율** (CH8 T3 · SPEC §CH1) ----
+  // 🔴 고정값을 박지 않는다. `유럽: {lon:10, scale:900}` 같은 표는 **오늘 데이터에서만** 맞고,
+  // 목적지가 하나 늘거나 줄면 조용히 틀려진다(`farArc` 이 같은 이유로 계산식이다).
+  // 경도는 `farArc` 과 **같은 규칙**(가장 큰 빈 구간의 정반대가 중심)을 부분집합에 적용한다 —
+  // 지역이 날짜변경선을 넘을 때(대양주: 145°~177°, 섬: -158°~146°) 평균을 쓰면 중심이 반대편 바다로 간다.
+  //
+  // 출발지는 **넣지 않는다.** 넣으면 「유럽」을 눌러도 한국이 화면에 들어오려고 배율이 내려가
+  // 유럽이 작아진다 — 보려고 누른 것이 작아지는 건 거꾸로다. 항로가 화면을 벗어나는 건 정상이다.
+  function spanOf(vals) {
+    var seen = {}, ls = vals.filter(function (v) {
+      var k = v.toFixed(4); if (seen[k]) return false; seen[k] = 1; return true;
+    }).sort(function (a, b) { return a - b; });
+    if (ls.length < 2) return { arc: 0, lon: ls.length ? ls[0] : 127 };
+    var gap = -1, gEnd = ls[0], i;
+    for (i = 0; i < ls.length; i++) {
+      var a = ls[i], b = ls[(i + 1) % ls.length], d = ((b - a) % 360 + 360) % 360;
+      if (d > gap) { gap = d; gEnd = b; }
+    }
+    var arc = 360 - gap;
+    return { arc: arc, lon: norm(gEnd + arc / 2) };
+  }
+  function viewOfRegion(key) {
+    if (!key) return farView();                     // 「전체」 = 옛 `아주 멀리`
+    var lons = [], lats = [], i;
+    for (i = 0; i < CITY.length; i++) if (CITY[i].region === key) { lons.push(CITY[i].lon); lats.push(CITY[i].lat); }
+    if (!lons.length) return farView();             // 이 출발지에 그 지역 딜이 없다 — 칩은 숨겨져 있다
+    var a = spanOf(lons), b = usableBand(), far = farView();
+    var loA = Math.min.apply(null, lats), hiA = Math.max.apply(null, lats);
+    // **한 도시뿐이면 범위가 0 이다** — 그때는 배율을 상한까지 올리지 않고 `가까운 곳` 배율을 쓴다.
+    // 0 으로 나누면 Infinity 가 되고, 그 도시 하나가 화면을 가득 채워 주변을 못 본다.
+    var RAD = Math.PI / 180, MARGIN = 1.25;         // 딜이 테두리에 붙지 않게 조금 넉넉히
+    var sLon = a.arc > 0 ? b.half / (a.arc / 2 * RAD * MARGIN) : viewOf("near").scale;
+    var sLat = hiA > loA ? (b.vbH / 2 - LABEL_PAD) / ((hiA - loA) / 2 * RAD * MARGIN) : viewOf("near").scale;
+    // 🔴 **「전체」보다 넓어지지 않는다.** 섬(-158°~146°)·그 외(52°~107°)처럼 흩어진 지역은 계산값이
+    // 세계지도만큼 넓어진다 — 「섬」을 눌렀는데 전체와 똑같이 보이면 버튼이 거짓말을 한다.
+    // 그럴 땐 **전체 뷰 그대로** 준다(적어도 「더 좁혀지지 않는다」는 사실은 맞다).
+    // 상한은 여기서 손대지 않는다 — 계산값은 아무리 커도 `가까운 곳`(한 도시뿐인 지역) 이하다.
+    // `kBounds()` 는 **transform 배율**이라 단위가 달라, 여기서 섞으면 조용히 틀린 값이 나온다.
+    return { lon: a.lon, lat: (loA + hiA) / 2, scale: Math.max(far.scale, Math.min(sLon, sLat)) };
+  }
   // `가까운 곳`·`조금 더 멀리` 는 **고정 배율**인데, 그 값(1500·720)은 **데스크톱 무대 폭을
   // 전제**한다. 모바일은 가시 viewBox 폭이 1000 → 390 으로 좁아져 같은 배율이면 보이는 경도
   // 범위가 2.6배 좁다 — 실측: 390px 에서 `가까운 곳` 이 육지만 꽉 차고 핀이 1개만 남았다.
@@ -404,10 +449,20 @@
     var on = anyFilter();
     bar.classList.toggle("allregions", on);
     var pills = bar.querySelectorAll(".pill");
-    // 🔴 **줌·팬을 하면 불이 꺼진다**(PH5c T3). 사용자가 만진 뷰는 어느 단계도 아니다 —
-    // 그런데 불이 켜져 있으면 「지금 가까운 곳을 보고 있다」는 **거짓말**이 된다.
-    // 그 상태에서 같은 버튼을 다시 누르는 것도 뜻이 있다(그 뷰로 돌아가기).
-    for (var i = 0; i < pills.length; i++) pills[i].classList.toggle("on", !userV && i === stageIdx);
+    // 🔴 **줌·팬을 하면 불이 꺼진다**(PH5c T3, CH8 에서도 그대로). 사용자가 만진 뷰는 어느 지역도
+    // 아니다 — 그런데 불이 켜져 있으면 「지금 유럽을 보고 있다」는 **거짓말**이 된다.
+    // 그 상태에서 같은 칩을 다시 누르는 것도 뜻이 있다(그 뷰로 돌아가기).
+    //
+    // 🔴 **첫 화면에는 켜진 칩이 없다.** 첫 뷰는 거리 단계(`가까운 곳`)에서 파생된 것이고
+    // 어느 지역도 아니다 — 아무 칩이나 켜면 그게 거짓말이다. 그 자리는 피드의
+    // `전체로 보면 {M}곳이에요` 가 메운다(누를 칩을 가리킨다).
+    for (var i = 0; i < pills.length; i++) {
+      pills[i].classList.toggle("on", regionKey !== null && pills[i].getAttribute("data-region") === regionKey);
+      // 이 출발지에 그 지역 딜이 없으면 **칩을 치운다** — 누르면 아무 일도 안 나는 버튼을 두지 않는다.
+      // 실측: 대구는 섬·대양주·미주·그 외가 0건, 제주는 대양주·유럽·미주·국내가 0건이다.
+      var rk = pills[i].getAttribute("data-region");
+      pills[i].style.display = (rk && !regionHasDeals(rk)) ? "none" : "";
+    }
     var note = bar.querySelector(".allnote");
     if (on && !note) { note = document.createElement("span"); note.className = "allnote"; note.textContent = "전 지역에서 찾는 중"; bar.appendChild(note); }
   }
@@ -668,10 +723,18 @@
     // `{M}` 을 "더 멀리까지 보면"이라는 **범위와 함께** 말하면 헤더와 달라야 정상이 된다. (B37)
     var TOTAL = ORIGIN_KEY ? dealCount(ORIGIN_KEY) : 0;
     // N 은 **무대 안 딜 수**(필터와 무관). 필터 개수를 쓰면 거리 탓이 아닌데 "더 멀리"라고 하게 된다.
-    // 마지막 단계에서는 더 넓힐 곳이 없으므로 1순위를 걸지 않는다.
+    //
+    // 🔴 문구가 **누를 수 있는 것을 가리킨다** — `전체로 보면`(기획 2026-09-29, CH8).
+    // 예전엔 `더 멀리까지 보면` 이었고 그 말이 가리키는 버튼은 단계바의 `아주 멀리` 였다.
+    // 지역바에는 그 버튼이 없고 대신 **「전체」 칩**이 있다 — 말과 버튼이 같은 것을 가리켜야 한다.
+    //
+    // 🔴 조건에서 `stageIdx` 를 뺐다. 예전엔 「마지막 단계가 아니면」이었는데, 자유 줌 이후
+    // **화면은 단계와 무관하게** 좁을 수 있다(단계는 0 인데 휠로 확대해 3곳만 남은 상태).
+    // 그때 안내가 안 나오는 건 화면이 말해야 할 사실을 안 말하는 것이다. 「무대 안 < 전체」면 말한다 —
+    // 「전체」 뷰에서는 정의상 전부 들어오므로 그 자리에서는 저절로 안 나온다.
     var note = null;
-    if (vis.length < TOTAL && stageIdx < STAGES.length - 1 && !anyFilter()) {
-      note = "<b>더 멀리까지 보면 " + TOTAL + "곳이에요.</b>";
+    if (vis.length < TOTAL && !anyFilter()) {
+      note = "<b>전체로 보면 " + TOTAL + "곳이에요.</b>";
     } else if (TOTAL && TOTAL < SPARSE_AT) {
       var best = null, k, n;
       for (k in D.origins) {
@@ -805,7 +868,8 @@
     // 🔴 **바뀔 때만 만진다.** 예전엔 뷰가 움직일 때마다 둘 다 불렀는데, `syncStepper()` 는
     // 한계를 구하려고 `viewOf()` 를 두 번 부르고 그 안에서 무대를 잰다 — 팬 한 번에 레이아웃이 여러 번 깨졌다.
     // 단계 불은 `userV` 가 생기는 **첫 프레임**에만 꺼지면 되고, 버튼은 **한계에 닿고 떨어질 때**만 바뀐다.
-    if (!hadUser) { hadUser = true; syncStageBar(); }
+    // 🔴 지역 칩 불도 여기서 꺼진다 — 휠·드래그로 옮긴 화면은 **어느 지역도 아니다**.
+    if (!hadUser || regionKey !== null) { hadUser = true; regionKey = null; syncStageBar(); }
     var lim = (XF.k <= kBounds().lo * 1.001) || (XF.k >= kBounds().hi * 0.999);
     if (lim !== atLimit) { atLimit = lim; syncStepper(); }
     relabel(false);
@@ -1437,7 +1501,7 @@
     // 화면 밖에 그대로 있게 된다(F15 가 다시 열린다).
     // 그 뒤로는 줌·팬이 전부 먹고, **필터를 꺼도 뷰를 되돌리지 않는다.**
     var nowFiltering = anyFilter();
-    if (nowFiltering && !wasFiltering) { stageIdx = STAGES.length - 1; userV = null; hadUser = false; }
+    if (nowFiltering && !wasFiltering) { stageIdx = STAGES.length - 1; userV = null; hadUser = false; regionKey = null; }
     wasFiltering = nowFiltering;
     updCount(); collapse(); render();
     if (from && CURV && !reduceMotion() && from.scale !== CURV.scale) tweenTo(from, CURV, 400);
@@ -1445,11 +1509,19 @@
   // 🔴 **단계 버튼은 「빠른 이동」이다** (PH5c T3 · SPEC §CH1). 줌·팬으로 어디에 가 있든
   // 누르면 그 뷰로 **날아간다** — 그래서 `userV` 를 버린다. 사용자가 스스로 「여기로 가겠다」고
   // 말한 자리이므로, 만져 둔 뷰를 지키는 규칙(T1)의 예외가 아니라 **그 규칙이 끝나는 자리**다.
-  function setStage(idx) {
+  // 🔴 **지역 칩도 「빠른 이동」이다** — 줌·팬으로 어디에 가 있든 누르면 그 뷰로 날아간다.
+  // 그래서 `userV` 를 버린다(PH5c 가 단계 버튼에 둔 예외를 그대로 물려받는다).
+  //
+  // 지역 뷰를 `userV` 에 담는 이유: `render()` 가 `userV || viewOf(STAGES[stageIdx])` 로 뷰를 고른다.
+  // 지역은 거리 단계가 아니므로 **단계 쪽에 담을 자리가 없다** — 사용자가 고른 뷰라는 점에서
+  // 휠·드래그로 만든 뷰와 같은 칸에 들어간다. 다른 것은 `regionKey` 로 **불이 켜진다**는 것뿐이다.
+  function setRegion(key) {
     var from = CURV;                              // 지금 화면에 적용된 뷰
-    userV = null; hadUser = false;
-    stageIdx = idx; collapse(); render();         // 목적지 단계의 딜 집합·좌표로 전부 그린다 (불은 syncStageBar)
-    // 전환 중 다른 단계를 누르면 진행 중인 트윈을 버리고 **현재 위치에서** 새 목표로 간다.
+    regionKey = key;
+    collapse();
+    userV = viewOfRegion(key); hadUser = true;    // 목적지 뷰 — `render()` 가 이걸 쓴다
+    render();                                     // 그 뷰의 딜 집합·좌표로 전부 그린다 (불은 syncStageBar)
+    // 전환 중 다른 칩을 누르면 진행 중인 트윈을 버리고 **현재 위치에서** 새 목표로 간다.
     if (from && CURV && !reduceMotion()) tweenTo(from, CURV, 400);
   }
   // 무대 종횡비가 1000/680을 넘나들면 가시 가로가 통째로 바뀐다 → far 배율을 다시 잡는다.
@@ -1459,8 +1531,12 @@
     geoBump();                                  // 창 크기가 바뀌면 무대·UI 상자가 통째로 달라진다
     rzT = setTimeout(function () { rzT = null; if (ORIGIN) render(); }, 120);
   });
+  // 🔴 **자리 번호가 아니라 `data-region` 으로** 부른다. 그날 딜이 없는 지역은 칩이 빠져
+  // 번호가 밀리므로(대구는 넷이 빠진다), 번호로 묶으면 「유럽」을 눌렀는데 「미주」로 간다.
   var sbs = document.querySelectorAll(".stagebar .pill");
-  for (var b = 0; b < sbs.length; b++) (function (el, idx) { el.addEventListener("click", function () { setStage(idx); }); })(sbs[b], b);
+  for (var b = 0; b < sbs.length; b++) (function (el) {
+    el.addEventListener("click", function () { setRegion(el.getAttribute("data-region") || ""); });
+  })(sbs[b]);
   // ---- `＋/－` = **줌 버튼** (PH5c T2 · SPEC §CH1) ----
   // 🔴 **원래 뜻으로 돌아왔다.** 2026-08-22 에 「죽어 있던 버튼을 단계 스테퍼로 재활용」했는데,
   // 그건 자유 줌이 없던 시절의 임시였다. 이제 휠이 없는 사람(트랙패드 설정·접근성)에게
@@ -2017,7 +2093,7 @@
     hoverHold();
     hc.classList.remove("show", "expanded");
     document.body.classList.remove("detail-open");
-    stageIdx = 0; expandedI = null; active = null; render();
+    stageIdx = 0; expandedI = null; active = null; regionKey = null; userV = null; hadUser = false; render();
     // 지도가 통째로 다른 나라로 날아가는 유일한 전환이라 600ms 다(SPEC §CH1 트윈 표).
     // 첫 로드는 전환이 아니라 **그냥 그 화면**이라 트윈하지 않는다.
     if (!initial && CURV && !reduceMotion())

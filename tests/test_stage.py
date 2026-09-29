@@ -73,8 +73,14 @@ def problems(js, css):
 
     # 4. 「켜짐」을 켜는 곳이 하나
     # PH5c 부터 조건이 자랐다 — `!userV && i === stageIdx`(줌·팬 중에는 어느 단계도 아니다).
+    # CH8 에서 또 자랐다 — `regionKey !== null && data-region === regionKey`(어느 지역도 아니면 전부 꺼짐).
     # **세는 것은 「켜는 자리의 개수」**지 조건식의 모양이 아니다. 그래서 앞부분을 열어 둔다.
-    lit = len(re.findall(r'classList\.toggle\("on",\s*[^)]*===\s*(?:idx|stageIdx)\)', re.sub(r"(?m)^\s*//.*$", "", js)))
+    #
+    # ⚠️ 정규식이 `[^)]*` 였는데 CH8 의 조건에 `getAttribute("data-region")` 이 들어오면서
+    # **괄호를 못 넘어 0곳으로 셌다** — 검사가 「켜는 곳이 없다」고 거짓 경보를 냈다.
+    # 한 문장 안(`[^;]*`)에서 센다.
+    lit = len(re.findall(r'classList\.toggle\("on",[^;]*(?:stageIdx|regionKey)\)',
+                         re.sub(r"(?m)^\s*//.*$", "", js)))
     if lit == 0:
         out.append("단계바의 「켜짐」을 켜는 곳이 없다")
     elif lit > 1:
@@ -111,16 +117,16 @@ class StageTest(unittest.TestCase):
         self.assertIn("wasFiltering", ap)
         # PH5c 부터 사용자 뷰(`userV`)도 같이 버린다 — 탐침도 그 모양을 따라간다.
         # PH5c T5 부터 `hadUser`(단계 불 표식)도 같이 되돌린다 — 탐침도 그 모양을 따라간다.
-        old = JS.replace("if (nowFiltering && !wasFiltering) { stageIdx = STAGES.length - 1; userV = null; hadUser = false; }",
-                         "if (nowFiltering) { stageIdx = STAGES.length - 1; userV = null; hadUser = false; }")
+        old = JS.replace("if (nowFiltering && !wasFiltering) {", "if (nowFiltering) {")
         self.assertNotEqual(old, JS)
         self.assertTrue(any("켜는 순간" in b for b in problems(old, CSS)))
 
     def test_two_places_lighting_the_pill_is_caught(self):
         """탐침 — 불을 켜는 곳이 둘이면 잡는다. 고치는 중 실제로 어긋났던 자리다."""
-        old = JS.replace("  function setStage(idx) {",
-                         '  function setStage(idx) {\n    var bs=document.querySelectorAll(".stagebar .pill");\n'
-                         '    for (var k=0;k<bs.length;k++) bs[k].classList.toggle("on", k === idx);')
+        old = JS.replace("  function setRegion(key) {",
+                         '  function setRegion(key) {\n'
+                         '    var bs=document.querySelectorAll(".stagebar .pill");\n'
+                         '    for (var k=0;k<bs.length;k++) bs[k].classList.toggle("on", bs[k].getAttribute("data-region") === regionKey);')
         self.assertNotEqual(old, JS)
         self.assertTrue(any("한 곳이어야" in b for b in problems(old, CSS)))
 
