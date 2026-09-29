@@ -1413,12 +1413,17 @@
   // ---- 입력: 휠 = 줌 · 드래그 = 팬 · 두 손가락 = 핀치 (PH5c T1) ----
   // 🔴 **`svg` 에만 건다.** 무대(`stageEl`)에 걸면 필터 도크·단계바 위에서 굴려도 지도가 움직인다 —
   //    도크는 안에서 스크롤되는 상자다(B54 의 높이 상한). 그 스크롤을 뺏으면 안 된다.
-  // 감도. 0.0015(한 칸 1.20배) → 0.0028(1.40배) → **0.0056(1.96배)**.
-  // 사용자가 두 번 말했다: 「너무 무겁다, 많이 확대해야 된다」 → 「조금 더, 지금 2배 정도」(2026-09-28).
-  // 한 번에 못 맞힌 값이라 **고친 이력을 남긴다** — 다음에 만질 사람이 왕복한 걸 알아야 또 안 왕복한다.
+  // 감도. 0.0015(한 칸 1.20배) → 0.0028(1.40) → 0.0056(1.96) → **0.0078(2.55배)**.
+  // 사용자가 세 번 말했다: 「너무 무겁다」 → 「조금 더, 지금 2배 정도」 → 「조금 더 빨라야 돼」(2026-09-28).
+  // **고친 이력을 남긴다** — 다음에 만질 사람이 왕복한 걸 알아야 또 안 왕복한다.
+  //
+  // ⚠️ 여기가 거의 한계다. 배율 범위가 170~5534(32.5배)인데 한 칸 2.55배면
+  //    **끝에서 끝까지 4칸**이다. 더 올리면 「조금 확대」가 불가능해진다 —
+  //    빨라지는 대신 **정밀하게 맞출 수 없게** 된다. 더 빠르게 해달라는 말이 또 나오면
+  //    감도가 아니라 **범위**(상한 4배)를 의심해야 한다.
   // 지수로 받는 건 그대로다:
   // 배율은 곱으로 느껴지지 더하기로 느껴지지 않는다(트윈이 로그 보간인 것과 같은 이유).
-  var ZOOM_WHEEL = 0.0056;
+  var ZOOM_WHEEL = 0.0078;
   svg.addEventListener("wheel", function (e) {
     e.preventDefault();                       // 지도 위에서는 페이지가 안 움직인다
     // 줄당 약 16px, 페이지당 한 화면 — 브라우저마다 단위가 다르다(`deltaMode`).
@@ -1466,15 +1471,22 @@
     var dx = e.clientX - lastX, dy = e.clientY - lastY;
     moved += Math.abs(dx) + Math.abs(dy);
     if (!panning && moved < PAN_SLOP) return;  // 아직 클릭일 수 있다
-    if (!panning) { panning = true; svg.classList.add("panning"); try { svg.setPointerCapture(e.pointerId); } catch (x) { /* 무시 */ } }
+    if (!panning) {
+      panning = true; svg.classList.add("panning");
+      document.body.classList.add("dragging");          // 끄는 동안 글자가 안 잡힌다
+      if (window.getSelection) { var sel = window.getSelection(); if (sel && sel.removeAllRanges) sel.removeAllRanges(); }
+      try { svg.setPointerCapture(e.pointerId); } catch (x) { /* 무시 */ }
+    }
     lastX = e.clientX; lastY = e.clientY;
     panByClient(dx, dy);
   });
   function endPtr(e) {
     delete ptrs[e.pointerId];
     if (ptrList().length < 2) pinchD = 0;
-    if (!ptrList().length) { panning = false; svg.classList.remove("panning"); }
+    if (!ptrList().length) { panning = false; svg.classList.remove("panning"); document.body.classList.remove("dragging"); }
   }
+  // 브라우저의 기본 「끌어 옮기기」도 막는다 — 글자를 잡아 끌면 반투명 미리보기가 따라다닌다.
+  svg.addEventListener("dragstart", function (e) { e.preventDefault(); });
   svg.addEventListener("pointerup", endPtr);
   svg.addEventListener("pointercancel", endPtr);
   svg.addEventListener("pointerleave", endPtr);

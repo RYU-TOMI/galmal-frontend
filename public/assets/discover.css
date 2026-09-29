@@ -196,8 +196,14 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 /* 🔴 `touch-action:none` — 지도 위 손가락은 **우리가** 쓴다(PH5c 팬·핀치).
    `manipulation` 이면 브라우저가 스크롤·더블탭 줌을 먼저 가져가 끌기가 끊긴다. */
 svg.map{position:absolute;inset:0;width:100%;height:100%;display:block;background:var(--sea);
- touch-action:none;cursor:grab}
+ touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 svg.map.panning{cursor:grabbing}
+/* 🔴 **끄는 동안 글자가 잡히지 않는다** (사용자 2026-09-29: 「잡고 움직이면 텍스트들이 드래그됨」).
+   지도에는 도시 이름이 `<text>` 로 들어 있어서, 끌면 브라우저가 **글자를 고르는 것**으로 받는다.
+   지도 위는 `user-select:none` 으로 막고, 끄는 동안은 **화면 전체**를 막는다 —
+   포인터를 잡아 두면(`setPointerCapture`) 커서가 피드 위로 넘어가도 이벤트는 지도가 받는데,
+   **글자 고르기는 그래도 번진다.** 카드 글자까지 파랗게 칠해지는 걸 막는다. */
+body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:none!important}
 /* 지도는 transform 으로 확대된다 → 해안선 굵기는 배율을 따라가면 안 된다 (B17) */
 .land{fill:var(--land);stroke:#33534f22;stroke-width:.6;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 /* 트윈 중에는 라벨과 항로를 그리지 않는다 — 움직이는 글자는 못 읽는다 (SPEC §CH1) */
