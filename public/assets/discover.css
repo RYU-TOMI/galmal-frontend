@@ -206,8 +206,11 @@ svg.map.panning{cursor:grabbing}
 body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:none!important}
 /* 지도는 transform 으로 확대된다 → 해안선 굵기는 배율을 따라가면 안 된다 (B17) */
 .land{fill:var(--land);stroke:#33534f22;stroke-width:.6;stroke-linejoin:round;vector-effect:non-scaling-stroke}
-/* 트윈 중에는 라벨과 항로를 그리지 않는다 — 움직이는 글자는 못 읽는다 (SPEC §CH1) */
-.tweening .plabel,.tweening .arc{opacity:0}
+/* 트윈 중에는 라벨을 그리지 않는다 — 움직이는 글자는 못 읽는다 (SPEC §CH1).
+   🔴 항로는 **숨기지 않는다**(2026-09-29 CH8). 예전엔 점선 패턴이 길이를 못 따라가 트윈 중
+   선이 끊겨 보였고, 그래서 숨겼다. `pathLength` 로 길이를 고정한 뒤에는 트윈 중에도 정확하다 —
+   숨기면 지역 칩으로 날아가는 동안 「어디서 어디로」가 사라진다. 글자와 선은 사정이 다르다. */
+.tweening .plabel{opacity:0}
 .arc{fill:none;stroke:var(--accent);stroke-width:1.6;stroke-linecap:round;filter:drop-shadow(0 .5px 1px #f2603f33)}
 .origin-dot{fill:var(--ink)}.origin-ring{fill:none;stroke:var(--ink);stroke-width:1.5;opacity:.35}
 .pin{cursor:pointer}.pin .halo{opacity:.16}.pin .core{stroke:#fff;stroke-width:2.2;transition:r .12s}
