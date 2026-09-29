@@ -145,7 +145,7 @@ def main():
     page = home.render_home(payload, home.inline_deals(payload), world, index, snap["vocab"], meta,
                             generated_date)
     # 🔴 `discover.js` 가 어휘 목록을 **이 칩에서 읽으므로** 칩이 계약과 다르면 내보내지 않는다.
-    bad = home.chip_problems(page, snap["vocab"])
+    bad = home.chip_problems(page, snap["vocab"], snap["deals"].get("deals", []))
     if bad:
         for b in bad:
             print("  🔴 " + b)

@@ -223,6 +223,12 @@ body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:no
 .plabel.off{display:none}
 .pin.act .plabel.off{display:block}
 .stagebar{position:absolute;left:18px;bottom:18px;display:flex;gap:6px;align-items:center}
+/* 🔴 **지역 칩은 두 줄로 접지 않는다** (기획 2026-09-29, SPEC §CH1). 칩이 3개에서 10개로
+   늘어 좁은 데스크톱에서 넘친다 — 실측: 필요한 폭 554px 인데 무대가 900px 폭에서 542 · 861px 에서 503.
+   글자를 줄이지 않고 **좌우 패딩만** 12→7px 로 줄인다(글꼴은 12.48px 그대로 — 12px 하한 위, B57).
+   `nowrap` 은 접히는 대신 **넘치게** 만들므로 자체로는 답이 아니다. 둘을 같이 쓴다. */
+.stagebar{flex-wrap:nowrap}
+@media(max-width:1000px){.stagebar{gap:5px}.stagebar .pill{padding:6px 7px}}
 /* 🔴 **필터 중에도 단계 버튼을 남긴다** (SPEC §CH1, 2026-09-22 · B70).
    예전엔 `.stagebar.allregions .pill{display:none}` 로 치웠다 — 「필터 중에는 거리 단계 개념이 성립하지
    않는다」는 생각이었는데, 그 결과 **필터를 켠 사용자가 지도를 가까이 볼 길이 하나도 없었다**(스테퍼의
