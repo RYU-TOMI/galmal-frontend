@@ -72,7 +72,9 @@ def problems(js, css):
         out.append("CSS 가 필터 중 단계 버튼을 숨긴다 — 그러면 누를 버튼이 없다(B70)")
 
     # 4. 「켜짐」을 켜는 곳이 하나
-    lit = len(re.findall(r'classList\.toggle\("on",\s*\w+\s*===\s*(?:idx|stageIdx)\)', re.sub(r"(?m)^\s*//.*$", "", js)))
+    # PH5c 부터 조건이 자랐다 — `!userV && i === stageIdx`(줌·팬 중에는 어느 단계도 아니다).
+    # **세는 것은 「켜는 자리의 개수」**지 조건식의 모양이 아니다. 그래서 앞부분을 열어 둔다.
+    lit = len(re.findall(r'classList\.toggle\("on",\s*[^)]*===\s*(?:idx|stageIdx)\)', re.sub(r"(?m)^\s*//.*$", "", js)))
     if lit == 0:
         out.append("단계바의 「켜짐」을 켜는 곳이 없다")
     elif lit > 1:
@@ -92,7 +94,8 @@ class StageTest(unittest.TestCase):
 
     def test_view_locked_to_far_is_caught(self):
         """탐침 — 2026-09-22 까지 실제로 있던 코드. 이게 B70 이다."""
-        old = JS.replace("var v = viewOf(STAGES[stageIdx]);",
+        # PH5c 부터 뷰의 주인이 둘이다(`userV || viewOf(...)`) — 탐침도 그 모양을 따라간다.
+        old = JS.replace("var v = userV || viewOf(STAGES[stageIdx]);",
                          'var v = viewOf(anyFilter() ? "far" : STAGES[stageIdx]);')
         self.assertNotEqual(old, JS, "탐침이 아무것도 안 바꿨다 — render() 모양이 달라졌으면 탐침을 고친다")
         bad = problems(old, CSS)
@@ -106,8 +109,10 @@ class StageTest(unittest.TestCase):
         """탐침 — 켤 때마다(=조건 없이) 옮기면 그것도 잠금이다."""
         ap = fn(JS, "applyFilter")
         self.assertIn("wasFiltering", ap)
-        old = JS.replace("if (nowFiltering && !wasFiltering) stageIdx = STAGES.length - 1;",
-                         "if (nowFiltering) stageIdx = STAGES.length - 1;")
+        # PH5c 부터 사용자 뷰(`userV`)도 같이 버린다 — 탐침도 그 모양을 따라간다.
+        # PH5c T5 부터 `hadUser`(단계 불 표식)도 같이 되돌린다 — 탐침도 그 모양을 따라간다.
+        old = JS.replace("if (nowFiltering && !wasFiltering) { stageIdx = STAGES.length - 1; userV = null; hadUser = false; }",
+                         "if (nowFiltering) { stageIdx = STAGES.length - 1; userV = null; hadUser = false; }")
         self.assertNotEqual(old, JS)
         self.assertTrue(any("켜는 순간" in b for b in problems(old, CSS)))
 

@@ -346,7 +346,15 @@
   //    못 채운다(가로도 16% 빈다). 도크 300px을 빼면 배율 상한이 195 → 141로 떨어진다.
   //    도크에 가려지는 핀(B16)은 SPEC §CH2 미결에서 **PH5(도크→하단 시트)로 미뤄져 있다** —
   //    지도를 30% 줄여 피하는 쪽이 대가가 더 크다는 판단이다. 라벨 쪽은 T7에서 닫았다.
+  // 🔴 **무대와 UI 상자는 지도가 움직인다고 움직이지 않는다.** 그런데 뷰가 바뀔 때마다
+  // 다시 재고 있었다 — 자유 줌 전에는 `render()` 때만 불려서 드러나지 않았다.
+  // 실측(6배 느린 CPU · 핀 78): 팬 한 번 **90.9ms**(예산 16.7). 그중 라벨 몫이 57.2ms 다.
+  // `getBoundingClientRect` 는 레이아웃을 깨운다 — 한 번의 팬에 그게 여러 번 든다.
+  // **버전을 세어 캐시한다**: 바뀌는 건 창 크기와 `render()`(도크 높이·안내 숨김) 때뿐이다.
+  var geoVer = 0, bandC = null, uiC = null;
+  function geoBump() { geoVer++; bandC = null; uiC = null; }
   function usableBand() {
+    if (bandC) return bandC;
     var box = stageEl.getBoundingClientRect(), cw = box.width || W, ch = box.height || H;
     // 모바일은 **시트 높이와 무관하게 `half` 기준**으로 잰다. 무대가 시트만큼 줄어드는데
     // 그 무대로 집합까지 정하면 **시트를 키울수록 목록이 줄어든다** — 더 보려고 키웠는데
@@ -355,7 +363,8 @@
     if (isMobile() && layoutEl) ch = Math.max(120, layoutEl.clientHeight - SHEET_HALF);
     var sf = Math.max(cw / W, ch / H);                 // preserveAspectRatio="slice" = cover
     var vbW = cw / sf, vbH = ch / sf;                  // 보이는 viewBox 크기
-    return { vbW: vbW, vbH: vbH, half: Math.max(60, vbW / 2 - LABEL_PAD) };
+    bandC = { vbW: vbW, vbH: vbH, half: Math.max(60, vbW / 2 - LABEL_PAD) };
+    return bandC;
   }
   function farView() {
     var a = farArc(), b = usableBand();
@@ -395,7 +404,10 @@
     var on = anyFilter();
     bar.classList.toggle("allregions", on);
     var pills = bar.querySelectorAll(".pill");
-    for (var i = 0; i < pills.length; i++) pills[i].classList.toggle("on", i === stageIdx);
+    // 🔴 **줌·팬을 하면 불이 꺼진다**(PH5c T3). 사용자가 만진 뷰는 어느 단계도 아니다 —
+    // 그런데 불이 켜져 있으면 「지금 가까운 곳을 보고 있다」는 **거짓말**이 된다.
+    // 그 상태에서 같은 버튼을 다시 누르는 것도 뜻이 있다(그 뷰로 돌아가기).
+    for (var i = 0; i < pills.length; i++) pills[i].classList.toggle("on", !userV && i === stageIdx);
     var note = bar.querySelector(".allnote");
     if (on && !note) { note = document.createElement("span"); note.className = "allnote"; note.textContent = "전 지역에서 찾는 중"; bar.appendChild(note); }
   }
@@ -459,6 +471,7 @@
   // 접혀 있으면 클래스를 잠깐 떼고 재서 되돌린다. 같은 태스크 안이라 화면엔 안 나타난다.
   // 그 밖의 요소는 **지금 상태 그대로** 잰다 — 숨겨진 것은 자리를 안 먹으므로 라벨이 돌아온다.
   function uiBoxes() {
+    if (uiC) return uiC;
     // 레이아웃 전이라 CTM 이 없으면 UI 사각형 없이 배치한다 — 라벨을 통째로 잃는 것보다 낫다.
     var ctm = svg.getScreenCTM(); if (!ctm) return [];
     var inv = ctm.inverse(), out = [], i;
@@ -472,6 +485,7 @@
       var a = clientToVb(inv, r.left, r.top), b = clientToVb(inv, r.right, r.bottom);
       out.push({ l: a.x, t: a.y, w: b.x - a.x, h: b.y - a.y, city: null });
     }
+    uiC = out;
     return out;
   }
   // 피해야 할 사각형에 **다른 도시의 핀**도 들어간다. 자기 핀은 뺀다 —
@@ -556,6 +570,7 @@
   }
   function render() {
     if (!ORIGIN) return;
+    geoBump();   // 도크 높이·안내 띠가 바뀔 수 있다 — 캐시를 버린다
     fitDock();   // 라벨 회피가 도크를 재기 **전에** 상한을 먹인다 — 상한이 적용된 높이로 재야 한다(SPEC §CH2)
     tweenId++; svg.classList.remove("tweening");  // 진행 중 트윈이 있으면 무효화
     // 🔴 **뷰는 언제나 거리 단계를 따른다.** 예전엔 `anyFilter() ? "far" : …` 로 필터 중에 뷰를
@@ -566,7 +581,13 @@
     //
     // 「필터를 켜면 아주 멀리」는 **한 번 옮기는 것**이지 잠그는 것이 아니다(SPEC §CH1, 2026-09-22 갈라 적음).
     // 옮기는 일은 `applyFilter()` 가 한 번만 하고, 그 뒤 뷰의 주인은 사용자다.
-    var v = viewOf(STAGES[stageIdx]);
+    // 🔴 **뷰의 주인이 둘이다** (PH5c, 2026-09-22 사용자 확정 · SPEC §CH1).
+    //   `userV` 가 있으면 **사용자가 만진 뷰**다 — 줌·팬으로 직접 정한 값.
+    //   없으면 거리 단계에서 **파생**된 값(지금까지의 유일한 길).
+    // `render()` 는 정렬·필터·출발지 등 **뷰와 무관한 이유로도** 불린다. 그때마다 단계 뷰로
+    // 되돌리면 **사용자가 맞춰 둔 화면을 우리가 뺏는다.** 그래서 있으면 그걸 쓴다.
+    // 지우는 자리는 단 둘 — 단계 버튼(빠른 이동)과 필터를 **켜는 순간**(한 번만 넓힌다).
+    var v = userV || viewOf(STAGES[stageIdx]);
     setXform(v); CURV = v;                        // path 는 그대로 두고 transform 만 바꾼다
     var O = pt(ORIGIN.lon, ORIGIN.lat); ORIGIN.x = O[0]; ORIGIN.y = O[1];
     og.innerHTML = '<circle class="origin-ring" cx="' + O[0] + '" cy="' + O[1] + '" r="9"/>' +
@@ -678,6 +699,128 @@
   // render() 는 목적지 뷰로 전부 그린다. 트윈은 그 위에서 **좌표만** 움직인다 —
   // path 는 T5 덕에 transform 한 줄이고, 핀은 cx/cy 만 고치면 되므로 DOM 재생성이 없다.
   var CURV = null, tweenId = 0;
+
+  // ---- 자유 줌·팬 (PH5c T1 · SPEC §CH1, 2026-09-22 사용자 확정) ----
+  // 사용자: 「지도를 좀 둘러보려고 했는데 안 돼」. 2026-08-22 의 「자유 줌 기각」을 뒤집은 결정이다.
+  //
+  // 🔴 **한 프레임의 일은 늘어나지 않는다.** 뷰가 바뀔 때 도는 건 `moveOnly()` 하나고,
+  // 세계 지도는 `transform` 만 바뀐다(`path(WORLD)` 는 초기화 때 한 번뿐).
+  // 실측(착수 전, 2026-09-28): 6배 느린 CPU 에서 프레임당 3.9ms — 예산 16.7ms 의 23%.
+  // 자유 줌은 **프레임 수가 늘 뿐 한 프레임의 일은 같다.**
+  var userV = null;                 // 사용자가 만진 뷰. `null` 이면 단계에서 파생한다.
+  var hadUser = false, atLimit = false;   // 단계 불·버튼 상태를 **바뀔 때만** 고치기 위한 표식
+  // 배율 한계 — **지구가 무대보다 작아지지 않고**(하한), 가까운 곳의 4배까지(상한).
+  // 값을 박지 않고 그때그때 단계 뷰에서 구한다: 두 값 다 출발지·화면 비율에 따라 달라진다.
+  function kBounds() {
+    return { lo: viewOf("far").scale / BASE, hi: viewOf("near").scale * 4 / BASE };
+  }
+  function clampK(k) { var b = kBounds(); return Math.max(b.lo, Math.min(b.hi, k)); }
+  // 아핀 상태(k·tx·ty) → 뷰(lon·lat·scale). `setXform` 의 역이다.
+  function viewFromXform(k, tx, ty) {
+    var ll = proj.invert([(W / 2 - tx) / k, (H / 2 - ty) / k]);
+    return { lon: norm(ll[0]), lat: ll[1], scale: k * BASE };
+  }
+  // 사용자가 뷰를 잡았다 — 진행 중 트윈을 **버린다.** 잡는 순간부터 우리가 움직이지 않는다.
+  // 버튼 줌은 **미끄러진다** — 사용자: 「띡띡 움직이는 느낌이 강해서 애니메이션이 필요할 듯」.
+  // 휠·드래그는 이미 연속이라 그대로 두고, **한 번에 튀는 것**만 부드럽게 한다.
+  // `tweenTo` 를 안 쓰는 이유: 그건 단계 이동용이라 `userV` 를 안 건드린다 —
+  // 매 프레임 `userV` 를 같이 옮기지 않으면 중간에 `render()` 가 불릴 때 화면이 튄다.
+  function tweenUser(to, ms) {
+    var from = CURV, id = ++tweenId, t0 = 0;
+    syncStageBar();                           // 불은 **출발할 때** 끈다 — 도착까지 기다리면 거짓말이 길어진다
+    if (!from || reduceMotion()) { takeView(to); return; }
+    var dLon = norm(to.lon - from.lon), ratio = to.scale / from.scale;
+    function step(now) {
+      if (id !== tweenId) return;             // 휠·드래그가 가로챘다 — 사용자가 이기게 둔다
+      if (!t0) t0 = now;
+      var t = Math.min(1, (now - t0) / ms), e = 1 - Math.pow(1 - t, 3);
+      var v = { lon: from.lon + dLon * e, lat: from.lat + (to.lat - from.lat) * e,
+                scale: from.scale * Math.pow(ratio, e) };
+      userV = v; moveOnly(v);
+      if (t < 1) requestAnimationFrame(step);
+      else { userV = to; moveOnly(to); syncStepper(); settleView(); }
+    }
+    requestAnimationFrame(step);
+  }
+  // 목표 뷰만 구한다(적용하지 않는다) — 버튼은 이 값으로 미끄러진다.
+  function zoomTarget(cx, cy, factor) {
+    var p = clientToSvg(cx, cy), k0 = XF.k, k1 = clampK(k0 * factor);
+    if (Math.abs(k1 - k0) < 1e-9) return null;
+    var bx = (p.x - XF.tx) / k0, by = (p.y - XF.ty) / k0;
+    return viewFromXform(k1, p.x - bx * k1, p.y - by * k1);
+  }
+  // ---- 라벨을 **지금 배율에서** 다시 잡는다 (PH5c T5 · SPEC §CH1) ----
+  // 🔴 배치 규칙 자체는 안 바꾼다 — `placeLabels()` 는 이미 스펙대로다:
+  //    **싼 곳부터 자리를 잡고, 넷 다 막히면 이름을 안 붙이고, 핀은 반드시 남긴다.**
+  //    문제는 **언제 도느냐**였다. 지금까지 `render()` 에서만 돌았고, 뷰가 3개뿐일 땐 그걸로 충분했다.
+  //    자유 줌이 생기자 **중간 배율에서 옛 자리를 그대로 쓰게** 됐다 — 확대하면 이름이 겹친다.
+  //
+  // ⚠️ **매 프레임 돌리지 않는다.** `placeLabels()` 는 `getBoundingClientRect` 를 5번 읽는다
+  //    (무대 하나 + UI 넷). 60fps 로 부르면 초당 300번 레이아웃을 깨운다.
+  //    그래서 **간격을 두고(90ms) 돌리고, 손을 떼면 정확히 한 번 더** 잡는다 —
+  //    끄는 동안은 「대충 맞게」, 멈추면 「정확하게」다. 사람은 움직이는 중의 라벨을 안 읽는다.
+  // 🔴 **움직임이 멎으면 보이는 딜을 다시 고른다** (2026-09-29, 사용자가 찾게 해 줬다).
+  // 어떤 딜이 지도에 있느냐는 `visibleCities()` 가 정하는데 그건 `render()` 에서만 돈다.
+  // 자유 줌 전에는 뷰가 단계 버튼으로만 바뀌었고 그 길은 늘 `render()` 를 거쳤다 —
+  // 자유 줌이 생기자 **뷰만 바뀌고 딜 집합은 그대로**가 됐다.
+  //
+  // 실측: 「가까운 곳」에서 휠로 끝까지 축소하면 배율은 170(아주 멀리와 같다)인데
+  // **핀이 25개뿐**이었다(단계 버튼으로 가면 78개). 피드도 25장이었다.
+  // 스펙이 금지한 그것이다 — 「**더 멀리 갔는데 점이 줄어드는**」(§CH1 LOD, 2026-09-01).
+  //
+  // ⚠️ **움직이는 중에는 안 한다.** `render()` 는 핀·피드를 통째로 다시 만든다 —
+  //    매 프레임 하면 예산을 훨씬 넘고, 끄는 동안 피드가 계속 갈아엎힌다.
+  //    라벨은 `render()` 가 같이 잡으므로 여기서 따로 부르지 않는다.
+  function settleView() {
+    if (!userV) return;                         // 단계 뷰면 이미 `render()` 를 거쳐 왔다
+    render();                                   // `userV` 를 그대로 쓰므로 화면은 안 움직인다
+  }
+  var labT = 0, LAB_MS = 90;
+  function relabel(force) {
+    var now = (window.performance && performance.now) ? performance.now() : Date.now();
+    if (!force && now - labT < LAB_MS) return;
+    labT = now;
+    var gs = pins.childNodes, list = [], i, c;
+    for (i = 0; i < gs.length; i++) { c = cityByI(+gs[i].dataset.i); if (c) list.push(c); }
+    if (!list.length) return;
+    placeLabels(list);
+    for (i = 0; i < gs.length; i++) {
+      var t = gs[i].querySelector("text"); if (!t) continue;
+      var L = (cityByI(+gs[i].dataset.i) || {})._lab; if (!L) continue;
+      t.setAttribute("x", L.x); t.setAttribute("y", L.y);
+      t.setAttribute("text-anchor", L.anchor);
+      if (L.off) t.classList.add("off"); else t.classList.remove("off");
+    }
+  }
+  function takeView(v) {
+    // 🔴 **지도를 움직이면 상세가 닫힌다** (사용자 2026-09-28: 「상세 열고 지도 움직이면 꺼지는 게 나을 듯」).
+    // 상세는 **핀 자리에 놓인 카드**라 지도가 움직이면 가리키던 곳에서 떨어진다 — 그러면 카드가
+    // 무엇에 대한 것인지 화면이 말해 주지 못한다(호버 미니카드를 떼면 지우기로 한 것과 같은 이유).
+    // `collapse()` 가 아니라 `closeByUser()` 다 — **사용자가 한 일**이라 `×` 와 같은 길로 닫는다(B58).
+    if (expandedI !== null) closeByUser();
+    userV = v; tweenId++; svg.classList.remove("tweening");
+    moveOnly(v);
+    // 버튼 상태(한계에 닿았나)와 단계 불(어느 단계도 아니다)이 **매 프레임 따라온다**.
+    // 둘 다 DOM 클래스 몇 개라 프레임 예산에 든다 — 실측 3.9ms/프레임(6배 느린 CPU).
+    // 🔴 **바뀔 때만 만진다.** 예전엔 뷰가 움직일 때마다 둘 다 불렀는데, `syncStepper()` 는
+    // 한계를 구하려고 `viewOf()` 를 두 번 부르고 그 안에서 무대를 잰다 — 팬 한 번에 레이아웃이 여러 번 깨졌다.
+    // 단계 불은 `userV` 가 생기는 **첫 프레임**에만 꺼지면 되고, 버튼은 **한계에 닿고 떨어질 때**만 바뀐다.
+    if (!hadUser) { hadUser = true; syncStageBar(); }
+    var lim = (XF.k <= kBounds().lo * 1.001) || (XF.k >= kBounds().hi * 0.999);
+    if (lim !== atLimit) { atLimit = lim; syncStepper(); }
+    relabel(false);
+  }
+  // 🔴 **커서 아래의 땅이 그 자리에 머문다.** 화면 가운데를 기준으로 확대하면
+  // 보려던 곳이 옆으로 흘러가 버린다 — 지도를 벌릴 때 사람이 기대하는 건 손가락 밑이 고정되는 것이다.
+  function zoomAbout(cx, cy, factor) {
+    var v = zoomTarget(cx, cy, factor);
+    if (v) takeView(v);
+  }
+  function panByClient(dx, dy) {
+    // 화면 픽셀 → viewBox 픽셀. 무대가 잘려 있어 둘의 비율이 1이 아니다.
+    var a = clientToSvg(0, 0), b = clientToSvg(dx, dy);
+    takeView(viewFromXform(XF.k, XF.tx + (b.x - a.x), XF.ty + (b.y - a.y)));
+  }
   function reduceMotion() {
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
@@ -701,6 +844,17 @@
           var L = c._lab || { dx: 0, dy: PIN_R + 11 };
           kids[j].setAttribute("x", p[0] + L.dx); kids[j].setAttribute("y", p[1] + L.dy);
         }
+      }
+    }
+    // 🔴 **미니카드와 항로는 핀에 붙어 있어야 한다** (사용자 2026-09-28:
+    // 「점에 고정 안 되고 화면을 따라가」). 둘 다 **그 핀이 무엇인지 가리키는** 것들이라,
+    // 지도가 움직이는데 제자리에 있으면 **엉뚱한 곳을 가리키게 된다.**
+    // 펼친 상세는 여기 해당 없다 — 움직이면 **닫기로** 했다(길고 결정하는 자리라 따라다니면 어지럽다).
+    if (active !== null && expandedI === null && hc.classList.contains("show")) {
+      var ac = cityByI(active);
+      if (ac && ac.x != null) {
+        positionCard(ac, null);
+        if (arc.getAttribute("d")) arc.setAttribute("d", arcPath(ac));   // 모양만, 애니메이션은 그대로
       }
     }
   }
@@ -741,14 +895,29 @@
     if (act && act.nextSibling) pins.appendChild(act);
     var cs = document.querySelectorAll(".fcard"); for (var j = 0; j < cs.length; j++) cs[j].classList.toggle("on", +cs[j].dataset.i === active);
   }
+  // 항로의 **모양만** 고친다 — 그리는 애니메이션은 다시 시작하지 않는다.
+  // 지도를 끄는 동안 매 프레임 `drawArc` 를 부르면 선이 계속 처음부터 그려져 깜빡인다.
+  function arcPath(c) {
+    var mx = (ORIGIN.x + c.x) / 2, my = (ORIGIN.y + c.y) / 2;
+    var dx = c.x - ORIGIN.x, dy = c.y - ORIGIN.y, len = Math.hypot(dx, dy) || 1;
+    var lift = Math.min(90, len * 0.24);
+    return "M" + ORIGIN.x + "," + ORIGIN.y + " Q" + (mx - dy / len * lift) + "," +
+      (my + dx / len * lift) + " " + c.x + "," + c.y;
+  }
   function drawArc(c) {
     var mx = (ORIGIN.x + c.x) / 2, my = (ORIGIN.y + c.y) / 2, dx = c.x - ORIGIN.x, dy = c.y - ORIGIN.y, len = Math.hypot(dx, dy) || 1;
     var lift = Math.min(90, len * 0.24), cx = mx - dy / len * lift, cy = my + dx / len * lift;
-    arc.setAttribute("d", "M" + ORIGIN.x + "," + ORIGIN.y + " Q" + cx + "," + cy + " " + c.x + "," + c.y);
+    arc.setAttribute("d", arcPath(c));
     var L = arc.getTotalLength(); arc.style.transition = "none"; arc.style.strokeDasharray = L; arc.style.strokeDashoffset = L;
     arc.getBoundingClientRect(); arc.style.transition = "stroke-dashoffset .42s ease"; arc.style.strokeDashoffset = 0;
   }
   function svgToClient(x, y) { var pt = svg.createSVGPoint(); pt.x = x; pt.y = y; return pt.matrixTransform(svg.getScreenCTM()); }
+  // 화면 좌표 → viewBox 좌표. `preserveAspectRatio="…slice"` 라 단순 비율이 아니다 —
+  // 브라우저가 가진 행렬의 역을 쓴다. 손으로 계산하면 잘린 쪽에서 어긋난다.
+  function clientToSvg(x, y) {
+    var p = svg.createSVGPoint(); p.x = x; p.y = y;
+    return p.matrixTransform(svg.getScreenCTM().inverse());
+  }
   function photoHTML(c, max) { return '<div class="hc-photo" style="background:' + c.g + '"><span class="ph-tag">사진 준비중</span>' + ovTags(c, max) + '<span class="cityname">' + c.n + "</span></div>"; }
   // `detail` — **확장 상세인가.** 같은 머리를 두 자리가 쓴다(호버/축소 카드 · 확장 상세)인데
   // 표식 규칙이 서로 다르다. 축소 카드는 **고르는 자리**라 피드 카드와 같이 하나만 짧게 쓰고,
@@ -1246,14 +1415,22 @@
     // 피드엔 뜨는데 지도엔 없는 상태(F15)다. 실측(서울 `해변` 22건): 화면 안이 가까운 곳 10 · 조금 더 멀리 16 · 아주 멀리 22.
     // 왜 한 번만인가: 그 뒤로도 잠그면 **사용자가 가까이 갈 길이 없어진다**(B70).
     // 끌 때는 되돌리지 않는다 — 사용자가 만진 뷰를 우리가 옮기지 않는다.
+    // PH5c: 「한 번 옮긴다」는 **사용자 뷰도 함께 버린다**는 뜻이다. `stageIdx` 만 바꾸면
+    // `render()` 가 `userV` 를 먼저 보므로 화면이 안 움직인다 — 필터를 켰는데 매칭이
+    // 화면 밖에 그대로 있게 된다(F15 가 다시 열린다).
+    // 그 뒤로는 줌·팬이 전부 먹고, **필터를 꺼도 뷰를 되돌리지 않는다.**
     var nowFiltering = anyFilter();
-    if (nowFiltering && !wasFiltering) stageIdx = STAGES.length - 1;
+    if (nowFiltering && !wasFiltering) { stageIdx = STAGES.length - 1; userV = null; hadUser = false; }
     wasFiltering = nowFiltering;
     updCount(); collapse(); render();
     if (from && CURV && !reduceMotion() && from.scale !== CURV.scale) tweenTo(from, CURV, 400);
   }
+  // 🔴 **단계 버튼은 「빠른 이동」이다** (PH5c T3 · SPEC §CH1). 줌·팬으로 어디에 가 있든
+  // 누르면 그 뷰로 **날아간다** — 그래서 `userV` 를 버린다. 사용자가 스스로 「여기로 가겠다」고
+  // 말한 자리이므로, 만져 둔 뷰를 지키는 규칙(T1)의 예외가 아니라 **그 규칙이 끝나는 자리**다.
   function setStage(idx) {
     var from = CURV;                              // 지금 화면에 적용된 뷰
+    userV = null; hadUser = false;
     stageIdx = idx; collapse(); render();         // 목적지 단계의 딜 집합·좌표로 전부 그린다 (불은 syncStageBar)
     // 전환 중 다른 단계를 누르면 진행 중인 트윈을 버리고 **현재 위치에서** 새 목표로 간다.
     if (from && CURV && !reduceMotion()) tweenTo(from, CURV, 400);
@@ -1262,29 +1439,139 @@
   var rzT = null;
   window.addEventListener("resize", function () {
     if (rzT) clearTimeout(rzT);
+    geoBump();                                  // 창 크기가 바뀌면 무대·UI 상자가 통째로 달라진다
     rzT = setTimeout(function () { rzT = null; if (ORIGIN) render(); }, 120);
   });
   var sbs = document.querySelectorAll(".stagebar .pill");
   for (var b = 0; b < sbs.length; b++) (function (el, idx) { el.addEventListener("click", function () { setStage(idx); }); })(sbs[b], b);
-  // 단계 스테퍼 — 줌이 아니라 한 단계씩 넘기는 버튼. 양 끝에서는 비활성. (SPEC §CH1)
+  // ---- `＋/－` = **줌 버튼** (PH5c T2 · SPEC §CH1) ----
+  // 🔴 **원래 뜻으로 돌아왔다.** 2026-08-22 에 「죽어 있던 버튼을 단계 스테퍼로 재활용」했는데,
+  // 그건 자유 줌이 없던 시절의 임시였다. 이제 휠이 없는 사람(트랙패드 설정·접근성)에게
+  // **줌으로 가는 유일한 길**이다.
+  //
+  // 한 번에 한 단(1.6배). 화면 **가운데**를 기준으로 확대한다 — 버튼에는 커서 자리가 없다.
+  // 비활성은 **배율 한계**로 정한다(예전엔 단계 끝). 더 갈 데가 없으면 눌리지 않는다.
   var stepEls = document.querySelectorAll(".stepper button");
-  function stepDelta(el) { return el.getAttribute("data-step") === "out" ? 1 : -1; }
+  var ZOOM_STEP = 1.6;
+  function stepFactor(el) { return el.getAttribute("data-step") === "out" ? 1 / ZOOM_STEP : ZOOM_STEP; }
   function syncStepper() {
-    for (var k = 0; k < stepEls.length; k++) {
-      var n = stageIdx + stepDelta(stepEls[k]);
-      stepEls[k].disabled = (n < 0 || n >= STAGES.length);
+    var b = kBounds(), k = XF.k;
+    for (var m = 0; m < stepEls.length; m++) {
+      var f = stepFactor(stepEls[m]);
+      stepEls[m].disabled = f < 1 ? (k <= b.lo * 1.001) : (k >= b.hi * 0.999);
     }
   }
   for (var z = 0; z < stepEls.length; z++) (function (el) {
     el.addEventListener("click", function () {
-      var n = stageIdx + stepDelta(el);
-      if (n < 0 || n >= STAGES.length) return;
-      setStage(n);
+      var r = svg.getBoundingClientRect();
+      var v = zoomTarget(r.left + r.width / 2, r.top + r.height / 2, stepFactor(el));
+      if (v) tweenUser(v, 220);
+      syncStepper();
     });
   })(stepEls[z]);
   syncStepper();
   // 지도 판을 통째로 벗어나면 유예 없이 바로 지운다 — 유예는 「핀과 카드 사이」를 위한 것이지
   // 「지도를 떠났는데도 남는 것」을 위한 게 아니다.
+  // ---- 입력: 휠 = 줌 · 드래그 = 팬 · 두 손가락 = 핀치 (PH5c T1) ----
+  // 🔴 **`svg` 에만 건다.** 무대(`stageEl`)에 걸면 필터 도크·단계바 위에서 굴려도 지도가 움직인다 —
+  //    도크는 안에서 스크롤되는 상자다(B54 의 높이 상한). 그 스크롤을 뺏으면 안 된다.
+  // 감도. 0.0015(한 칸 1.20배) → 0.0028(1.40) → 0.0056(1.96) → **0.0078(2.55배)**.
+  // 사용자가 세 번 말했다: 「너무 무겁다」 → 「조금 더, 지금 2배 정도」 → 「조금 더 빨라야 돼」(2026-09-28).
+  // **고친 이력을 남긴다** — 다음에 만질 사람이 왕복한 걸 알아야 또 안 왕복한다.
+  //
+  // ⚠️ 여기가 거의 한계다. 배율 범위가 170~5534(32.5배)인데 한 칸 2.55배면
+  //    **끝에서 끝까지 4칸**이다. 더 올리면 「조금 확대」가 불가능해진다 —
+  //    빨라지는 대신 **정밀하게 맞출 수 없게** 된다. 더 빠르게 해달라는 말이 또 나오면
+  //    감도가 아니라 **범위**(상한 4배)를 의심해야 한다.
+  // 지수로 받는 건 그대로다:
+  // 배율은 곱으로 느껴지지 더하기로 느껴지지 않는다(트윈이 로그 보간인 것과 같은 이유).
+  var ZOOM_WHEEL = 0.0078, wheelT = null;
+  svg.addEventListener("wheel", function (e) {
+    e.preventDefault();                       // 지도 위에서는 페이지가 안 움직인다
+    // 줄당 약 16px, 페이지당 한 화면 — 브라우저마다 단위가 다르다(`deltaMode`).
+    var u = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1;
+    var dx = e.deltaX * u, dy = e.deltaY * u;
+    // 트랙패드 핀치는 브라우저가 **`ctrlKey` 를 켜서** 보낸다. 진짜 Ctrl+휠과 구분되지 않지만
+    // 둘 다 「줌」이 맞아서 가를 이유가 없다.
+    if (e.ctrlKey) { zoomAbout(e.clientX, e.clientY, Math.exp(-dy * ZOOM_WHEEL)); return; }
+    // 🔴 **휠인가 트랙패드인가 — 브라우저가 안 알려준다.** 표준에 그 구분이 없어서 추측할 수밖에 없다.
+    // 사용자: 「노트북인데 손가락 두 개로 움직일 수 있으면 좋겠다」(2026-09-28).
+    // 어림잡는 근거 둘: ① 가로 성분이 있으면 트랙패드다(휠에는 가로가 없다)
+    //                  ② 세로만 있고 값이 크고 **딱 떨어지면** 휠이다(트랙패드는 잘고 소수가 섞인다)
+    // 틀리면 어느 쪽이든 **되돌릴 수 있는 동작**이라 크게 다치지 않는다 — 그래서 추측을 쓴다.
+    if (dx === 0 && Math.abs(dy) >= 40 && dy % 1 === 0) {
+      zoomAbout(e.clientX, e.clientY, Math.exp(-dy * ZOOM_WHEEL));
+    } else {
+      panByClient(-dx, -dy);                  // 스크롤이므로 내용은 손가락 **반대**로 움직인다
+    }
+    // 휠에는 「놓았다」가 없다 — 마지막 이벤트 뒤 조용해지면 그때가 멈춘 것이다.
+    if (wheelT) clearTimeout(wheelT);
+    wheelT = setTimeout(function () { wheelT = null; settleView(); }, 120);
+  }, { passive: false });
+
+  // 드래그 — 포인터 이벤트 하나로 마우스·터치·펜을 같이 받는다.
+  // 🔴 **`click` 을 죽이지 않는다.** 핀 클릭(상세)·배경 클릭(닫기)이 살아 있어야 한다.
+  //    그래서 **움직인 거리**로 가른다: 조금 움직였으면 클릭, 많이 움직였으면 팬이다(시트 탭 판정과 같은 축).
+  var PAN_SLOP = 6, ptrs = {}, panning = false, moved = 0, lastX = 0, lastY = 0, pinchD = 0;
+  function ptrList() { var k, a = []; for (k in ptrs) a.push(ptrs[k]); return a; }
+  svg.addEventListener("pointerdown", function (e) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+    lastX = e.clientX; lastY = e.clientY; moved = 0;
+    var a = ptrList();
+    if (a.length === 2) pinchD = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+  });
+  svg.addEventListener("pointermove", function (e) {
+    if (!ptrs[e.pointerId]) return;
+    ptrs[e.pointerId] = { x: e.clientX, y: e.clientY };
+    var a = ptrList();
+    if (a.length >= 2) {                       // 핀치 — 두 손가락 사이가 벌어진 만큼 확대
+      var d = Math.hypot(a[0].x - a[1].x, a[0].y - a[1].y);
+      if (pinchD > 0 && d > 0) {
+        zoomAbout((a[0].x + a[1].x) / 2, (a[0].y + a[1].y) / 2, d / pinchD);
+        moved += Math.abs(d - pinchD);
+      }
+      pinchD = d; return;
+    }
+    var dx = e.clientX - lastX, dy = e.clientY - lastY;
+    moved += Math.abs(dx) + Math.abs(dy);
+    if (!panning && moved < PAN_SLOP) return;  // 아직 클릭일 수 있다
+    if (!panning) {
+      panning = true; svg.classList.add("panning");
+      document.body.classList.add("dragging");          // 끄는 동안 글자가 안 잡힌다
+      if (window.getSelection) { var sel = window.getSelection(); if (sel && sel.removeAllRanges) sel.removeAllRanges(); }
+      try { svg.setPointerCapture(e.pointerId); } catch (x) { /* 무시 */ }
+    }
+    lastX = e.clientX; lastY = e.clientY;
+    panByClient(dx, dy);
+  });
+  function endPtr(e) {
+    delete ptrs[e.pointerId];
+    if (ptrList().length < 2) pinchD = 0;
+    if (!ptrList().length) {
+      panning = false; svg.classList.remove("panning"); document.body.classList.remove("dragging");
+      settleView();                           // 멈췄으니 보이는 딜과 라벨을 다시 고른다
+    }
+  }
+  // 브라우저의 기본 「끌어 옮기기」도 막는다 — 글자를 잡아 끌면 반투명 미리보기가 따라다닌다.
+  svg.addEventListener("dragstart", function (e) { e.preventDefault(); });
+  // 더블클릭 = 한 단 확대 (PH5c T6 · SPEC §CH1). **누른 자리** 기준이다 — 버튼과 달리
+  // 커서 자리가 있으니 거기를 붙잡는다. 버튼과 같은 배율(1.6배)·같은 미끄러짐(220ms)이다.
+  // ⚠️ 핀 위 더블클릭은 **첫 클릭이 이미 상세를 연다.** 그건 그대로 두고 확대만 얹는다 —
+  //    「눌러서 열고 한 번 더 눌러 들여다본다」가 어긋나지 않는다.
+  svg.addEventListener("dblclick", function (e) {
+    e.preventDefault();
+    var v = zoomTarget(e.clientX, e.clientY, ZOOM_STEP);
+    if (v) tweenUser(v, 220);
+  });
+  svg.addEventListener("pointerup", endPtr);
+  svg.addEventListener("pointercancel", endPtr);
+  svg.addEventListener("pointerleave", endPtr);
+  // 팬으로 끝난 제스처는 클릭으로 세지 않는다 — 안 그러면 지도를 끌 때마다 상세가 닫힌다.
+  svg.addEventListener("click", function (e) {
+    if (moved >= PAN_SLOP) { e.stopPropagation(); moved = 0; }
+  }, true);
+
   stageEl.addEventListener("mouseleave", function () { if (hoverable()) { hoverHold(); clearHi(); } });
   // 미니카드 위에 있는 동안은 살려 둔다 — 카드로 마우스를 옮기는 중에 사라지면 누를 수가 없다.
   // 호버로 여는 길(데스크톱)도 같은 자리 계산을 받아야 한다 — `mouseenter` 는 안 올라오니 `mouseover` 다.

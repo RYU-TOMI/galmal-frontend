@@ -216,8 +216,11 @@ def render_home(payload, deals_json, world_json, index, vocab, meta, generated_d
     <div class="prompt"><b>카드에 올리면</b> 지도에 항로가 · <b>핀 클릭</b>하면 상세가 열려요</div>
     <div class="stagebar"><span class="pill on">가까운 곳</span><span class="pill">조금 더 멀리</span><span class="pill">아주 멀리</span></div>
     <div class="stepper" id="stepper">
-      <button type="button" data-step="out" aria-label="더 멀리" title="더 멀리"><i>＋</i><em>더 멀리</em></button>
-      <button type="button" data-step="in" aria-label="가까이" title="가까이"><i>－</i><em>가까이</em></button>
+      <!-- 🔴 `＋` 가 **확대**다 (사용자 2026-09-28: 「+,- 가 반대로 된 듯」).
+           예전엔 단계 스테퍼라 `＋` 가 「더 멀리」(한 단계 넓게)였다 — 자유 줌에서는 그게 뒤집혀 읽힌다.
+           이제 `＋` = 가까이(확대) · `－` = 더 멀리(축소)이고, 위가 `＋` 다(지도에서 흔한 자리). -->
+      <button type="button" data-step="in" aria-label="가까이" title="가까이"><i>＋</i><em>가까이</em></button>
+      <button type="button" data-step="out" aria-label="더 멀리" title="더 멀리"><i>－</i><em>더 멀리</em></button>
     </div>{filter_dock(vocab)}
     <div class="hovercard" id="hc"></div>
     <div class="emptyday" id="emptyday" hidden>
