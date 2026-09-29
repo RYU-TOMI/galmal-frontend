@@ -127,5 +127,34 @@ class SourceTest(unittest.TestCase):
         self.assertNotIn("anyFilter", head_line)
 
 
+class HeadRoomTest(unittest.TestCase):
+    """🔴 **낡음 배지가 제목을 밀어내지 않는다** (사용자 2026-09-29: 「오늘의 발견 에서 견이
+    아래로 내려갔음」).
+
+    `.fh-top` 은 flex 라 옆 글이 길어지면 **제목이 먼저 줄어든다.** 실측: 「· 어제 자료예요」가
+    붙는 순간 제목이 74 → **72px**(자연폭 76)로 눌려 **「견」이 둘째 줄로** 내려갔다(높이 20 → 40).
+    4px 이 모자라서 생긴 일이다.
+
+    **이 배지가 있는 날에만 생긴다** — 그래서 3주 넘게 아무도 못 봤다. C-15 를 넣어 배지를
+    띄우기 시작한 쪽과 같은 자리이고, 배지를 못 띄우던 시절엔 드러날 수 없었다.
+    CH8 이 낸 것이 아니다: 같은 데이터로 CH8 이전 빌드를 나란히 재니 제목이 똑같이 **2줄**이었다.
+
+    줄어들 쪽은 **옆의 작은 글자**다(그쪽은 원래 2줄로 접힌다).
+    """
+
+    def test_the_title_never_shrinks(self):
+        self.assertIn(".fh-top>b{flex:none;white-space:nowrap}", CSS)
+
+    def test_the_small_text_is_the_one_that_gives_way(self):
+        """`min-width:0` 이 없으면 flex 항목은 **자기 내용보다 작아지지 않아** 제목을 다시 민다."""
+        self.assertIn(".fh-top>span{min-width:0;text-align:right}", CSS)
+
+    def test_the_two_are_not_glued_together(self):
+        """제목이 안 줄어들면 둘이 붙을 수 있다 — 사이를 띄운다."""
+        m = re.search(r"\.fh-top\{([^}]*)\}", CSS)
+        self.assertIsNotNone(m)
+        self.assertIn("gap:", m.group(1))
+
+
 if __name__ == "__main__":
     unittest.main()
