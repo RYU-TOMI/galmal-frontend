@@ -62,12 +62,20 @@ class GateTest(unittest.TestCase):
         self.assertEqual(DEPLOY_CODE.count("unittest discover"), 0,
                          "deploy.yml 에 테스트 단계가 복사됐다")
 
-    def test_no_double_run_on_push(self):
-        """`push` 로도 따로 돌면 **어느 쪽이 배포를 막았는지**가 흐려진다.
-        배포가 같은 push 에서 부르므로 `test.yml` 에는 `push` 트리거를 두지 않는다."""
+    def test_main_runs_once_but_branches_run_too(self):
+        """`main` 은 한 번만, 브랜치는 돈다.
+
+        `main` 에서 `push` 로도 따로 돌면 **어느 쪽이 배포를 막았는지**가 흐려진다 —
+        배포가 같은 push 에서 부르기 때문이다.
+
+        🔴 그런데 B48 에서 `push` 를 **통째로** 뺐더니 구멍이 생겼다: 「챕터 1개 = 브랜치 1개 = PR」
+        (2026-09-28 공통 규칙)에서는 **PR 을 열기 전까지 브랜치 push 에 아무 CI 도 안 돈다** —
+        태스크를 커밋할 때마다 초록불을 봐야 하는데 못 본다. `branches-ignore: [main]` 이 둘 다 만족한다.
+        """
         on = TEST_CODE.split("jobs:")[0]
-        self.assertNotIn("push:", on)
-        self.assertIn("pull_request:", on)     # PR 에서는 여전히 혼자 돈다
+        self.assertIn("push:", on)
+        self.assertIn("branches-ignore: [main]", on)
+        self.assertIn("pull_request:", on)     # PR 에서도 돈다
 
     def test_the_nightly_cron_is_gated_too(self):
         """야간 크론이 문지기를 비켜 가면 **사람이 안 보는 시간에만** 깨진 코드가 나간다."""
