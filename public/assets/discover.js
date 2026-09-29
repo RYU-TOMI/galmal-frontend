@@ -346,7 +346,15 @@
   //    못 채운다(가로도 16% 빈다). 도크 300px을 빼면 배율 상한이 195 → 141로 떨어진다.
   //    도크에 가려지는 핀(B16)은 SPEC §CH2 미결에서 **PH5(도크→하단 시트)로 미뤄져 있다** —
   //    지도를 30% 줄여 피하는 쪽이 대가가 더 크다는 판단이다. 라벨 쪽은 T7에서 닫았다.
+  // 🔴 **무대와 UI 상자는 지도가 움직인다고 움직이지 않는다.** 그런데 뷰가 바뀔 때마다
+  // 다시 재고 있었다 — 자유 줌 전에는 `render()` 때만 불려서 드러나지 않았다.
+  // 실측(6배 느린 CPU · 핀 78): 팬 한 번 **90.9ms**(예산 16.7). 그중 라벨 몫이 57.2ms 다.
+  // `getBoundingClientRect` 는 레이아웃을 깨운다 — 한 번의 팬에 그게 여러 번 든다.
+  // **버전을 세어 캐시한다**: 바뀌는 건 창 크기와 `render()`(도크 높이·안내 숨김) 때뿐이다.
+  var geoVer = 0, bandC = null, uiC = null;
+  function geoBump() { geoVer++; bandC = null; uiC = null; }
   function usableBand() {
+    if (bandC) return bandC;
     var box = stageEl.getBoundingClientRect(), cw = box.width || W, ch = box.height || H;
     // 모바일은 **시트 높이와 무관하게 `half` 기준**으로 잰다. 무대가 시트만큼 줄어드는데
     // 그 무대로 집합까지 정하면 **시트를 키울수록 목록이 줄어든다** — 더 보려고 키웠는데
@@ -355,7 +363,8 @@
     if (isMobile() && layoutEl) ch = Math.max(120, layoutEl.clientHeight - SHEET_HALF);
     var sf = Math.max(cw / W, ch / H);                 // preserveAspectRatio="slice" = cover
     var vbW = cw / sf, vbH = ch / sf;                  // 보이는 viewBox 크기
-    return { vbW: vbW, vbH: vbH, half: Math.max(60, vbW / 2 - LABEL_PAD) };
+    bandC = { vbW: vbW, vbH: vbH, half: Math.max(60, vbW / 2 - LABEL_PAD) };
+    return bandC;
   }
   function farView() {
     var a = farArc(), b = usableBand();
@@ -462,6 +471,7 @@
   // 접혀 있으면 클래스를 잠깐 떼고 재서 되돌린다. 같은 태스크 안이라 화면엔 안 나타난다.
   // 그 밖의 요소는 **지금 상태 그대로** 잰다 — 숨겨진 것은 자리를 안 먹으므로 라벨이 돌아온다.
   function uiBoxes() {
+    if (uiC) return uiC;
     // 레이아웃 전이라 CTM 이 없으면 UI 사각형 없이 배치한다 — 라벨을 통째로 잃는 것보다 낫다.
     var ctm = svg.getScreenCTM(); if (!ctm) return [];
     var inv = ctm.inverse(), out = [], i;
@@ -475,6 +485,7 @@
       var a = clientToVb(inv, r.left, r.top), b = clientToVb(inv, r.right, r.bottom);
       out.push({ l: a.x, t: a.y, w: b.x - a.x, h: b.y - a.y, city: null });
     }
+    uiC = out;
     return out;
   }
   // 피해야 할 사각형에 **다른 도시의 핀**도 들어간다. 자기 핀은 뺀다 —
@@ -559,6 +570,7 @@
   }
   function render() {
     if (!ORIGIN) return;
+    geoBump();   // 도크 높이·안내 띠가 바뀔 수 있다 — 캐시를 버린다
     fitDock();   // 라벨 회피가 도크를 재기 **전에** 상한을 먹인다 — 상한이 적용된 높이로 재야 한다(SPEC §CH2)
     tweenId++; svg.classList.remove("tweening");  // 진행 중 트윈이 있으면 무효화
     // 🔴 **뷰는 언제나 거리 단계를 따른다.** 예전엔 `anyFilter() ? "far" : …` 로 필터 중에 뷰를
@@ -696,6 +708,7 @@
   // 실측(착수 전, 2026-09-28): 6배 느린 CPU 에서 프레임당 3.9ms — 예산 16.7ms 의 23%.
   // 자유 줌은 **프레임 수가 늘 뿐 한 프레임의 일은 같다.**
   var userV = null;                 // 사용자가 만진 뷰. `null` 이면 단계에서 파생한다.
+  var hadUser = false, atLimit = false;   // 단계 불·버튼 상태를 **바뀔 때만** 고치기 위한 표식
   // 배율 한계 — **지구가 무대보다 작아지지 않고**(하한), 가까운 곳의 4배까지(상한).
   // 값을 박지 않고 그때그때 단계 뷰에서 구한다: 두 값 다 출발지·화면 비율에 따라 달라진다.
   function kBounds() {
@@ -725,7 +738,7 @@
                 scale: from.scale * Math.pow(ratio, e) };
       userV = v; moveOnly(v);
       if (t < 1) requestAnimationFrame(step);
-      else { userV = to; moveOnly(to); syncStepper(); }
+      else { userV = to; moveOnly(to); syncStepper(); relabel(true); }
     }
     requestAnimationFrame(step);
   }
@@ -735,6 +748,33 @@
     if (Math.abs(k1 - k0) < 1e-9) return null;
     var bx = (p.x - XF.tx) / k0, by = (p.y - XF.ty) / k0;
     return viewFromXform(k1, p.x - bx * k1, p.y - by * k1);
+  }
+  // ---- 라벨을 **지금 배율에서** 다시 잡는다 (PH5c T5 · SPEC §CH1) ----
+  // 🔴 배치 규칙 자체는 안 바꾼다 — `placeLabels()` 는 이미 스펙대로다:
+  //    **싼 곳부터 자리를 잡고, 넷 다 막히면 이름을 안 붙이고, 핀은 반드시 남긴다.**
+  //    문제는 **언제 도느냐**였다. 지금까지 `render()` 에서만 돌았고, 뷰가 3개뿐일 땐 그걸로 충분했다.
+  //    자유 줌이 생기자 **중간 배율에서 옛 자리를 그대로 쓰게** 됐다 — 확대하면 이름이 겹친다.
+  //
+  // ⚠️ **매 프레임 돌리지 않는다.** `placeLabels()` 는 `getBoundingClientRect` 를 5번 읽는다
+  //    (무대 하나 + UI 넷). 60fps 로 부르면 초당 300번 레이아웃을 깨운다.
+  //    그래서 **간격을 두고(90ms) 돌리고, 손을 떼면 정확히 한 번 더** 잡는다 —
+  //    끄는 동안은 「대충 맞게」, 멈추면 「정확하게」다. 사람은 움직이는 중의 라벨을 안 읽는다.
+  var labT = 0, LAB_MS = 90;
+  function relabel(force) {
+    var now = (window.performance && performance.now) ? performance.now() : Date.now();
+    if (!force && now - labT < LAB_MS) return;
+    labT = now;
+    var gs = pins.childNodes, list = [], i, c;
+    for (i = 0; i < gs.length; i++) { c = cityByI(+gs[i].dataset.i); if (c) list.push(c); }
+    if (!list.length) return;
+    placeLabels(list);
+    for (i = 0; i < gs.length; i++) {
+      var t = gs[i].querySelector("text"); if (!t) continue;
+      var L = (cityByI(+gs[i].dataset.i) || {})._lab; if (!L) continue;
+      t.setAttribute("x", L.x); t.setAttribute("y", L.y);
+      t.setAttribute("text-anchor", L.anchor);
+      if (L.off) t.classList.add("off"); else t.classList.remove("off");
+    }
   }
   function takeView(v) {
     // 🔴 **지도를 움직이면 상세가 닫힌다** (사용자 2026-09-28: 「상세 열고 지도 움직이면 꺼지는 게 나을 듯」).
@@ -746,8 +786,13 @@
     moveOnly(v);
     // 버튼 상태(한계에 닿았나)와 단계 불(어느 단계도 아니다)이 **매 프레임 따라온다**.
     // 둘 다 DOM 클래스 몇 개라 프레임 예산에 든다 — 실측 3.9ms/프레임(6배 느린 CPU).
-    if (typeof syncStepper === "function") syncStepper();
-    syncStageBar();
+    // 🔴 **바뀔 때만 만진다.** 예전엔 뷰가 움직일 때마다 둘 다 불렀는데, `syncStepper()` 는
+    // 한계를 구하려고 `viewOf()` 를 두 번 부르고 그 안에서 무대를 잰다 — 팬 한 번에 레이아웃이 여러 번 깨졌다.
+    // 단계 불은 `userV` 가 생기는 **첫 프레임**에만 꺼지면 되고, 버튼은 **한계에 닿고 떨어질 때**만 바뀐다.
+    if (!hadUser) { hadUser = true; syncStageBar(); }
+    var lim = (XF.k <= kBounds().lo * 1.001) || (XF.k >= kBounds().hi * 0.999);
+    if (lim !== atLimit) { atLimit = lim; syncStepper(); }
+    relabel(false);
   }
   // 🔴 **커서 아래의 땅이 그 자리에 머문다.** 화면 가운데를 기준으로 확대하면
   // 보려던 곳이 옆으로 흘러가 버린다 — 지도를 벌릴 때 사람이 기대하는 건 손가락 밑이 고정되는 것이다.
@@ -1359,7 +1404,7 @@
     // 화면 밖에 그대로 있게 된다(F15 가 다시 열린다).
     // 그 뒤로는 줌·팬이 전부 먹고, **필터를 꺼도 뷰를 되돌리지 않는다.**
     var nowFiltering = anyFilter();
-    if (nowFiltering && !wasFiltering) { stageIdx = STAGES.length - 1; userV = null; }
+    if (nowFiltering && !wasFiltering) { stageIdx = STAGES.length - 1; userV = null; hadUser = false; }
     wasFiltering = nowFiltering;
     updCount(); collapse(); render();
     if (from && CURV && !reduceMotion() && from.scale !== CURV.scale) tweenTo(from, CURV, 400);
@@ -1369,7 +1414,7 @@
   // 말한 자리이므로, 만져 둔 뷰를 지키는 규칙(T1)의 예외가 아니라 **그 규칙이 끝나는 자리**다.
   function setStage(idx) {
     var from = CURV;                              // 지금 화면에 적용된 뷰
-    userV = null;
+    userV = null; hadUser = false;
     stageIdx = idx; collapse(); render();         // 목적지 단계의 딜 집합·좌표로 전부 그린다 (불은 syncStageBar)
     // 전환 중 다른 단계를 누르면 진행 중인 트윈을 버리고 **현재 위치에서** 새 목표로 간다.
     if (from && CURV && !reduceMotion()) tweenTo(from, CURV, 400);
@@ -1378,6 +1423,7 @@
   var rzT = null;
   window.addEventListener("resize", function () {
     if (rzT) clearTimeout(rzT);
+    geoBump();                                  // 창 크기가 바뀌면 무대·UI 상자가 통째로 달라진다
     rzT = setTimeout(function () { rzT = null; if (ORIGIN) render(); }, 120);
   });
   var sbs = document.querySelectorAll(".stagebar .pill");
@@ -1423,7 +1469,7 @@
   //    감도가 아니라 **범위**(상한 4배)를 의심해야 한다.
   // 지수로 받는 건 그대로다:
   // 배율은 곱으로 느껴지지 더하기로 느껴지지 않는다(트윈이 로그 보간인 것과 같은 이유).
-  var ZOOM_WHEEL = 0.0078;
+  var ZOOM_WHEEL = 0.0078, wheelT = null;
   svg.addEventListener("wheel", function (e) {
     e.preventDefault();                       // 지도 위에서는 페이지가 안 움직인다
     // 줄당 약 16px, 페이지당 한 화면 — 브라우저마다 단위가 다르다(`deltaMode`).
@@ -1442,6 +1488,9 @@
     } else {
       panByClient(-dx, -dy);                  // 스크롤이므로 내용은 손가락 **반대**로 움직인다
     }
+    // 휠에는 「놓았다」가 없다 — 마지막 이벤트 뒤 조용해지면 그때가 멈춘 것이다.
+    if (wheelT) clearTimeout(wheelT);
+    wheelT = setTimeout(function () { wheelT = null; relabel(true); }, 120);
   }, { passive: false });
 
   // 드래그 — 포인터 이벤트 하나로 마우스·터치·펜을 같이 받는다.
@@ -1483,7 +1532,10 @@
   function endPtr(e) {
     delete ptrs[e.pointerId];
     if (ptrList().length < 2) pinchD = 0;
-    if (!ptrList().length) { panning = false; svg.classList.remove("panning"); document.body.classList.remove("dragging"); }
+    if (!ptrList().length) {
+      panning = false; svg.classList.remove("panning"); document.body.classList.remove("dragging");
+      relabel(true);                          // 멈췄으니 정확하게 다시 잡는다
+    }
   }
   // 브라우저의 기본 「끌어 옮기기」도 막는다 — 글자를 잡아 끌면 반투명 미리보기가 따라다닌다.
   svg.addEventListener("dragstart", function (e) { e.preventDefault(); });
