@@ -110,8 +110,9 @@ class StageTest(unittest.TestCase):
         ap = fn(JS, "applyFilter")
         self.assertIn("wasFiltering", ap)
         # PH5c 부터 사용자 뷰(`userV`)도 같이 버린다 — 탐침도 그 모양을 따라간다.
-        old = JS.replace("if (nowFiltering && !wasFiltering) { stageIdx = STAGES.length - 1; userV = null; }",
-                         "if (nowFiltering) { stageIdx = STAGES.length - 1; userV = null; }")
+        # PH5c T5 부터 `hadUser`(단계 불 표식)도 같이 되돌린다 — 탐침도 그 모양을 따라간다.
+        old = JS.replace("if (nowFiltering && !wasFiltering) { stageIdx = STAGES.length - 1; userV = null; hadUser = false; }",
+                         "if (nowFiltering) { stageIdx = STAGES.length - 1; userV = null; hadUser = false; }")
         self.assertNotEqual(old, JS)
         self.assertTrue(any("켜는 순간" in b for b in problems(old, CSS)))
 
