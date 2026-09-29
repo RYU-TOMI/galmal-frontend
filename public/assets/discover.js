@@ -904,13 +904,25 @@
     return "M" + ORIGIN.x + "," + ORIGIN.y + " Q" + (mx - dy / len * lift) + "," +
       (my + dx / len * lift) + " " + c.x + "," + c.y;
   }
+  // 🔴 **점선 패턴을 실제 길이로 재지 않는다** (사용자 2026-09-29: 「핀에 호버링한 채로
+  // 줌하면 경로선이 이상해져」). 원인은 `d` 만 따라가고 `stroke-dasharray` 가 **뒤처지던 것**이다 —
+  // 실측: 줌 도중 실제 길이 407px 인데 패턴이 102px 로 남아 102 그리고 102 띄는 **끊긴 선**이 됐다.
+  // 끝점은 핀에 붙어 있었고(어긋남 0.0px) 대상도 안 바뀌었다 — **보이는 것만** 깨졌다.
+  //
+  // 고치는 길 셋을 다 재 봤다: ⓐ 움직이는 동안 숨긴다(비용 0, 선이 사라진다)
+  // ⓑ 매 프레임 길이를 다시 재 패턴을 맞춘다(6배 느린 CPU 에서 **+0.34ms**/프레임)
+  // ⓒ `pathLength` 로 **길이를 고정**한다 — 브라우저가 dash 계산을 이 값 기준으로 한다.
+  // ⓒ 는 길이를 아예 안 재므로 **추가 비용이 0** 이고, 줌 중에도 선이 정확하다. 그래서 ⓒ 다.
+  // (사용자는 ⓐ·「상세일 때만」 둘을 줬는데, 둘 다 재고 더 나은 쪽을 골랐다고 보고했다.)
+  var ARC_LEN = 100;      // 점선 계산용 **가상** 길이. 실제 픽셀 길이가 13 이든 407 이든 이 값이다.
   function drawArc(c) {
-    var mx = (ORIGIN.x + c.x) / 2, my = (ORIGIN.y + c.y) / 2, dx = c.x - ORIGIN.x, dy = c.y - ORIGIN.y, len = Math.hypot(dx, dy) || 1;
-    var lift = Math.min(90, len * 0.24), cx = mx - dy / len * lift, cy = my + dx / len * lift;
     arc.setAttribute("d", arcPath(c));
-    var L = arc.getTotalLength(); arc.style.transition = "none"; arc.style.strokeDasharray = L; arc.style.strokeDashoffset = L;
+    arc.setAttribute("pathLength", ARC_LEN);
+    arc.style.transition = "none"; arc.style.strokeDasharray = ARC_LEN; arc.style.strokeDashoffset = ARC_LEN;
     arc.getBoundingClientRect(); arc.style.transition = "stroke-dashoffset .42s ease"; arc.style.strokeDashoffset = 0;
   }
+  // 선을 걷는다 — 지우지 않고 **되감는다**(되감기가 끝나도 `d` 는 남아 모양이 유지된다).
+  function hideArc(ms) { arc.style.transition = "stroke-dashoffset " + ms + "s ease"; arc.style.strokeDashoffset = ARC_LEN; }
   function svgToClient(x, y) { var pt = svg.createSVGPoint(); pt.x = x; pt.y = y; return pt.matrixTransform(svg.getScreenCTM()); }
   // 화면 좌표 → viewBox 좌표. `preserveAspectRatio="…slice"` 라 단순 비율이 아니다 —
   // 브라우저가 가진 행렬의 역을 쓴다. 손으로 계산하면 잘린 쪽에서 어긋난다.
@@ -1227,10 +1239,15 @@
   function slideMs(from, to) {
     return Math.round(420 + Math.min(1, Math.abs(norm(to.lon - from.lon)) / 180) * 340);
   }
+  // 🔴 **같은 도시면 항로를 다시 그리지 않는다.** 실측: 핀 위에서 휠을 굴리면 지도가 커서 밑에서
+  // 움직여 같은 핀에 `mouseout`→`mouseover` 가 다시 나고, 그때마다 선이 처음부터 다시 그려졌다
+  // (줌 한 번에 **2번**). 도시가 그대로면 모양만 맞추고 그리는 애니메이션은 건드리지 않는다.
+  var arcAt = null;
   function showCard(i, scroll, expanded) {
     active = i; var c = cityByI(i); paintActive();
     if (!c || c.x == null) { hc.classList.remove("show"); return; }
-    drawArc(c);
+    if (arcAt === i && arc.getAttribute("d")) arc.setAttribute("d", arcPath(c));
+    else { drawArc(c); arcAt = i; }
     hc.classList.toggle("expanded", !!expanded);
     hc.innerHTML = expanded ? detailHTML(c) : compactHTML(c);
     hc.classList.add("show"); positionCard(c, expanded ? pinTarget() : null);
@@ -1256,7 +1273,7 @@
     if (!isMobile()) { expand(i); return; }
     if (sheetH > SHEET_PEEK) setSheet(SHEET_PEEK, true);
     active = i; expandedI = null; paintActive();
-    var c = cityByI(i); if (c) drawArc(c);
+    var c = cityByI(i); if (c && arcAt !== i) { drawArc(c); arcAt = i; }
     var card = feed.querySelector('.fcard[data-i="' + i + '"]');
     if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -1315,14 +1332,14 @@
     openT = setTimeout(function () { openT = null; if (expandedI === i) showCard(i, true, true); }, 300);
   }
   var openT = null;
-  function clearHi() { if (expandedI !== null) return; document.body.classList.remove("detail-open"); active = null; paintActive(); hc.classList.remove("show"); if (arc.getTotalLength) { arc.style.transition = "stroke-dashoffset .2s ease"; arc.style.strokeDashoffset = arc.getTotalLength(); } }
+  function clearHi() { if (expandedI !== null) return; document.body.classList.remove("detail-open"); active = null; paintActive(); hc.classList.remove("show"); hideArc(0.2); arcAt = null; }
   // 정렬·필터·단계를 바꾸면 상세가 닫힌다 — 그건 **사용자가 닫은 게 아니라 부수 효과**라
   // 히스토리를 쌓지 않고 `replaceState` 로 URL 만 맞춘다. 안 맞추면 주소는 상세인데 화면은 지도다.
   function collapse() {
     if (openT) { clearTimeout(openT); openT = null; }   // 예약된 카드 등장이 남아 있으면 취소한다
     document.body.classList.remove("detail-open");     // 카드 시트를 다시 올린다
     expandedI = null; active = null; paintActive(); hc.classList.remove("show", "expanded");
-    if (arc.getTotalLength) { arc.style.transition = "stroke-dashoffset .2s ease"; arc.style.strokeDashoffset = arc.getTotalLength(); }
+    hideArc(0.2); arcAt = null;
     if (ORIGIN_KEY) writeHash(ORIGIN_KEY, false);
   }
   // 사용자가 **명시적으로 닫으면**(지도 배경 클릭) `history.back()` 이다. URL 과 화면이 어긋나지
