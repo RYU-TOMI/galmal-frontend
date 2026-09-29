@@ -87,7 +87,41 @@ def filter_dock(vocab):
     return _FILTER_DOCK.replace("@@WHEN_FIXED@@", when).replace("@@MOODS@@", moods)
 
 
-def chip_problems(page_html, vocab):
+def region_chips(vocab, deals):
+    """지역 칩 — **어휘 순서대로**, 그날 딜이 있는 지역만. 맨 앞은 「전체」.
+
+    사용자 결정 2026-09-29(`SPEC.md` §CH1 「단계바 → 지역바」): 거리 3단(가까운 곳·조금 더
+    멀리·아주 멀리) 대신 **지역**으로 옮겨 다닌다. 사용자가 말한 6개(유럽·동남아시아·북미·
+    남미·아프리카·호주) 대신 **계약의 9개**를 쓴다 — 6개로 하면 오늘 데이터에서 아프리카·남미
+    버튼 둘이 비고, 일본 26·중화권 27·국내 3 = 56건은 **갈 버튼이 없다**(실측을 대고 사용자가 골랐다).
+
+    「전체」는 **옛 `아주 멀리` 뷰**다. 이게 없으면 피드의 `전체로 보면 {M}곳이에요` 안내가
+    **누를 데 없는 말**이 된다(기획 동의 2026-09-29).
+
+    🔴 이름 없는 지역은 **여기서 터뜨린다.** 그 지역 딜은 어느 칩으로도 갈 수 없는데,
+    빈 문자열은 예외가 아니라 **말없이 빈 칩**이 된다(`site/origin.py` 와 같은 이유).
+    """
+    names = vocab.get("region_name") or {}
+    order = vocab.get("region") or []
+    have = set()
+    for d in deals:
+        if d.get("region"):
+            have.add(d["region"])
+    unknown = sorted(h for h in have if h not in names)
+    if unknown:
+        raise ValueError("어휘에 이름이 없는 지역: %s — 그 지역 딜은 갈 칩이 없다" % unknown)
+    missing = sorted(h for h in have if h not in order)
+    if missing:
+        raise ValueError("vocab.region 순서에 없는 지역: %s" % missing)
+    out = ['<span class="pill on" data-region="">전체</span>']
+    for k in order:
+        if k in have:
+            out.append('<span class="pill" data-region="%s">%s</span>'
+                       % (html.escape(k), html.escape(names[k])))
+    return "".join(out)
+
+
+def chip_problems(page_html, vocab, deals):
     """그려진 홈의 어휘 칩이 계약과 **순서까지** 같은지. 틀리면 문장 목록, 맞으면 빈 목록.
 
     `discover.js` 는 `TAG_TOP`·`WHEN_CHIPS` 를 **이 칩에서 읽는다.** 칩이 비거나 모자라면
@@ -104,6 +138,14 @@ def chip_problems(page_html, vocab):
         out.append("분위기 칩 %s != tags.top %s" % (got_mood, vocab["tags"]["top"]))
     if got_when != vocab["when"]["fixed"]:
         out.append("날짜 어휘 칩 %s != when.fixed %s" % (got_when, vocab["when"]["fixed"]))
+    # 지역 칩 — `discover.js` 의 `REGIONS` 가 **이 칩에서 읽는다**(분위기·날짜 칩과 같은 이유).
+    # 칩이 비면 지역 이동이 조용히 죽는다: 예외도 안 나고 버튼만 사라진다.
+    got_region = [html.unescape(x) for x in re.findall(
+        r'class="pill(?: on)?" data-region="([^"]*)"', page_html)]
+    have = set(d.get("region") for d in deals if d.get("region"))
+    want = [""] + [k for k in (vocab.get("region") or []) if k in have]
+    if got_region != want:
+        out.append("지역 칩 %s != 어휘 순서 %s" % (got_region, want))
     return out
 
 
@@ -214,7 +256,7 @@ def render_home(payload, deals_json, world_json, index, vocab, meta, generated_d
       <g id="lands"></g><path id="arc" class="arc" d=""/><g id="origin"></g><g id="pins"></g>
     </svg>
     <div class="prompt"><b>카드에 올리면</b> 지도에 항로가 · <b>핀 클릭</b>하면 상세가 열려요</div>
-    <div class="stagebar"><span class="pill on">가까운 곳</span><span class="pill">조금 더 멀리</span><span class="pill">아주 멀리</span></div>
+    <div class="stagebar">{region_chips(vocab, deals)}</div>
     <div class="stepper" id="stepper">
       <!-- 🔴 `＋` 가 **확대**다 (사용자 2026-09-28: 「+,- 가 반대로 된 듯」).
            예전엔 단계 스테퍼라 `＋` 가 「더 멀리」(한 단계 넓게)였다 — 자유 줌에서는 그게 뒤집혀 읽힌다.
