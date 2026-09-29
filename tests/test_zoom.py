@@ -172,9 +172,28 @@ class LabelTest(unittest.TestCase):
         self.assertIsNotNone(body)
         self.assertIn("LAB_MS", body)
         self.assertIn("placeLabels(list)", body)
-        self.assertIn("relabel(false)", CODE)        # 움직이는 동안
-        self.assertGreaterEqual(CODE.count("relabel(true)"), 3,
-                                "손 뗌 · 휠 멎음 · 버튼 줌 끝 — 세 자리에서 정확히 다시 잡는다")
+        self.assertIn("relabel(false)", CODE)        # 움직이는 동안은 라벨만, 대충
+        # 멎으면 라벨보다 더 한다 — `settleView()` 가 `render()` 로 **보이는 딜부터** 다시 고른다
+        # (라벨은 `render()` 가 같이 잡는다). 세 자리: 손 뗌 · 휠 멎음 · 버튼 줌 끝.
+        self.assertEqual(CODE.count("settleView()"), 4, "정의 1 + 부르는 곳 3")
+
+    def test_settling_repicks_the_visible_deals(self):
+        """🔴 **더 멀리 갔는데 점이 줄어들면 안 된다**(§CH1 LOD, 2026-09-01).
+
+        어떤 딜이 지도에 있느냐는 `visibleCities()` 가 정하고 그건 `render()` 에서만 돈다.
+        자유 줌 전에는 뷰가 단계 버튼으로만 바뀌어 늘 `render()` 를 거쳤는데,
+        자유 줌이 생기자 **뷰만 바뀌고 딜 집합은 그대로**가 됐다 —
+        실측: 「가까운 곳」에서 휠로 끝까지 축소하면 배율은 170(아주 멀리와 같다)인데 핀이 **25개**였다
+        (단계 버튼으로 가면 78개). 피드도 25장이었다. 사용자가 「줌아웃하면 핀도 사라져야 하지 않나」
+        라고 물어서 재 보다 찾았다 — **묻는 방향과 반대쪽에 있던 버그다.**
+
+        ⚠️ 움직이는 **중에는** 안 한다 — `render()` 는 핀·피드를 통째로 다시 만든다."""
+        body = _fn("settleView")
+        self.assertIsNotNone(body, "settleView() 를 못 찾았다")
+        self.assertIn("if (!userV) return;", body)   # 단계 뷰면 이미 render() 를 거쳐 왔다
+        self.assertIn("render()", body)
+        tv = _fn("takeView")
+        self.assertNotIn("settleView", tv, "움직이는 중에 부르면 매 프레임 피드를 갈아엎는다")
 
     def test_geometry_is_cached(self):
         """🔴 **「핀 24개가 76개보다 비싸다」의 원인이 여기였다**(기획 숙제 2026-09-28).

@@ -738,7 +738,7 @@
                 scale: from.scale * Math.pow(ratio, e) };
       userV = v; moveOnly(v);
       if (t < 1) requestAnimationFrame(step);
-      else { userV = to; moveOnly(to); syncStepper(); relabel(true); }
+      else { userV = to; moveOnly(to); syncStepper(); settleView(); }
     }
     requestAnimationFrame(step);
   }
@@ -759,6 +759,22 @@
   //    (무대 하나 + UI 넷). 60fps 로 부르면 초당 300번 레이아웃을 깨운다.
   //    그래서 **간격을 두고(90ms) 돌리고, 손을 떼면 정확히 한 번 더** 잡는다 —
   //    끄는 동안은 「대충 맞게」, 멈추면 「정확하게」다. 사람은 움직이는 중의 라벨을 안 읽는다.
+  // 🔴 **움직임이 멎으면 보이는 딜을 다시 고른다** (2026-09-29, 사용자가 찾게 해 줬다).
+  // 어떤 딜이 지도에 있느냐는 `visibleCities()` 가 정하는데 그건 `render()` 에서만 돈다.
+  // 자유 줌 전에는 뷰가 단계 버튼으로만 바뀌었고 그 길은 늘 `render()` 를 거쳤다 —
+  // 자유 줌이 생기자 **뷰만 바뀌고 딜 집합은 그대로**가 됐다.
+  //
+  // 실측: 「가까운 곳」에서 휠로 끝까지 축소하면 배율은 170(아주 멀리와 같다)인데
+  // **핀이 25개뿐**이었다(단계 버튼으로 가면 78개). 피드도 25장이었다.
+  // 스펙이 금지한 그것이다 — 「**더 멀리 갔는데 점이 줄어드는**」(§CH1 LOD, 2026-09-01).
+  //
+  // ⚠️ **움직이는 중에는 안 한다.** `render()` 는 핀·피드를 통째로 다시 만든다 —
+  //    매 프레임 하면 예산을 훨씬 넘고, 끄는 동안 피드가 계속 갈아엎힌다.
+  //    라벨은 `render()` 가 같이 잡으므로 여기서 따로 부르지 않는다.
+  function settleView() {
+    if (!userV) return;                         // 단계 뷰면 이미 `render()` 를 거쳐 왔다
+    render();                                   // `userV` 를 그대로 쓰므로 화면은 안 움직인다
+  }
   var labT = 0, LAB_MS = 90;
   function relabel(force) {
     var now = (window.performance && performance.now) ? performance.now() : Date.now();
@@ -1490,7 +1506,7 @@
     }
     // 휠에는 「놓았다」가 없다 — 마지막 이벤트 뒤 조용해지면 그때가 멈춘 것이다.
     if (wheelT) clearTimeout(wheelT);
-    wheelT = setTimeout(function () { wheelT = null; relabel(true); }, 120);
+    wheelT = setTimeout(function () { wheelT = null; settleView(); }, 120);
   }, { passive: false });
 
   // 드래그 — 포인터 이벤트 하나로 마우스·터치·펜을 같이 받는다.
@@ -1534,7 +1550,7 @@
     if (ptrList().length < 2) pinchD = 0;
     if (!ptrList().length) {
       panning = false; svg.classList.remove("panning"); document.body.classList.remove("dragging");
-      relabel(true);                          // 멈췄으니 정확하게 다시 잡는다
+      settleView();                           // 멈췄으니 보이는 딜과 라벨을 다시 고른다
     }
   }
   // 브라우저의 기본 「끌어 옮기기」도 막는다 — 글자를 잡아 끌면 반투명 미리보기가 따라다닌다.
