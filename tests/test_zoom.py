@@ -52,10 +52,15 @@ class ViewOwnerTest(unittest.TestCase):
         """🔴 **버리는 자리가 늘면 그만큼 뷰를 뺏는 길이 생긴다.** 지금은 둘뿐이다 —
         단계 버튼(사용자가 「여기로 가겠다」고 말한 자리)과 필터를 **켜는 순간**(한 번만 넓힌다)."""
         # ⚠️ 선언(`var userV = null`)은 버리는 자리가 아니다 — 처음 셀 때 그걸 같이 세서 틀렸다.
+        # CH8: 단계 버튼 자리가 **지역 칩**으로 바뀌었다. 지역 칩은 `userV` 를 `null` 로 비우는 게
+        # 아니라 **자기 뷰로 덮어쓴다** — 결과는 같다(사용자가 만져 둔 뷰가 사라진다).
+        # 그래서 「비우는 자리」는 둘(필터를 켜는 순간 · 출발지를 바꾸는 순간)이고,
+        # 「덮어쓰는 자리」가 하나(지역 칩)다. 셋을 합쳐 **뷰를 뺏는 길은 셋**이다.
         drops = re.findall(r"(?<!var )userV = null", CODE)
-        self.assertEqual(len(drops), 2, "userV 를 버리는 자리가 %d 곳이다" % len(drops))
-        self.assertIn("userV = null; hadUser = false;", _fn("setStage"))
-        self.assertIn("userV = null; hadUser = false; }", _fn("applyFilter"))
+        self.assertEqual(len(drops), 2, "userV 를 비우는 자리가 %d 곳이다" % len(drops))
+        self.assertIn("userV = null; hadUser = false; regionKey = null; }", _fn("applyFilter"))
+        self.assertIn("userV = viewOfRegion(key); hadUser = true;", _fn("setRegion"))
+        self.assertEqual(CODE.count("userV = viewOfRegion("), 1)
 
     def test_filter_widens_once_not_locks(self):
         """B70 이 다시 나지 않는다 — 켜는 순간만 옮기고, 그 뒤 조작은 전부 먹는다."""
@@ -221,17 +226,19 @@ class StepperTest(unittest.TestCase):
         들어오는가로 정해진다). 그래도 남긴다: 세 뷰로 가는 길 · 처음 온 사람에게 쓰는 법 ·
         **모바일에서 이 셋이 거리 필터로 내려가므로 없애면 두 화면의 어휘가 갈린다.**"""
         self.assertIn('.stagebar .pill', CODE)
-        self.assertIn("setStage(idx)", CODE)
+        # CODE 는 CH8 부터 지역 칩을 부른다 — 「세 뷰로 가는 길」이 「지역 10곳으로 가는 길」이 됐다.
+        self.assertIn('setRegion(el.getAttribute("data-region") || "")', CODE)
 
     def test_stage_light_goes_off_when_the_user_takes_over(self):
         """사용자가 만진 뷰는 어느 단계도 아니다 — 불이 켜져 있으면 **거짓말**이 된다."""
-        self.assertIn('classList.toggle("on", !userV && i === stageIdx)', CODE)
+        # CH8: 「어느 단계도 아니다」가 「어느 지역도 아니다」가 됐다 — `regionKey === null`.
+        self.assertIn('pills[i].classList.toggle("on", regionKey !== null && pills[i].getAttribute("data-region") === regionKey)', CODE)
 
     def test_ui_sync_runs_only_on_change(self):
         """🔴 뷰가 움직일 때마다 부르면 `syncStepper()` 가 `viewOf()` 를 두 번 불러 무대를 잰다 —
         팬 한 번에 레이아웃이 여러 번 깨진다."""
         tv = _fn("takeView")
-        self.assertIn("if (!hadUser)", tv)
+        self.assertIn("if (!hadUser || regionKey !== null)", tv)
         self.assertIn("if (lim !== atLimit)", tv)
 
 
