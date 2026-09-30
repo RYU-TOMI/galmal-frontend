@@ -87,18 +87,61 @@ class RuleTest(unittest.TestCase):
         self.assertEqual(record_days(dict(self.OK, obs_days=30)), 30)
 
 
-class FixtureTest(unittest.TestCase):
-    """실데이터 — 검사가 **눈을 뜨고 있나.** 해당 딜이 0건인 픽스처로는 아무것도 못 지킨다."""
+STAMP_AT = 15          # `DISC_TIERS` 의 하한 — 이 아래면 도장이 없다
 
-    def test_fixture_has_both_kinds(self):
-        """도장이 겹치는 딜과 안 겹치는 딜이 **둘 다** 있어야 「하나만」 규칙을 실제로 재 볼 수 있다.
-        픽스처를 다시 받을 때 이 둘이 유지되는지 본다(`fixtures/README.md`)."""
+
+def card_mark(d):
+    """카드가 보이는 표식 하나 — `(stampHTML(c) || recShort(c))` 를 파이썬으로 옮긴 것.
+    `SourceTest`·`PlacementTest` 가 JS 쪽 모양을 같이 지킨다."""
+    if (d.get("discount") or 0) >= STAMP_AT:
+        return "도장"
+    return "신기록" if record_days(d) else ""
+
+
+class SyntheticCardTest(unittest.TestCase):
+    """🧪 **합성 데이터** — 카드에 무엇이 뜨나. 네 조합을 손으로 만들어 전부 돌린다.
+
+    🔴 **왜 합성인가**(기획 결정 2026-09-30, `decisions/2026-09.md` 2026-09-30 (1)):
+    「도장 없는 신기록」은 **실데이터에서 거의 안 나온다.** 신기록은 「14일 최저가를 5% 밑돌았다」,
+    도장은 「중위가 대비 15% 할인」이라 **새 최저가를 쓰면 중위가 대비도 웬만하면 15%를 넘는다** —
+    두 조건이 같이 움직인다. 실측 사흘: 09-28 신기록 3(가려짐 2·카드 1) · 09-29 2(2·0) · 09-30 1(1·0).
+    사흘에 하루쯤만 존재하는 조건을 실데이터 게이트에 걸면 **사본을 갱신할 수 없다**(B79).
+
+    그래서 가른다 — **매일 참일 수 있는 것만 실데이터에**, 드문 조합은 여기서 합성으로.
+    검사를 끄는 것이 아니다: 아래 네 줄이 예전 실데이터 검사보다 **더 많은 경우**를 본다.
+    """
+
+    def test_stamp_wins_when_both_qualify(self):
+        self.assertEqual(card_mark({"price": 90000, "low": 100000, "obs_days": 20, "discount": 31}), "도장")
+
+    def test_record_shows_when_the_stamp_is_absent(self):
+        """🔴 이 파일의 이유. 할인 13%(도장 없음)인데 20일 최저 — **카드가 신기록을 말해야 한다.**
+        실데이터에 있던 그 한 건(할인 13% · 25일 최저)이 정확히 이 모양이었다."""
+        self.assertEqual(card_mark({"price": 90000, "low": 100000, "obs_days": 20, "discount": 13}), "신기록")
+
+    def test_stamp_alone(self):
+        self.assertEqual(card_mark({"price": 99000, "low": 100000, "obs_days": 20, "discount": 31}), "도장")
+
+    def test_neither(self):
+        self.assertEqual(card_mark({"price": 99000, "low": 100000, "obs_days": 20, "discount": 13}), "")
+
+    def test_the_boundary_of_the_stamp_is_the_one_in_the_source(self):
+        """15% 를 여기 박아 두면 `DISC_TIERS` 가 바뀐 날 이 검사만 옛 경계를 지킨다."""
+        self.assertIn("[%d, \"t1\"]" % STAMP_AT, JS)
+
+
+class FixtureTest(unittest.TestCase):
+    """실데이터 — 검사가 **눈을 뜨고 있나.** 해당 딜이 0건인 픽스처로는 아무것도 못 지킨다.
+
+    🔴 **매일 참일 수 있는 조건만 여기 건다**(기획 결정 2026-09-30). 드문 조합은
+    `SyntheticCardTest` 가 합성으로 본다 — 안 그러면 사본이 라이브와 계속 벌어진다(B79)."""
+
+    def test_fixture_has_at_least_one_record(self):
+        """신기록 딜이 0건이면 **판정 자체가** 실데이터를 한 번도 지나가지 않는다.
+        「도장 없는 신기록까지 있어야 한다」는 요구는 2026-09-30 에 합성으로 옮겼다 —
+        사흘에 하루쯤만 참이어서 사본을 갱신할 수 없었다."""
         rec = [d for d in DEALS if record_days(d)]
-        self.assertTrue(rec, "신기록 딜이 0건인 픽스처로는 이 챕터를 지킬 수 없다")
-        self.assertTrue([d for d in rec if (d.get("discount") or 0) >= 15],
-                        "도장과 겹치는 신기록 딜이 없다 — 「도장 우선」을 못 잰다")
-        self.assertTrue([d for d in rec if (d.get("discount") or 0) < 15],
-                        "도장 없는 신기록 딜이 없다 — 카드에 신기록이 뜨는 걸 못 잰다")
+        self.assertTrue(rec, "신기록 딜이 0건인 픽스처로는 판정을 실데이터로 못 잰다")
 
     def test_low_is_actually_delivered(self):
         """받는 값이 비어 있으면 위 규칙은 영원히 거짓이다 — **안 뜨는 것**과 **없는 것**을 가른다."""
