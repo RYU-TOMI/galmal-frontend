@@ -232,13 +232,13 @@ class StepperTest(unittest.TestCase):
     def test_stage_light_goes_off_when_the_user_takes_over(self):
         """사용자가 만진 뷰는 어느 단계도 아니다 — 불이 켜져 있으면 **거짓말**이 된다."""
         # CH8: 「어느 단계도 아니다」가 「어느 지역도 아니다」가 됐다 — `regionKey === null`.
-        self.assertIn('pills[i].classList.toggle("on", regionKey !== null && pills[i].getAttribute("data-region") === regionKey)', CODE)
+        self.assertIn('pills[i].classList.toggle("on", lit !== null && pills[i].getAttribute("data-region") === lit)', CODE)
 
     def test_ui_sync_runs_only_on_change(self):
         """🔴 뷰가 움직일 때마다 부르면 `syncStepper()` 가 `viewOf()` 를 두 번 불러 무대를 잰다 —
         팬 한 번에 레이아웃이 여러 번 깨진다."""
         tv = _fn("takeView")
-        self.assertIn("if (!hadUser || regionKey !== null)", tv)
+        self.assertIn("if (!hadUser || regionKey !== null || litAll)", tv)
         self.assertIn("if (lim !== atLimit)", tv)
 
 

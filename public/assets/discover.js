@@ -248,7 +248,16 @@
   var ORIGIN = null, CITY = [], stageIdx = 0, active = null, expandedI = null;
   // 🔴 `regionKey` — **켜진 지역 칩**. `null` 이면 어느 지역도 아니다(첫 화면 · 줌·팬한 뒤 · 필터가 넓힌 뒤).
   // `""` 는 「전체」 칩이다 — `null` 과 다르다. 하나로 합치면 「전체」를 눌러도 불이 안 켜진다.
-  var regionKey = null;
+  var regionKey = null, litAll = false;   // `litAll` — 「전체」가 **누른 적 없이** 켜져 있나(아래 참고)
+  // 지금 화면이 「전체」 뷰인가. 부동소수라 **같음은 허용오차로** 본다(배율 0.5% · 각도 0.5°).
+  // 단계 뷰(`far`)로 온 화면과 휠로 끝까지 축소한 화면이 둘 다 여기로 들어온다 —
+  // 축소 하한이 곧 `far` 배율이기 때문이다(PH5c `kBounds`).
+  function atFarView() {
+    if (!CURV || !ORIGIN) return false;
+    var f = farView();
+    return Math.abs(CURV.scale - f.scale) <= f.scale * 0.005 &&
+           Math.abs(norm(CURV.lon - f.lon)) <= 0.5 && Math.abs(CURV.lat - f.lat) <= 0.5;
+  }
   function regionHasDeals(key) {
     for (var i = 0; i < CITY.length; i++) if (CITY[i].region === key) return true;
     return false;
@@ -464,8 +473,15 @@
     // 🔴 **첫 화면에는 켜진 칩이 없다.** 첫 뷰는 거리 단계(`가까운 곳`)에서 파생된 것이고
     // 어느 지역도 아니다 — 아무 칩이나 켜면 그게 거짓말이다. 그 자리는 피드의
     // `전체로 보면 {M}곳이에요` 가 메운다(누를 칩을 가리킨다).
+    // 🔴 **뷰가 어느 칩의 뷰와 같으면 그 칩이 켜진다** (기획 2026-09-30, SPEC §CH1 지역바).
+    // 누른 것만 켜면 **필터를 켜서 `far` 로 넓어진 화면**·**휠로 끝까지 축소한 화면**에서
+    // 「전체를 보고 있는데 아무 칩도 안 켜짐」이 된다 — 그것도 사실과 다르다.
+    // 실제로 다른 길로 도달할 수 있는 칩은 **「전체」 하나뿐**이다(지역 뷰는 눌러서만 나온다).
+    // 그래서 9개를 전부 계산해 비교하지 않는다 — 그건 값도 안 바뀌고 `render()` 마다 비용만 든다.
+    var lit = regionKey !== null ? regionKey : (atFarView() ? "" : null);
+    litAll = (regionKey === null && lit === "");
     for (var i = 0; i < pills.length; i++) {
-      pills[i].classList.toggle("on", regionKey !== null && pills[i].getAttribute("data-region") === regionKey);
+      pills[i].classList.toggle("on", lit !== null && pills[i].getAttribute("data-region") === lit);
       // 이 출발지에 그 지역 딜이 없으면 **칩을 치운다** — 누르면 아무 일도 안 나는 버튼을 두지 않는다.
       // 실측: 대구는 섬·대양주·미주·그 외가 0건, 제주는 대양주·유럽·미주·국내가 0건이다.
       var rk = pills[i].getAttribute("data-region");
@@ -877,7 +893,7 @@
     // 한계를 구하려고 `viewOf()` 를 두 번 부르고 그 안에서 무대를 잰다 — 팬 한 번에 레이아웃이 여러 번 깨졌다.
     // 단계 불은 `userV` 가 생기는 **첫 프레임**에만 꺼지면 되고, 버튼은 **한계에 닿고 떨어질 때**만 바뀐다.
     // 🔴 지역 칩 불도 여기서 꺼진다 — 휠·드래그로 옮긴 화면은 **어느 지역도 아니다**.
-    if (!hadUser || regionKey !== null) { hadUser = true; regionKey = null; syncStageBar(); }
+    if (!hadUser || regionKey !== null || litAll) { hadUser = true; regionKey = null; syncStageBar(); }
     var lim = (XF.k <= kBounds().lo * 1.001) || (XF.k >= kBounds().hi * 0.999);
     if (lim !== atLimit) { atLimit = lim; syncStepper(); }
     relabel(false);

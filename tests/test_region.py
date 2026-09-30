@@ -192,18 +192,36 @@ class MoveTest(unittest.TestCase):
 class LightTest(unittest.TestCase):
     """불은 **지금 보고 있는 것**을 말한다 (T4)."""
 
-    def test_the_lit_chip_is_the_pressed_one(self):
+    def test_the_lit_chip_is_the_one_whose_view_we_are_in(self):
+        """기획 2026-09-30: 뷰가 어느 칩의 뷰와 같으면 그 칩이 켜진다.
+        누른 것이 있으면 그게 이긴다 — 지역 뷰는 **눌러서만** 나오므로."""
         b = body("syncStageBar")
-        self.assertIn('regionKey !== null && pills[i].getAttribute("data-region") === regionKey', b)
+        self.assertIn('var lit = regionKey !== null ? regionKey : (atFarView() ? "" : null);', b)
+        self.assertIn('pills[i].classList.toggle("on", lit !== null && pills[i].getAttribute("data-region") === lit)', b)
+
+    def test_only_the_all_chip_can_light_without_a_press(self):
+        """지역 뷰는 눌러서만 나온다 — 9개를 전부 계산해 비교하면 값은 안 바뀌고 비용만 든다.
+        다른 길로 닿을 수 있는 칩은 **「전체」 하나**다(필터가 넓힌 뷰 · 휠로 끝까지 축소)."""
+        b = body("syncStageBar")
+        self.assertEqual(b.count("atFarView()"), 1)
+        self.assertNotIn("viewOfRegion(", b, "칩마다 뷰를 계산하고 있다 — render() 마다 비용이 든다")
+
+    def test_same_view_is_judged_with_a_tolerance(self):
+        """부동소수다 — `===` 로 비교하면 같은 뷰인데도 영원히 안 켜진다."""
+        b = body("atFarView")
+        self.assertIn("f.scale * 0.005", b)
+        self.assertIn("Math.abs(norm(CURV.lon - f.lon))", b)
 
     def test_empty_is_not_the_same_as_none(self):
         """`""`(전체 칩)과 `null`(어느 지역도 아님)을 합치면 「전체」를 눌러도 불이 안 켜진다."""
-        self.assertRegex(CODE, r"var regionKey = null;")
+        self.assertRegex(CODE, r"var regionKey = null, litAll = false;")
         self.assertIn('regionKey !== null', CODE)
 
     def test_zoom_and_pan_turn_the_light_off(self):
         """휠·드래그로 옮긴 화면은 **어느 지역도 아니다** — 켜져 있으면 거짓말이다."""
-        self.assertIn("if (!hadUser || regionKey !== null) { hadUser = true; regionKey = null; syncStageBar(); }",
+        # `litAll` — **누른 적 없이** 켜진 「전체」 불도 첫 조작에서 꺼져야 한다.
+        # 안 넣으면 `render()` 가 도는 다음 순간(멎을 때)까지 거짓말이 남는다.
+        self.assertIn("if (!hadUser || regionKey !== null || litAll) { hadUser = true; regionKey = null; syncStageBar(); }",
                       body("takeView"))
 
     def test_chips_with_no_deals_are_removed(self):
