@@ -256,8 +256,11 @@ class ScreenTest(unittest.TestCase):
     def test_the_scrim_only_exists_over_a_photo(self):
         """밝은 하늘에 흰 글자가 묻히지 않게 아래쪽만 어둡게. 그라디언트 위에서는 필요 없다 —
         괜히 더 어둡게 하면 색이 탁해진다."""
-        self.assertIn(".has-photo::after{", CSS)
-        self.assertNotRegex(CSS, r"(?<!has-photo)\.thumb::after\{")
+        self.assertIn(".hc-photo.has-photo::after{", CSS)
+        # 🔴 **글자가 없는 자리에는 안 건다.** 62px 썸네일의 배지·태그는 각자 배경을 갖고 있다 —
+        # 이유 없는 어둠은 사진 색만 탁하게 한다. 화면을 찍어 보고 알았다.
+        self.assertNotRegex(CSS, r"(?m)^\.has-photo::after\{")
+        self.assertNotRegex(CSS, r"(?m)^\.thumb::after\{")
 
     def test_overlays_sit_above_the_scrim(self):
         """스크림이 도시 이름·배지·태그를 덮으면 **읽으려고 넣은 어둠이 글자를 지운다.**
