@@ -244,7 +244,10 @@ def render_home(payload, deals_json, world_json, index, vocab, meta, generated_d
 </head><body>
 <div class="hdr">
   {logo(gid=HOME_LOGO_GID)}
-  <span class="nav"><span class="on">발견</span><span class="muted">노선별</span></span>
+  <!-- 🔴 **사진 출처 링크는 홈에도 있어야 한다** (PH8). 홈은 지도 앱이라 `<footer>` 가 없고,
+       고지는 확장 상세 안에 있는데 그건 **누르지 않으면 안 보인다** — CC 표시는 상호작용 없이
+       닿을 수 있어야 한다(지도가 구석에 저작자를 적는 것과 같은 자리). 노선 페이지는 셸 푸터가 맡는다. -->
+  <span class="nav"><span class="on">발견</span><span class="muted">노선별</span><a class="muted" href="/credits.html">사진 출처</a></span>
   <span class="tools"><span class="originwrap">
     <button type="button" class="pill origin" id="originPill" aria-haspopup="listbox" aria-expanded="false">출발지 ▾</button>
     <div class="origindrop" id="originDrop" role="listbox" hidden></div>
