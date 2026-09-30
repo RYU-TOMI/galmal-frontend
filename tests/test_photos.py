@@ -215,7 +215,12 @@ class ScreenTest(unittest.TestCase):
 
     def test_lazy_and_decorative(self):
         """`loading="lazy"` 는 **`<img>` 에만** 있다 — CSS 배경으로 두면 안 보이는 카드까지 다 받는다.
-        `alt=""` — 도시 이름이 바로 옆에 글자로 있어서 또 넣으면 낭독기가 두 번 읽는다."""
+
+        🔴 `alt=""` — 도시 이름이 **바로 옆에 글자로** 있다. 접근성 트리로 실측(2026-09-30):
+        `alt=""` 이면 「칭다오」가 `StaticText` **한 번**, `alt="칭다오"` 면 `image` + `StaticText`
+        **두 번** 읽힌다. 카드 24장이면 24번 더 읽는다.
+        ⚠️ `COPY.md` §8 은 `alt = {도시}` 로 적혀 있다 — **기획에 이 실측을 대고 물었다.**
+        기획이 그대로 가자고 하면 바꾼다. (2026-09-30 발신)"""
         b = fn("photoImg")
         self.assertIn('loading="lazy"', b)
         self.assertIn('alt=""', b)
@@ -227,13 +232,16 @@ class ScreenTest(unittest.TestCase):
         self.assertIn("background:' + c.g", fn("photoHTML"))
         self.assertEqual(JS_CODE.count("background:' + c.g"), 2, "사진 자리 둘(피드 썸네일·호버 카드)")
 
-    def test_the_badge_goes_away_only_when_there_is_a_photo(self):
-        """사진이 깔린 자리에 「사진 준비중」이 남으면 거짓말이다. 없는 자리에는 남아야 한다 —
-        그래서 **지우지 않고 갈랐다**(사진이 있으면 `<img>`, 없으면 배지)."""
-        b = fn("photoHTML")
-        self.assertIn("src ? photoImg(src) :", b)
-        self.assertIn("ph-tag", b)
-        self.assertEqual(JS_CODE.count("사진 준비중"), 1)
+    def test_the_badge_is_gone_entirely(self):
+        """🔴 **「사진 준비중」 배지는 폐지됐다**(SPEC §CH3 보강, 2026-09-29 확정) —
+        사진이 **없는** 카드에도 안 붙인다. 「지키지 않는 약속을 화면에 두지 않는다」가 이유다.
+
+        ⚠️ PH8 을 만들 때 나는 이 스펙을 **안 읽고** 「사진이 있을 때만 뺀다」로 지었다.
+        소관이 남에게 있는 것(문구·화면 약속)은 **찾아보고 시작한다.**"""
+        self.assertNotIn("ph-tag", JS_CODE)
+        self.assertNotIn("사진 준비중", JS_CODE)
+        self.assertNotIn(".ph-tag", CSS)
+        self.assertIn("photoImg(src) + ovTags(c, max)", fn("photoHTML"))
 
     def test_hero_takes_the_big_one_and_small_cards_the_small_one(self):
         """작은 자리에 큰 파일을 쓰면 첫 화면에서 25장 × 62KB 를 받는다(B71)."""
@@ -277,6 +285,8 @@ import credits as creditslib  # noqa: E402
 
 SHELL = io.open(os.path.join(ROOT, "site", "shell.py"), encoding="utf-8").read()
 SEO = io.open(os.path.join(ROOT, "site", "seo.py"), encoding="utf-8").read()
+# 기획 저장소는 **형제 폴더**다. CI 에는 없다 — 있을 때만 대조한다.
+COPY_MD = os.path.join(ROOT, "..", "galmal-plan", "COPY.md")
 
 
 class CreditsPageTest(unittest.TestCase):
@@ -304,6 +314,44 @@ class CreditsPageTest(unittest.TestCase):
                 self.assertIn(html_mod.escape(r[k]), self.html, k)
             self.assertIn(r["page"], self.html)
             self.assertIn(r["license_url"], self.html)
+
+    def test_the_lead_is_the_copy_spec_string(self):
+        """🔴 머리말은 `COPY.md` §8 이 정본이다. **마지막 문장이 ShareAlike 대응**이다 —
+        BY-SA 사진을 줄여 쓴 사본도 같은 라이선스로 내놓는다고 밝힌다.
+        「크기 변경이 각색인가」의 해석과 무관하게 안전한 쪽이다(SPEC §CH3 보강)."""
+        want = ("이 사이트의 목적지 사진은 위키미디어 공용의 자유 라이선스 사진입니다. "
+                "원본·작가·라이선스는 아래와 같습니다. "
+                "CC BY-SA 사진의 줄인 사본도 같은 라이선스로 제공됩니다.")
+        self.assertEqual(creditslib.LEAD, want)
+        self.assertIn(want, self.html)
+        self.assertIn("CC BY-SA 사진의 줄인 사본도 같은 라이선스로 제공됩니다", self.html)
+
+    @unittest.skipUnless(os.path.exists(COPY_MD), "기획 저장소가 없다(CI) — 로컬에서만 대조한다")
+    def test_the_lead_matches_the_planning_file_word_for_word(self):
+        """형제 저장소가 있을 때는 **기획 파일과 한 글자까지** 맞춘다.
+        CI 에는 형제 저장소가 없어 건너뛴다 — 건너뛴 것은 통과와 다르게 보인다."""
+        copy = io.open(COPY_MD, encoding="utf-8").read()
+        m = re.search(r"\| 머리말 \| `([^`]+)` \|", copy)
+        self.assertIsNotNone(m, "COPY.md §8 의 머리말 줄을 못 찾았다 — 표 모양이 바뀌었으면 여기도 고친다")
+        self.assertEqual(creditslib.LEAD, m.group(1))
+
+    @unittest.skipUnless(os.path.exists(COPY_MD), "기획 저장소가 없다(CI) — 로컬에서만 대조한다")
+    def test_the_alt_rule_matches_the_planning_file(self):
+        """🔴 `alt` 도 §8 이 정한다(기획 결정 2026-09-30 (2) — **내 실측이 근거**였다).
+        `""`(빈 값)로 확정됐고, **조건부**가 붙었다: 사진 하나가 글자 없이 홀로 서는 자리가 생기면 `{도시}`.
+        지금 세 자리(피드·히어로·호버/상세)는 전부 도시 이름이 글자로 붙어 있다 —
+        그 전제가 깨지는 날 이 검사가 아니라 **화면이** 먼저 바뀌어야 한다.
+
+        기획이 「§8 대조가 `alt` 행도 보게 해 달라」고 요청했다(2026-09-30)."""
+        copy = io.open(COPY_MD, encoding="utf-8").read()
+        m = re.search(r"\| 사진 `alt` \| (.+?) \|\n", copy)
+        self.assertIsNotNone(m, "COPY.md §8 의 `alt` 줄을 못 찾았다")
+        rule = m.group(1)
+        self.assertTrue(rule.startswith('`""`'), "§8 이 빈 값이 아닌 것을 정했다: %s" % rule[:40])
+        self.assertIn('alt=""', fn("photoImg"))
+        # 조건부의 전제 — 지금 세 자리에 도시 이름이 글자로 있다
+        self.assertIn('class="cityname"', JS_CODE)      # 호버·상세 — 사진 위에 도시 이름
+        self.assertIn('class="fcity"', JS_CODE)         # 피드·히어로 — 사진 옆에 도시 이름
 
     def test_the_licence_link_is_marked_as_one(self):
         """`rel="license"` — 기계가 「이게 라이선스 링크다」를 알 수 있게 한다."""
