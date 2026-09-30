@@ -27,6 +27,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import coverage  # noqa: E402
+import photos as photolib  # noqa: E402
 import pax  # noqa: E402
 import origin  # noqa: E402
 import home   # noqa: E402
@@ -102,6 +103,29 @@ def main():
         sys.exit("출발 공항(`oa`)이 계약·어휘와 맞지 않다 — 배포하지 않는다")
     o_named, o_cross, o_all = origin.summary(deals_list, snap["vocab"])
     print("출발 공항 %d개 검사 — 이름 얻음 %d · 노선으로 대조 %d" % (o_all, o_named, o_cross))
+
+    # 🔴 **표시 없는 사진이 나가면 라이선스 위반이다.** 사진은 전부 위키미디어 CC 라이선스이고
+    # CC BY·BY-SA 는 저작자·제목·라이선스·출처 표시가 **법적 의무**다. 파일과 `credits.json` 을
+    # **여집합으로 양방향** 대조한다 — 파일만 있으면 표시 없이 나가고, 행만 있으면 없는 사진의
+    # 저작자를 밝히게 된다. (site/photos.py)
+    photo_dir = os.path.join(a.public, "assets", "photos")
+    credits, on_disk = photolib.load(photo_dir)
+    bad = photolib.problems(credits, on_disk)
+    if bad:
+        for b in bad[:20]:
+            print("  🔴 " + b)
+        if len(bad) > 20:
+            print("  … 그 밖 %d건" % (len(bad) - 20))
+        sys.exit("사진과 출처 표시가 어긋난다 — 배포하지 않는다")
+    dest_codes = set(d.get("d") for d in deals_list if d.get("d"))
+    p_have, p_all, p_codes, p_unused = photolib.summary(credits, on_disk, dest_codes)
+    # 🔴 **사진 없는 목적지는 실패가 아니다** — 그 카드는 그라디언트로 남는다. 실패로 걸면
+    # 백엔드가 목적지를 하나 늘린 날 사이트가 안 나간다. 대신 **여집합을 세어 이름까지** 적는다.
+    gone = photolib.missing(credits, on_disk, dest_codes)
+    print("사진 %d코드 · 목적지 %d곳 중 %d곳에 사진%s%s"
+          % (p_codes, p_all, p_have,
+             " · 사진 없음 " + ",".join(gone) if gone else "",
+             " · 안 쓰이는 사진 %d" % len(p_unused) if p_unused else ""))
 
     # 🔴 **정적 자산을 먼저 깐다.** 빌드가 만드는 건 HTML·XML 뿐이고
     # `discover.js|css`·d3·지도 윤곽은 **산출물이 아니라 그냥 파일**이다.

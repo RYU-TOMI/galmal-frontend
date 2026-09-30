@@ -74,6 +74,18 @@ def fetch(url, cache_path, pause):
     return raw, False
 
 
+# 🔴 **라이선스 링크의 스킴만 올린다**(`http://creativecommons.org` → `https://`).
+# 기획의 원본에 `http://` 가 7건 있다(CJU·DOH·HAN·IST·KMQ·NRT·TYO — 전부 creativecommons.org).
+# 우리가 **내보내는 페이지**에 http 링크가 섞이면 브라우저가 경고하거나 사용자가 못 미더워한다.
+# 같은 문서를 가리키고 CC 자신이 http→https 로 넘긴다 — 호스트도 경로도 건드리지 않고 **스킴만** 바꾼다.
+# 원본은 기획 소유라 고치지 않고 알린다(2026-09-30 통지).
+def https_cc(url):
+    u = (url or "").strip()
+    if u.startswith("http://creativecommons.org/"):
+        return "https://" + u[len("http://"):]
+    return u
+
+
 def cover(im, tw, th):
     """비율을 지키고 **넘치는 쪽을 잘라** 목표 크기를 채운다(CSS `background-size:cover` 와 같은 규칙).
     늘리지 않는다 — 원본 thumb 이 960 폭이라 두 크기 모두 축소만 한다."""
@@ -122,7 +134,7 @@ def main():
         credits[code] = {
             "city": ko, "en": v.get("en", ""),
             "title": ch["title"], "author": ch["author"],
-            "license": ch["license"], "license_url": ch["license_url"],
+            "license": ch["license"], "license_url": https_cc(ch["license_url"]),
             "page": ch["page"],
         }
         if only and code not in only:
