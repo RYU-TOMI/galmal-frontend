@@ -171,6 +171,24 @@
     return c.rec ? '<span class="rec">' + c.rec + '일 중 가장 싼 가격이에요</span>' : "";
   }
   var AIRPORT = window.__AIRPORTS || {};
+  // ---- 사진 (PH8 · 위키미디어 CC) ----
+  // 🔴 **없는 사진에 `<img>` 를 걸지 않는다.** 파일이 있는지는 JS 가 알 길이 없어서 빌드가 실어 준다
+  // (`window.__PHOTOS`). 없는 코드에 걸면 **404 가 조용히 쌓이고** 그 자리에 깨진 이미지가 남는다 —
+  // 없는 파일의 404 는 HTML 에 안 나타나므로 HTML 을 봐도 못 잡는다.
+  // 실측 2026-09-30: 목적지 77곳 중 **75곳에 사진**, 헬싱키·이시가키는 없다 → 그 둘은 그라디언트로 남는다.
+  var PHOTO = {};
+  (function () { var L = window.__PHOTOS || [], i; for (i = 0; i < L.length; i++) PHOTO[L[i]] = 1; })();
+  // 두 크기 — 작은 쪽은 피드 썸네일 62px 자리(첫 화면에 25장 깔린다), 큰 쪽은 히어로·호버·상세.
+  function photoSrc(c, small) {
+    if (!c || !PHOTO[c.dcode]) return "";
+    return "assets/photos/" + c.dcode + (small ? "-s" : "") + ".webp";
+  }
+  // `loading="lazy"` 는 **`<img>` 에만** 있다 — CSS 배경으로 두면 화면에 안 보이는 카드까지 다 받는다.
+  // 그래서 배경(그라디언트)은 남기고 사진만 `<img>` 로 얹는다. 그라디언트는 **받는 동안의 자리**이기도 하다.
+  // `alt=""` — 도시 이름이 바로 옆에 글자로 있다. 여기에 또 이름을 넣으면 낭독기가 두 번 읽는다.
+  function photoImg(src) {
+    return src ? '<img class="ph" src="' + src + '" alt="" loading="lazy" decoding="async">' : "";
+  }
   function toCity(dl) {
     return { n: dl.ko, lon: dl.lon, lat: dl.lat, tier: dl.tier, haul: HAUL2STAGE[dl.haul] || "far",
       price: (dl.price).toLocaleString("en-US"), disc: (dl.discount || 0) + "%↓", dtier: discTier(dl.discount || 0),
@@ -715,7 +733,11 @@
       card.innerHTML =
         // 작은 썸네일(62px)엔 태그를 안 넣는다 — 사진이 태그를 담기엔 작다.
         // 히어로(104px 전폭)에만 사진 위로 얹는다. 그래서 작은 카드가 세로를 20% 덜 먹는다.
-        '<div class="thumb" style="background:' + c.g + '">' + (hero ? '<span class="pick">진짜 갈래말래?</span>' + ovTags(c, isMobile() ? 2 : 4) : "") + "</div>" +
+        // 🔴 히어로는 **큰 사진**(전폭 320x104), 작은 카드는 **작은 사진**(62x62).
+        // 작은 자리에 큰 파일을 쓰면 첫 화면에서 25장 × 64KB 를 받는다(B71 — 첫 화면 무게).
+        '<div class="thumb' + (photoSrc(c, !hero) ? " has-photo" : "") + '" style="background:' + c.g + '">' +
+          photoImg(photoSrc(c, !hero)) +
+          (hero ? '<span class="pick">진짜 갈래말래?</span>' + ovTags(c, isMobile() ? 2 : 4) : "") + "</div>" +
         // 🔴 **둘이 같이 뜨지 않는다** — 도장 우선, 없으면 신기록 (SPEC §CH3).
         // 좁은 줄에 표식 둘이 겹치면 **어느 쪽도 안 읽힌다.** 고르는 자리는 카드, 둘 다 보여 주는 자리는 상세다.
         '<div class="fbody"><div class="frow"><b class="fcity">' + c.n + '</b>' + (stampHTML(c) || recShort(c)) + "</div>" +
@@ -1018,7 +1040,13 @@
     var p = svg.createSVGPoint(); p.x = x; p.y = y;
     return p.matrixTransform(svg.getScreenCTM().inverse());
   }
-  function photoHTML(c, max) { return '<div class="hc-photo" style="background:' + c.g + '"><span class="ph-tag">사진 준비중</span>' + ovTags(c, max) + '<span class="cityname">' + c.n + "</span></div>"; }
+  // 사진이 있으면 「사진 준비중」 배지를 뺀다 — 사진이 깔린 자리에 그 말이 남으면 거짓말이다.
+  function photoHTML(c, max) {
+    var src = photoSrc(c, false);
+    return '<div class="hc-photo' + (src ? " has-photo" : "") + '" style="background:' + c.g + '">' +
+      (src ? photoImg(src) : '<span class="ph-tag">사진 준비중</span>') +
+      ovTags(c, max) + '<span class="cityname">' + c.n + "</span></div>";
+  }
   // `detail` — **확장 상세인가.** 같은 머리를 두 자리가 쓴다(호버/축소 카드 · 확장 상세)인데
   // 표식 규칙이 서로 다르다. 축소 카드는 **고르는 자리**라 피드 카드와 같이 하나만 짧게 쓰고,
   // 확장 상세는 **결정하는 자리**라 도장·신기록을 **둘 다** 문장으로 보여 준다 (SPEC §CH3, 기획 2026-09-22).

@@ -149,10 +149,13 @@ class MachineDateTest(unittest.TestCase):
         day = route.machine_date(META["generated"])
         snap = {"meta": META, "index": INDEX, "vocab": VOCAB, "routes": ROUTES}
         pages = route.build_all(snap)
-        sm = seo.sitemap(INDEX, day, ROUTES)
+        # PH8: 사진 출처 페이지는 **다른 날짜**를 쓴다(사진이 바뀐 날) — 여기서는 일부러 다른 값을 줘서
+        # 「딜 날짜를 쓰는 것」과 「사진 날짜를 쓰는 것」이 섞이지 않는지 같이 본다.
+        sm = seo.sitemap(INDEX, day, ROUTES, "2026-01-01")
         for name, html_text in pages.items():
             self.assertIn('"dateModified":"%s"' % day, html_text, name)
         self.assertEqual(sm.count("<lastmod>%s</lastmod>" % day), len(FAT) + 1)   # 홈 + 두꺼운 노선
+        self.assertEqual(sm.count("<lastmod>2026-01-01</lastmod>"), 1)            # 사진 출처 한 줄뿐
 
 
 class ThresholdTest(unittest.TestCase):
@@ -431,8 +434,10 @@ class SitemapTest(unittest.TestCase):
         """홈 + **두꺼운** 노선, index 순서 그대로. 얇은 노선은 빠진다(B64)."""
         root = ET.fromstring(seo.sitemap(INDEX, "2026-09-19", ROUTES).encode("utf-8"))
         locs = [e.text for e in root.findall("s:url/s:loc", self.NS)]
-        want = [shell.BASE_URL + "/"] + ["%s/routes/%s.html" % (shell.BASE_URL, r["code"])
-                                         for r in INDEX["routes"] if r["code"] in FAT]
+        # PH8: **사진 출처 페이지**가 홈 다음에 온다 — CC 표시가 찾을 수 있는 곳에 있어야 한다.
+        want = ([shell.BASE_URL + "/", shell.BASE_URL + "/credits.html"] +
+                ["%s/routes/%s.html" % (shell.BASE_URL, r["code"])
+                 for r in INDEX["routes"] if r["code"] in FAT])
         self.assertEqual(locs, want)
         self.assertEqual(len(locs), len(set(locs)))
 
@@ -463,7 +468,7 @@ class SitemapTest(unittest.TestCase):
         routes = dict(ROUTES, **{"ZZZ-NEW": new})
         locs = self._locs(index, routes)
         self.assertNotIn("%s/routes/ZZZ-NEW.html" % shell.BASE_URL, locs)
-        self.assertEqual(len(locs), len(FAT) + 1)                             # 두꺼운 노선은 그대로 다 실린다
+        self.assertEqual(len(locs), len(FAT) + 2)              # 두꺼운 노선 + 홈 + 사진 출처
         snap = {"meta": META, "index": index, "vocab": VOCAB, "routes": routes}
         pages = route.build_all(snap)
         self.assertIn("ZZZ-NEW.html", pages)                                  # 페이지는 있다
@@ -475,11 +480,26 @@ class SitemapTest(unittest.TestCase):
             first = "2026-09-%02d" % (19 - days + 1)
             r = dict(ROUTES["ICN-FUK"], code="X", trend=[{"date": first, "price": 1}, {"date": "2026-09-19", "price": 1}])
             return self._locs({"routes": [dict(INDEX["routes"][0], code="X")]}, {"X": r})
-        self.assertEqual(len(with_span(13)), 1)      # 홈만
-        self.assertEqual(len(with_span(14)), 2)
+        self.assertEqual(len(with_span(13)), 2)      # 홈 + 사진 출처만
+        self.assertEqual(len(with_span(14)), 3)
 
     def test_index_entry_without_a_response_is_not_submitted(self):
-        self.assertEqual(len(self._locs({"routes": [dict(INDEX["routes"][0], code="ZZZ-ZZZ")]}, {})), 1)
+        self.assertEqual(len(self._locs({"routes": [dict(INDEX["routes"][0], code="ZZZ-ZZZ")]}, {})), 2)
+
+    def test_credits_page_is_submitted_with_its_own_date(self):
+        """🔴 **출처 페이지의 `lastmod` 는 딜 날짜가 아니다.** 내용이 바뀌는 건 사진이 바뀔 때인데
+        딜은 매일 바뀐다 — 딜 날짜를 주면 크롤러에게 「어제 고쳤다」고 **매일 거짓말**한다."""
+        xml = seo.sitemap(INDEX, "2026-09-19", ROUTES, "2026-09-01")
+        root = ET.fromstring(xml.encode("utf-8"))
+        rows = {e.find("s:loc", self.NS).text: e.find("s:lastmod", self.NS).text
+                for e in root.findall("s:url", self.NS)}
+        self.assertEqual(rows[shell.BASE_URL + "/credits.html"], "2026-09-01")
+        self.assertEqual(rows[shell.BASE_URL + "/"], "2026-09-19")
+        # 사진 날짜를 모르면 딜 날짜로 떨어진다 — 빈 값을 내보내지 않는다
+        root2 = ET.fromstring(seo.sitemap(INDEX, "2026-09-19", ROUTES).encode("utf-8"))
+        rows2 = {e.find("s:loc", self.NS).text: e.find("s:lastmod", self.NS).text
+                 for e in root2.findall("s:url", self.NS)}
+        self.assertEqual(rows2[shell.BASE_URL + "/credits.html"], "2026-09-19")
 
     def test_robots_points_at_the_sitemap(self):
         self.assertIn("Sitemap: %s/sitemap.xml" % shell.BASE_URL, seo.robots())

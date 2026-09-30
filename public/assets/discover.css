@@ -14,7 +14,11 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 .gm-logo .lg{position:absolute;left:46%;right:0;bottom:-24%;height:1.1em;overflow:visible}
 .gm-logo .pl-top{fill:var(--accent)}.gm-logo .pl-btm{fill:var(--accent2)}
 .gm-logo .pl-crease{stroke:#ffffff88;stroke-width:.8;fill:none}
-.nav{display:flex;gap:4px;margin-left:26px;font-size:.85rem;color:var(--sub);font-weight:600}.nav .on{color:var(--ink);font-weight:800}
+.nav{display:flex;gap:4px;margin-left:26px;font-size:.85rem;color:var(--sub);font-weight:600}
+/* 내비의 사진 출처 링크 (PH8) — 색·크기는 옆의 `노선별` 과 같게. 밑줄은 hover 에서만
+   (헤더에 늘 밑줄이 있으면 세 항목 중 하나만 튀어 보인다). */
+.nav a{color:inherit;text-decoration:none}
+.nav a:hover{text-decoration:underline}.nav .on{color:var(--ink);font-weight:800}
 .tools{margin-left:auto;display:flex;gap:7px}
 .pill{border:1.5px solid var(--line);border-radius:99px;padding:6px 12px;font:inherit;font-size:.78rem;color:var(--sub);background:#fff;font-weight:700;cursor:pointer}
 .pill.on{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -44,10 +48,21 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 .spill.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .fcard{display:flex;gap:11px;background:#fff;border:1.5px solid var(--line);border-radius:13px;padding:10px;cursor:pointer;transition:border-color .12s,box-shadow .12s,transform .12s}
 .fcard:hover,.fcard.on{border-color:var(--accent);box-shadow:0 6px 18px rgba(242,96,63,.16);transform:translateY(-1px)}
-.thumb{flex:0 0 62px;height:62px;border-radius:10px;position:relative;background-size:cover}
+.thumb{flex:0 0 62px;height:62px;border-radius:10px;position:relative;background-size:cover;overflow:hidden}
+/* 사진 (PH8) — 배경(그라디언트)은 **밑에 남긴다**: 받는 동안의 자리이고, 사진이 없는 곳(헬싱키·이시가키)의
+   최종 모습이기도 하다. `object-fit:cover` 는 CSS 배경의 `cover` 와 같은 규칙으로 자른다.
+   `border-radius:inherit` — 부모의 둥근 모서리를 사진도 따라야 네모가 튀어나오지 않는다. */
+.ph{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;display:block;border-radius:inherit}
+/* 사진 위의 흰 글자가 밝은 하늘에 묻히지 않게 **아래쪽만** 살짝 어둡게.
+   🔴 **맨 글자가 사진 위에 놓이는 곳은 여기 하나뿐이다** — 호버·상세의 도시 이름(`.cityname`).
+   피드 썸네일의 `진짜 갈래말래?` 배지와 태그는 **각자 배경을 갖고 있어** 사진 위에서도 읽힌다.
+   처음엔 `.has-photo` 전부에 걸었는데, 62px 썸네일에는 글자가 없어 **어둡게 할 이유가 없었다** —
+   이유 없는 어둠은 사진 색만 탁하게 한다. 사진이 없을 때(그라디언트)도 안 건다. */
+.hc-photo.has-photo::after{content:"";position:absolute;left:0;right:0;bottom:0;height:56%;pointer-events:none;
+  background:linear-gradient(to top,rgba(6,20,18,.52),rgba(6,20,18,0));border-radius:inherit}
 .fcard.hero{flex-direction:column;gap:0}
 .fcard.hero .thumb{width:100%;height:104px;margin-bottom:9px}
-.pick{position:absolute;left:8px;top:8px;background:#fff;color:var(--accent);font-weight:900;font-size:.6rem;padding:2px 7px;border-radius:99px;box-shadow:0 2px 6px #0002}
+.pick{z-index:2;position:absolute;left:8px;top:8px;background:#fff;color:var(--accent);font-weight:900;font-size:.6rem;padding:2px 7px;border-radius:99px;box-shadow:0 2px 6px #0002}
 .fbody{flex:1;min-width:0}
 .frow{display:flex;justify-content:space-between;align-items:center}
 .fcity{font-size:.98rem;font-weight:900;letter-spacing:-.02em}
@@ -171,7 +186,7 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 .fdate{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px;font-size:.74rem;font-weight:800;color:var(--ink)}
 .when{background:var(--accent);color:#fff;font-weight:800;font-size:.62rem;padding:2px 8px;border-radius:99px}
 /* 태그는 사진이 큰 자리에만 — 사진 위에 얹는다 (SPEC §CH2, design/density.html) */
-.phtags{position:absolute;left:6px;right:6px;bottom:6px;display:flex;gap:3px;flex-wrap:wrap}
+.phtags{z-index:2;position:absolute;left:6px;right:6px;bottom:6px;display:flex;gap:3px;flex-wrap:wrap}
 .ovtag{font-size:.52rem;font-weight:800;color:#fff;background:rgba(6,20,18,.5);border-radius:4px;padding:1px 6px;white-space:nowrap}
 .gorow{display:flex;gap:7px;margin-top:11px}
 .go{flex:1;background:var(--accent);color:#fff;border:0;font-weight:800;font-size:.8rem;border-radius:9px;padding:9px 0;cursor:pointer}
@@ -333,7 +348,7 @@ body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:no
 .hovercard{position:absolute;width:250px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 12px 32px rgba(20,40,40,.26);border:1px solid var(--line);transform:translate(-50%,0) scale(.96);opacity:0;pointer-events:none;transition:opacity .14s ease,transform .14s ease;z-index:8}  /* 도크(7)보다 위 — 사용자가 연 카드가 도크에 가리면 안 된다 */
 .hovercard.show{opacity:1;transform:translate(-50%,0) scale(1);pointer-events:auto}
 .hc-photo{height:92px;position:relative;background-size:cover;background-position:center}
-.hc-photo .cityname{position:absolute;left:10px;bottom:7px;color:#fff;font-weight:900;font-size:1.05rem;text-shadow:0 1px 6px #0009;letter-spacing:-.02em}
+.hc-photo .cityname{z-index:2;position:absolute;left:10px;bottom:7px;color:#fff;font-weight:900;font-size:1.05rem;text-shadow:0 1px 6px #0009;letter-spacing:-.02em}
 .hc-photo .ph-tag{position:absolute;right:8px;top:8px;font-size:.54rem;color:#fff9;background:#0004;border-radius:5px;padding:1px 5px}
 /* 호버카드 사진은 아래에 도시명이 앉아 있다 → 태그를 위로 올린다(오른쪽 배지 폭만큼 비켜서) */
 .hc-photo .phtags{top:7px;bottom:auto;left:8px;right:74px}

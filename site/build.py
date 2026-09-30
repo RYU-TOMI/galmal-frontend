@@ -27,6 +27,8 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import coverage  # noqa: E402
+import credits as creditslib  # noqa: E402
+import photos as photolib  # noqa: E402
 import pax  # noqa: E402
 import origin  # noqa: E402
 import home   # noqa: E402
@@ -103,6 +105,29 @@ def main():
     o_named, o_cross, o_all = origin.summary(deals_list, snap["vocab"])
     print("출발 공항 %d개 검사 — 이름 얻음 %d · 노선으로 대조 %d" % (o_all, o_named, o_cross))
 
+    # 🔴 **표시 없는 사진이 나가면 라이선스 위반이다.** 사진은 전부 위키미디어 CC 라이선스이고
+    # CC BY·BY-SA 는 저작자·제목·라이선스·출처 표시가 **법적 의무**다. 파일과 `credits.json` 을
+    # **여집합으로 양방향** 대조한다 — 파일만 있으면 표시 없이 나가고, 행만 있으면 없는 사진의
+    # 저작자를 밝히게 된다. (site/photos.py)
+    photo_dir = os.path.join(a.public, "assets", "photos")
+    credits, on_disk = photolib.load(photo_dir)
+    bad = photolib.problems(credits, on_disk)
+    if bad:
+        for b in bad[:20]:
+            print("  🔴 " + b)
+        if len(bad) > 20:
+            print("  … 그 밖 %d건" % (len(bad) - 20))
+        sys.exit("사진과 출처 표시가 어긋난다 — 배포하지 않는다")
+    dest_codes = set(d.get("d") for d in deals_list if d.get("d"))
+    p_have, p_all, p_codes, p_unused = photolib.summary(credits, on_disk, dest_codes)
+    # 🔴 **사진 없는 목적지는 실패가 아니다** — 그 카드는 그라디언트로 남는다. 실패로 걸면
+    # 백엔드가 목적지를 하나 늘린 날 사이트가 안 나간다. 대신 **여집합을 세어 이름까지** 적는다.
+    gone = photolib.missing(credits, on_disk, dest_codes)
+    print("사진 %d코드 · 목적지 %d곳 중 %d곳에 사진%s%s"
+          % (p_codes, p_all, p_have,
+             " · 사진 없음 " + ",".join(gone) if gone else "",
+             " · 안 쓰이는 사진 %d" % len(p_unused) if p_unused else ""))
+
     # 🔴 **정적 자산을 먼저 깐다.** 빌드가 만드는 건 HTML·XML 뿐이고
     # `discover.js|css`·d3·지도 윤곽은 **산출물이 아니라 그냥 파일**이다.
     # 안 깔면 HTML 은 완벽한데 **화면만 백지**가 되고, HTML diff 로는 절대 안 잡힌다 —
@@ -142,8 +167,10 @@ def main():
         world = f.read()
     # 기계용 날짜는 **한 번만** 구해 홈·sitemap 이 같이 쓴다 — 두 번 구하면 자정 근처에서 갈릴 수 있다.
     generated_date = route.machine_date(meta["generated"])
+    # 게이트를 지난 집합이다 — 크레딧과 파일이 양방향으로 맞는 코드만 화면에 실린다.
+    photo_codes = sorted(set(credits.get("photos") or {}) & set(on_disk))
     page = home.render_home(payload, home.inline_deals(payload), world, index, snap["vocab"], meta,
-                            generated_date)
+                            generated_date, photo_codes)
     # 🔴 `discover.js` 가 어휘 목록을 **이 칩에서 읽으므로** 칩이 계약과 다르면 내보내지 않는다.
     bad = home.chip_problems(page, snap["vocab"], snap["deals"].get("deals", []))
     if bad:
@@ -154,7 +181,16 @@ def main():
         f.write(page)
     print("  index.html")
 
-    for name, text in seo.build_all(index, generated_date, snap["routes"]).items():
+    # 🔴 **사진 출처 페이지** — CC BY·BY-SA 는 저작자·제목·출처·라이선스 표시가 법적 의무다.
+    # 사진 자체에 글자를 얹을 수 없으니 **한 곳에 모아 모든 페이지에서 링크**한다(푸터·sitemap).
+    with open(os.path.join(a.out, "credits.html"), "w", encoding="utf-8", newline="") as f:
+        f.write(creditslib.render(credits, meta["subscribe"]["address"]))
+    print("  credits.html  (사진 %d장)" % len(set(
+        (r.get("city"), r.get("page")) for r in (credits.get("photos") or {}).values())))
+
+    # 사진 출처 페이지의 `lastmod` 는 **사진이 확정된 날**이다(딜 날짜가 아니다).
+    cred_day = (credits.get("spec_confirmed") or credits.get("spec_generated") or "")[:10] or None
+    for name, text in seo.build_all(index, generated_date, snap["routes"], cred_day).items():
         with open(os.path.join(a.out, name), "w", encoding="utf-8", newline="") as f:
             f.write(text)
         print("  %s" % name)

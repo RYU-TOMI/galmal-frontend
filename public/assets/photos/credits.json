@@ -1,0 +1,777 @@
+{
+ "photos": {
+  "AKL": {
+   "author": "elpinto007",
+   "city": "오클랜드",
+   "en": "Auckland",
+   "license": "CC BY-SA 2.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Auckland_skyline_-_May_2024_(2).jpg",
+   "title": "File:Auckland skyline - May 2024 (2).jpg"
+  },
+  "AMS": {
+   "author": "Andrés Barrios",
+   "city": "암스테르담",
+   "en": "Amsterdam",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Imagen_de_los_canales_conc%C3%A9ntricos_en_%C3%81msterdam.png",
+   "title": "File:Imagen de los canales concéntricos en Ámsterdam.png"
+  },
+  "BCN": {
+   "author": "M McBey",
+   "city": "바르셀로나",
+   "en": "Barcelona",
+   "license": "CC BY 2.0",
+   "license_url": "https://creativecommons.org/licenses/by/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Evening_light_over_Barcelona.jpg",
+   "title": "File:Evening light over Barcelona.jpg"
+  },
+  "BJS": {
+   "author": "Ermell",
+   "city": "베이징",
+   "en": "Beijing",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Beijing_forbidden_city_Belvedere_of_Embodying_Benevolence-20071018-RM-142403.jpg",
+   "title": "File:Beijing forbidden city Belvedere of Embodying Benevolence-20071018-RM-142403.jpg"
+  },
+  "BKI": {
+   "author": "kallerna",
+   "city": "코타키나발루",
+   "en": "Kota Kinabalu",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:St._John%27s_Peak_Mount_Kinabalu_4.jpg",
+   "title": "File:St. John's Peak Mount Kinabalu 4.jpg"
+  },
+  "BKK": {
+   "author": "BerryJ",
+   "city": "방콕",
+   "en": "Bangkok",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:The_sculptures_of_two_mythical_giant_demons,_Thotsakan_and_Sahatsadecha,_guarding_the_eastern_gate_of_the_main_chapel_of_Wat_Arun,_Bangkok.jpg",
+   "title": "File:The sculptures of two mythical giant demons, Thotsakan and Sahatsadecha, guarding the eastern gate of the main chapel of Wat Arun, Bangkok.jpg"
+  },
+  "BNE": {
+   "author": "Kgbo",
+   "city": "브리즈번",
+   "en": "Brisbane",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Story_Bridge_at_night,_Brisbane_03.jpg",
+   "title": "File:Story Bridge at night, Brisbane 03.jpg"
+  },
+  "CAN": {
+   "author": "Tim Wu",
+   "city": "광저우",
+   "en": "Guangzhou",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Canton_Tower_20241027.jpg",
+   "title": "File:Canton Tower 20241027.jpg"
+  },
+  "CDG": {
+   "author": "Yann Caradec from Paris, France",
+   "city": "파리",
+   "en": "Paris",
+   "license": "CC BY-SA 2.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques,_Paris_ao%C3%BBt_2014_(2).jpg",
+   "title": "File:La Tour Eiffel vue de la Tour Saint-Jacques, Paris août 2014 (2).jpg"
+  },
+  "CEB": {
+   "author": "Shemlongakit",
+   "city": "세부",
+   "en": "Cebu",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Badian_Kawasan_Falls_Cebu.jpg",
+   "title": "File:Badian Kawasan Falls Cebu.jpg"
+  },
+  "CJU": {
+   "author": "Bernard Gagnon",
+   "city": "제주",
+   "en": "Jeju Island",
+   "license": "CC0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+   "page": "https://commons.wikimedia.org/wiki/File:Seongsan,_Jeju_Island.jpg",
+   "title": "File:Seongsan, Jeju Island.jpg"
+  },
+  "CMB": {
+   "author": "Pierre André Leclercq",
+   "city": "콜롬보",
+   "en": "Colombo",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Colombo_Temple_bouddhiste_de_Gangaramaya_(15).JPG",
+   "title": "File:Colombo Temple bouddhiste de Gangaramaya (15).JPG"
+  },
+  "CNX": {
+   "author": "Nawit science",
+   "city": "치앙마이",
+   "en": "Chiang Mai",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:0020-%E0%B8%A7%E0%B8%B1%E0%B8%94%E0%B8%9E%E0%B8%A3%E0%B8%B0%E0%B8%AA%E0%B8%B4%E0%B8%87%E0%B8%AB%E0%B9%8C%E0%B8%A7%E0%B8%A3%E0%B8%A1%E0%B8%AB%E0%B8%B2%E0%B8%A7%E0%B8%B4%E0%B8%AB%E0%B8%B2%E0%B8%A3.jpg",
+   "title": "File:0020-วัดพระสิงห์วรมหาวิหาร.jpg"
+  },
+  "CTS": {
+   "author": "ノボホショコロトソ",
+   "city": "삿포로",
+   "en": "Sapporo",
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:20240923_Sapporo_Odori_Park.jpg",
+   "title": "File:20240923 Sapporo Odori Park.jpg"
+  },
+  "DAD": {
+   "author": "Vivu Vietnam",
+   "city": "다낭",
+   "en": "Da Nang",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Da_Nang_Golden_Bridge,_Sun_World_Ba_Na_Hills.jpg",
+   "title": "File:Da Nang Golden Bridge, Sun World Ba Na Hills.jpg"
+  },
+  "DEL": {
+   "author": "Ronakshah1990",
+   "city": "델리",
+   "en": "New Delhi",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Forecourt,_Rashtrapati_Bhavan_-_1.jpg",
+   "title": "File:Forecourt, Rashtrapati Bhavan - 1.jpg"
+  },
+  "DLC": {
+   "author": "Fumihiko Ueno",
+   "city": "다롄",
+   "en": "Dalian",
+   "license": "CC BY 3.0",
+   "license_url": "https://creativecommons.org/licenses/by/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Xigang,_Dalian,_Liaoning,_China_-_panoramio_(18).jpg",
+   "title": "File:Xigang, Dalian, Liaoning, China - panoramio (18).jpg"
+  },
+  "DOH": {
+   "author": "Alex Sergeev (www.asergeev.com)",
+   "city": "도하",
+   "en": "Doha",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+   "page": "https://commons.wikimedia.org/wiki/File:The_Pearl_Marina_in_Nov_2013.jpg",
+   "title": "File:The Pearl Marina in Nov 2013.jpg"
+  },
+  "DPS": {
+   "author": "Jakub Hałun",
+   "city": "발리",
+   "en": "Bali",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Bali_-_Pura_Tanah_Lot,_20220827_0957_1108.jpg",
+   "title": "File:Bali - Pura Tanah Lot, 20220827 0957 1108.jpg"
+  },
+  "DXB": {
+   "author": "Jpbowen",
+   "city": "두바이",
+   "en": "Dubai",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Burj_Khalifa_from_a_ferry,_Dubai.jpg",
+   "title": "File:Burj Khalifa from a ferry, Dubai.jpg"
+  },
+  "FCO": {
+   "author": "Diliff",
+   "city": "로마",
+   "en": "Rome",
+   "license": "CC BY 3.0",
+   "license_url": "https://creativecommons.org/licenses/by/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Trevi_Fountain,_Rome,_Italy_2_-_May_2007.jpg",
+   "title": "File:Trevi Fountain, Rome, Italy 2 - May 2007.jpg"
+  },
+  "FRA": {
+   "author": "Dietmar Rabich",
+   "city": "프랑크푸르트",
+   "en": "Frankfurt",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Frankfurt_am_Main,_Rathaus_--_2015_--_6746-7.jpg",
+   "title": "File:Frankfurt am Main, Rathaus -- 2015 -- 6746-7.jpg"
+  },
+  "FUK": {
+   "author": "Nryate",
+   "city": "후쿠오카",
+   "en": "Fukuoka",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Fukuoka_Skyline_of_Seaside_Momochi.jpg",
+   "title": "File:Fukuoka Skyline of Seaside Momochi.jpg"
+  },
+  "GUM": {
+   "author": "NJo",
+   "city": "괌",
+   "en": "Guam",
+   "license": "CC BY 3.0",
+   "license_url": "https://creativecommons.org/licenses/by/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Guam_Tumon_Bay_beach.jpg",
+   "title": "File:Guam Tumon Bay beach.jpg"
+  },
+  "HAN": {
+   "author": "Quangnlnhe182394",
+   "city": "하노이",
+   "en": "Hanoi",
+   "license": "CC0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+   "page": "https://commons.wikimedia.org/wiki/File:Hanoi_skyline_with_Ba_Vi_Mountain.jpg",
+   "title": "File:Hanoi skyline with Ba Vi Mountain.jpg"
+  },
+  "HGH": {
+   "author": "EditQ",
+   "city": "항저우",
+   "en": "Hangzhou",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:%E6%9D%AD%E5%B7%9E%E9%92%B1%E6%B1%9F%E6%96%B0%E5%9F%8E_4_(cropped).jpg",
+   "title": "File:杭州钱江新城 4 (cropped).jpg"
+  },
+  "HIJ": {
+   "author": "DXR",
+   "city": "히로시마",
+   "en": "Hiroshima",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Atomic_Bomb_Dome_and_Motoyaso_River,_Hiroshima,_Northwest_view_20190417_1.jpg",
+   "title": "File:Atomic Bomb Dome and Motoyaso River, Hiroshima, Northwest view 20190417 1.jpg"
+  },
+  "HKG": {
+   "author": "Benh LIEU SONG (Flickr)",
+   "city": "홍콩",
+   "en": "Hong Kong",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Hong_Kong_Harbour_Night_2019-06-11.jpg",
+   "title": "File:Hong Kong Harbour Night 2019-06-11.jpg"
+  },
+  "HKT": {
+   "author": "Bennypc",
+   "city": "푸켓",
+   "en": "Phuket",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Phuket_Aerial.jpg",
+   "title": "File:Phuket Aerial.jpg"
+  },
+  "HNL": {
+   "author": "Farragutful",
+   "city": "호놀룰루",
+   "en": "Honolulu",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:2022_Views_from_Diamond_Head_02.jpg",
+   "title": "File:2022 Views from Diamond Head 02.jpg"
+  },
+  "IST": {
+   "author": "Hunanuk",
+   "city": "이스탄불",
+   "en": "Istanbul",
+   "license": "CC0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/deed.en",
+   "page": "https://commons.wikimedia.org/wiki/File:Historical_peninsula_and_modern_skyline_of_Istanbul.jpg",
+   "title": "File:Historical peninsula and modern skyline of Istanbul.jpg"
+  },
+  "JFK": {
+   "author": "銀河市長",
+   "city": "뉴욕",
+   "en": "New York City",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Statue_of_liberty_front.jpg",
+   "title": "File:Statue of liberty front.jpg"
+  },
+  "JKT": {
+   "author": "CEphoto, Uwe Aranas",
+   "city": "자카르타",
+   "en": "Jakarta",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Jakarta_Indonesia_Bus-stop-Monumen-Nasional-01.jpg",
+   "title": "File:Jakarta Indonesia Bus-stop-Monumen-Nasional-01.jpg"
+  },
+  "KHH": {
+   "author": "CEphoto, Uwe Aranas",
+   "city": "가오슝",
+   "en": "Kaohsiung",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Kaohsiung_Taiwan_Dragon-and-Tiger-Pagodas-01.jpg",
+   "title": "File:Kaohsiung Taiwan Dragon-and-Tiger-Pagodas-01.jpg"
+  },
+  "KIX": {
+   "author": "663highland",
+   "city": "오사카",
+   "en": "Osaka",
+   "license": "CC BY 2.5",
+   "license_url": "https://creativecommons.org/licenses/by/2.5",
+   "page": "https://commons.wikimedia.org/wiki/File:Osaka_Castle_03bs3200.jpg",
+   "title": "File:Osaka Castle 03bs3200.jpg"
+  },
+  "KLO": {
+   "author": "Jhun Sacapano",
+   "city": "칼리보(보라카이)",
+   "en": "Boracay",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Boracay_White_Beach.png",
+   "title": "File:Boracay White Beach.png"
+  },
+  "KMJ": {
+   "author": "663highland",
+   "city": "구마모토",
+   "en": "Kumamoto",
+   "license": "CC BY 2.5",
+   "license_url": "https://creativecommons.org/licenses/by/2.5",
+   "page": "https://commons.wikimedia.org/wiki/File:Kumamoto_Castle_03n4272.jpg",
+   "title": "File:Kumamoto Castle 03n4272.jpg"
+  },
+  "KMQ": {
+   "author": "Daderot at English Wikipedia",
+   "city": "고마쓰",
+   "en": "Kanazawa",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+   "page": "https://commons.wikimedia.org/wiki/File:Kenrokuen_linterna_fall.JPG",
+   "title": "File:Kenrokuen linterna fall.JPG"
+  },
+  "KOJ": {
+   "author": "Hirase",
+   "city": "가고시마",
+   "en": "Kagoshima",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:20090906_sakurajima_yoshino_kagoshima-ken_japna.jpg",
+   "title": "File:20090906 sakurajima yoshino kagoshima-ken japna.jpg"
+  },
+  "KTM": {
+   "author": "Nabin K. Sapkota",
+   "city": "카트만두",
+   "en": "Kathmandu",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Boudha_Stupa_2018_04.jpg",
+   "title": "File:Boudha Stupa 2018 04.jpg"
+  },
+  "KUL": {
+   "author": "Marcin Konsek",
+   "city": "쿠알라룸푸르",
+   "en": "Kuala Lumpur",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:2016_Kuala_Lumpur,_Petronas_Towers_(27).jpg",
+   "title": "File:2016 Kuala Lumpur, Petronas Towers (27).jpg"
+  },
+  "LAX": {
+   "author": "GillyBerlin",
+   "city": "로스앤젤레스",
+   "en": "Los Angeles",
+   "license": "CC BY 2.0",
+   "license_url": "https://creativecommons.org/licenses/by/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Santa_Monica_Pier_in_Los_Angeles.jpg",
+   "title": "File:Santa Monica Pier in Los Angeles.jpg"
+  },
+  "LHR": {
+   "author": "Ilya Grigorik",
+   "city": "런던",
+   "en": "London",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:London_Skyline_(125508655).jpeg",
+   "title": "File:London Skyline (125508655).jpeg"
+  },
+  "LON": {
+   "author": "Ilya Grigorik",
+   "city": "런던",
+   "en": "London",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:London_Skyline_(125508655).jpeg",
+   "title": "File:London Skyline (125508655).jpeg"
+  },
+  "MEL": {
+   "author": "Melbpal",
+   "city": "멜버른",
+   "en": "Melbourne",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Melbourne_skyline_sor.jpg",
+   "title": "File:Melbourne skyline sor.jpg"
+  },
+  "MFM": {
+   "author": "Jayden Chao",
+   "city": "마카오",
+   "en": "Macau",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Macau_Tower_and_Sai_Van_Bridge_during_Blue_Hour.jpg",
+   "title": "File:Macau Tower and Sai Van Bridge during Blue Hour.jpg"
+  },
+  "MLE": {
+   "author": "Martin Falbisoner",
+   "city": "몰디브",
+   "en": "Maldives",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Diamonds_Thudufushi_Beach_and_Water_Villas,_May_2017_-04.jpg",
+   "title": "File:Diamonds Thudufushi Beach and Water Villas, May 2017 -04.jpg"
+  },
+  "MNL": {
+   "author": "Richmond Chi",
+   "city": "마닐라",
+   "en": "Manila",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Kiu_Siao_Taoist_Temple.jpg",
+   "title": "File:Kiu Siao Taoist Temple.jpg"
+  },
+  "MUC": {
+   "author": "Thomas Wolf, www.foto-tw.de",
+   "city": "뮌헨",
+   "en": "Munich",
+   "license": "CC BY-SA 3.0 de",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0/de/deed.en",
+   "page": "https://commons.wikimedia.org/wiki/File:Stadtbild_M%C3%BCnchen.jpg",
+   "title": "File:Stadtbild München.jpg"
+  },
+  "MYJ": {
+   "author": "Japanexperterna.se",
+   "city": "마쓰야마",
+   "en": "Matsuyama",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Dogo_onsen_honkan_long_exposure.jpg",
+   "title": "File:Dogo onsen honkan long exposure.jpg"
+  },
+  "NAN": {
+   "author": "Ben Turner from Georgetown, DC, USA",
+   "city": "나디",
+   "en": "Nadi Fiji",
+   "license": "CC BY 2.0",
+   "license_url": "https://creativecommons.org/licenses/by/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Hindu_Temple_in_Nadi,_Fiji.jpg",
+   "title": "File:Hindu Temple in Nadi, Fiji.jpg"
+  },
+  "NGO": {
+   "author": "Base64",
+   "city": "나고야",
+   "en": "Nagoya",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Nagoya_Castle(Larger).jpg",
+   "title": "File:Nagoya Castle(Larger).jpg"
+  },
+  "NHA": {
+   "author": "Kaz Ish",
+   "city": "나트랑",
+   "en": "Nha Trang",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Nha_Trang_,_Vietnam_-_panoramio_(35).jpg",
+   "title": "File:Nha Trang , Vietnam - panoramio (35).jpg"
+  },
+  "NRT": {
+   "author": "Morio",
+   "city": "도쿄",
+   "en": "Tokyo",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+   "page": "https://commons.wikimedia.org/wiki/File:Skyscrapers_of_Shinjuku_2009_January.jpg",
+   "title": "File:Skyscrapers of Shinjuku 2009 January.jpg"
+  },
+  "NYC": {
+   "author": "銀河市長",
+   "city": "뉴욕",
+   "en": "New York City",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Statue_of_liberty_front.jpg",
+   "title": "File:Statue of liberty front.jpg"
+  },
+  "OKA": {
+   "author": "Jordy Meow",
+   "city": "오키나와",
+   "en": "Okinawa",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Okinawa_Aquarium.jpg",
+   "title": "File:Okinawa Aquarium.jpg"
+  },
+  "OSA": {
+   "author": "663highland",
+   "city": "오사카",
+   "en": "Osaka",
+   "license": "CC BY 2.5",
+   "license_url": "https://creativecommons.org/licenses/by/2.5",
+   "page": "https://commons.wikimedia.org/wiki/File:Osaka_Castle_03bs3200.jpg",
+   "title": "File:Osaka Castle 03bs3200.jpg"
+  },
+  "PAR": {
+   "author": "Yann Caradec from Paris, France",
+   "city": "파리",
+   "en": "Paris",
+   "license": "CC BY-SA 2.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques,_Paris_ao%C3%BBt_2014_(2).jpg",
+   "title": "File:La Tour Eiffel vue de la Tour Saint-Jacques, Paris août 2014 (2).jpg"
+  },
+  "PQC": {
+   "author": "[//commons.wikimedia.org/wiki/User:Trantuonglam Trantuonglam]",
+   "city": "푸꾸옥",
+   "en": "Phu Quoc",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Bai-sao-phu-quoc-tuonglamphotos.jpg",
+   "title": "File:Bai-sao-phu-quoc-tuonglamphotos.jpg"
+  },
+  "PRG": {
+   "author": "Moyan Brenn from Italy",
+   "city": "프라하",
+   "en": "Prague",
+   "license": "CC BY 2.0",
+   "license_url": "https://creativecommons.org/licenses/by/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Prague_(6365119737).jpg",
+   "title": "File:Prague (6365119737).jpg"
+  },
+  "RGN": {
+   "author": "Marcin Konsek",
+   "city": "양곤",
+   "en": "Yangon",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:2016_Rangun,_Pagoda_Szwedagon_(004).jpg",
+   "title": "File:2016 Rangun, Pagoda Szwedagon (004).jpg"
+  },
+  "RMQ": {
+   "author": "毛貓大少爺 from Taipei, Taiwan",
+   "city": "타이중",
+   "en": "Taichung",
+   "license": "CC BY-SA 2.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Taichung_skyline.png",
+   "title": "File:Taichung skyline.png"
+  },
+  "ROM": {
+   "author": "Diliff",
+   "city": "로마",
+   "en": "Rome",
+   "license": "CC BY 3.0",
+   "license_url": "https://creativecommons.org/licenses/by/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Trevi_Fountain,_Rome,_Italy_2_-_May_2007.jpg",
+   "title": "File:Trevi Fountain, Rome, Italy 2 - May 2007.jpg"
+  },
+  "SEA": {
+   "author": "Jeffery Hayes",
+   "city": "시애틀",
+   "en": "Seattle",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Seattle_Center_as_night_falls.jpg",
+   "title": "File:Seattle Center as night falls.jpg"
+  },
+  "SFO": {
+   "author": "Frank Schulenburg",
+   "city": "샌프란시스코",
+   "en": "San Francisco",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Golden_Gate_Bridge_as_seen_from_Battery_East.jpg",
+   "title": "File:Golden Gate Bridge as seen from Battery East.jpg"
+  },
+  "SGN": {
+   "author": "Maksim Sokolov (maxergon.com)",
+   "city": "호치민",
+   "en": "Ho Chi Minh City",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Basilica_of_Our_Lady_Immaculate.jpg",
+   "title": "File:Basilica of Our Lady Immaculate.jpg"
+  },
+  "SHA": {
+   "author": "xiquinhosilva",
+   "city": "상하이",
+   "en": "Shanghai",
+   "license": "CC BY 2.0",
+   "license_url": "https://creativecommons.org/licenses/by/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Huangpu_Park_20124-Shanghai_(32208802494).jpg",
+   "title": "File:Huangpu Park 20124-Shanghai (32208802494).jpg"
+  },
+  "SIN": {
+   "author": "chensiyuan",
+   "city": "싱가포르",
+   "en": "Singapore",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:1_singapore_national_day_parade_2011_fireworks.jpg",
+   "title": "File:1 singapore national day parade 2011 fireworks.jpg"
+  },
+  "SPK": {
+   "author": "ノボホショコロトソ",
+   "city": "삿포로",
+   "en": "Sapporo",
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:20240923_Sapporo_Odori_Park.jpg",
+   "title": "File:20240923 Sapporo Odori Park.jpg"
+  },
+  "SPN": {
+   "author": "tata_aka_T from Tokyo, JAPAN",
+   "city": "사이판",
+   "en": "Saipan",
+   "license": "CC BY 2.0",
+   "license_url": "https://creativecommons.org/licenses/by/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Micro_Beach_(530316786).jpg",
+   "title": "File:Micro Beach (530316786).jpg"
+  },
+  "SYD": {
+   "author": "Benh LIEU SONG (Flickr)",
+   "city": "시드니",
+   "en": "Sydney",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Sydney_Opera_House_and_Harbour_Bridge_Dusk_(2)_2019-06-21.jpg",
+   "title": "File:Sydney Opera House and Harbour Bridge Dusk (2) 2019-06-21.jpg"
+  },
+  "SYX": {
+   "author": "fading",
+   "city": "싼야",
+   "en": "Sanya",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Yalong_Bay_-_panoramio.jpg",
+   "title": "File:Yalong Bay - panoramio.jpg"
+  },
+  "SZX": {
+   "author": "Charlie fong",
+   "city": "선전",
+   "en": "Shenzhen",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Commercial_area_of_futian_to_east2020.jpg",
+   "title": "File:Commercial area of futian to east2020.jpg"
+  },
+  "TAG": {
+   "author": "Wolfgang Hägele",
+   "city": "보홀",
+   "en": "Bohol",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Chocolate_Hills_Carmen_Bohol_2019.jpg",
+   "title": "File:Chocolate Hills Carmen Bohol 2019.jpg"
+  },
+  "TAO": {
+   "author": "K.Y.K.Z.K.",
+   "city": "칭다오",
+   "en": "Qingdao",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Zhanqiao_pier_with_Little_Qingdao_Isle.jpg",
+   "title": "File:Zhanqiao pier with Little Qingdao Isle.jpg"
+  },
+  "TPE": {
+   "author": "毛貓大少爺",
+   "city": "타이베이",
+   "en": "Taipei",
+   "license": "CC BY-SA 2.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/2.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Taipei_Skyline_2022.06.29.jpg",
+   "title": "File:Taipei Skyline 2022.06.29.jpg"
+  },
+  "TYO": {
+   "author": "Morio",
+   "city": "도쿄",
+   "en": "Tokyo",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0/",
+   "page": "https://commons.wikimedia.org/wiki/File:Skyscrapers_of_Shinjuku_2009_January.jpg",
+   "title": "File:Skyscrapers of Shinjuku 2009 January.jpg"
+  },
+  "UBN": {
+   "author": "Zazaa Mongolia",
+   "city": "울란바토르",
+   "en": "Ulaanbaatar",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:UB_downtown.jpg",
+   "title": "File:UB downtown.jpg"
+  },
+  "VIE": {
+   "author": "Superbass",
+   "city": "빈",
+   "en": "Vienna",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Schoenbrunn_philharmoniker_2012.jpg",
+   "title": "File:Schoenbrunn philharmoniker 2012.jpg"
+  },
+  "VTE": {
+   "author": "Benh LIEU SONG (Flickr)",
+   "city": "비엔티안",
+   "en": "Vientiane",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Pha_That_Luang_Sunrise_Panorama_BLS.jpg",
+   "title": "File:Pha That Luang Sunrise Panorama BLS.jpg"
+  },
+  "XMN": {
+   "author": "Slyronit",
+   "city": "샤먼",
+   "en": "Xiamen",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Gulangyu_Island_from_Zhongshan_Road,_Xiamen.jpg",
+   "title": "File:Gulangyu Island from Zhongshan Road, Xiamen.jpg"
+  },
+  "YTO": {
+   "author": "Dillan Payne",
+   "city": "토론토",
+   "en": "Toronto",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Toronto_Skyline_from_Snake_Island,_September_11_2026_(01).jpg",
+   "title": "File:Toronto Skyline from Snake Island, September 11 2026 (01).jpg"
+  },
+  "YVR": {
+   "author": "Quintin Soloviev",
+   "city": "밴쿠버",
+   "en": "Vancouver",
+   "license": "CC BY 4.0",
+   "license_url": "https://creativecommons.org/licenses/by/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Skyline_of_Vancouver,_Canada.jpg",
+   "title": "File:Skyline of Vancouver, Canada.jpg"
+  },
+  "ZRH": {
+   "author": "Dietmar Rabich",
+   "city": "취리히",
+   "en": "Zurich",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Z%C3%BCrich_(Schweiz),_Ufer_der_Limmat_--_2011_--_1409.jpg",
+   "title": "File:Zürich (Schweiz), Ufer der Limmat -- 2011 -- 1409.jpg"
+  }
+ },
+ "sizes": [
+  {
+   "h": 200,
+   "quality": 58,
+   "suffix": "-s",
+   "w": 200
+  },
+  {
+   "h": 340,
+   "quality": 78,
+   "suffix": "",
+   "w": 900
+  }
+ ],
+ "source": "Wikimedia Commons",
+ "spec_confirmed": "2026-09-29",
+ "spec_generated": "2026-09-28T03:18:50+09:00"
+}
