@@ -126,9 +126,9 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 .hc-x{position:absolute;right:7px;top:7px;z-index:2;width:24px;height:24px;border:0;border-radius:99px;
  background:#0000004d;color:#fff;font:inherit;font-size:1rem;line-height:1;cursor:pointer;padding:0}
 .hc-x:hover{background:#0009}
-/* `×` 는 확장 상세에만 있다 — 그 자리를 `사진 준비중` 배지가 쓰고 있어 겹쳤다(실측).
-   확장은 238px 이라 밀 여유가 있고, 컴팩트(184px)는 `×` 가 없어 그대로 둔다. */
-.hovercard.expanded .hc-photo .ph-tag{right:68px}
+/* 태그는 `×`·공유 아이콘을 비켜 앉는다. 확장은 238px 이라 밀 여유가 있고,
+   컴팩트(184px)는 `×` 가 없어 그대로 둔다.
+   (예전엔 이 자리를 `사진 준비중` 배지가 함께 썼다 — 2026-09-30 에 배지를 없앴다.) */
 .hovercard.expanded .hc-photo .phtags{right:106px}
 /* 공유 — **아이콘, `×` 옆**(사용자 2026-09-28). 전폭 CTA 는 예약처 링크뿐이다(DESIGN.md).
    `×`(right:7)와 같은 높이·크기로 그 왼쪽에 붙는다: 7 + 24 + 6 = 37px. */
@@ -349,7 +349,6 @@ body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:no
 .hovercard.show{opacity:1;transform:translate(-50%,0) scale(1);pointer-events:auto}
 .hc-photo{height:92px;position:relative;background-size:cover;background-position:center}
 .hc-photo .cityname{z-index:2;position:absolute;left:10px;bottom:7px;color:#fff;font-weight:900;font-size:1.05rem;text-shadow:0 1px 6px #0009;letter-spacing:-.02em}
-.hc-photo .ph-tag{position:absolute;right:8px;top:8px;font-size:.54rem;color:#fff9;background:#0004;border-radius:5px;padding:1px 5px}
 /* 호버카드 사진은 아래에 도시명이 앉아 있다 → 태그를 위로 올린다(오른쪽 배지 폭만큼 비켜서) */
 .hc-photo .phtags{top:7px;bottom:auto;left:8px;right:74px}
 .hc-body{padding:9px 12px 11px}.hc-row{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:2px 8px}
