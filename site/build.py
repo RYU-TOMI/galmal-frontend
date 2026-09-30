@@ -27,6 +27,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import coverage  # noqa: E402
+import credits as creditslib  # noqa: E402
 import photos as photolib  # noqa: E402
 import pax  # noqa: E402
 import origin  # noqa: E402
@@ -180,7 +181,16 @@ def main():
         f.write(page)
     print("  index.html")
 
-    for name, text in seo.build_all(index, generated_date, snap["routes"]).items():
+    # 🔴 **사진 출처 페이지** — CC BY·BY-SA 는 저작자·제목·출처·라이선스 표시가 법적 의무다.
+    # 사진 자체에 글자를 얹을 수 없으니 **한 곳에 모아 모든 페이지에서 링크**한다(푸터·sitemap).
+    with open(os.path.join(a.out, "credits.html"), "w", encoding="utf-8", newline="") as f:
+        f.write(creditslib.render(credits, meta["subscribe"]["address"]))
+    print("  credits.html  (사진 %d장)" % len(set(
+        (r.get("city"), r.get("page")) for r in (credits.get("photos") or {}).values())))
+
+    # 사진 출처 페이지의 `lastmod` 는 **사진이 확정된 날**이다(딜 날짜가 아니다).
+    cred_day = (credits.get("spec_confirmed") or credits.get("spec_generated") or "")[:10] or None
+    for name, text in seo.build_all(index, generated_date, snap["routes"], cred_day).items():
         with open(os.path.join(a.out, name), "w", encoding="utf-8", newline="") as f:
             f.write(text)
         print("  %s" % name)

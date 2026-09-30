@@ -12,6 +12,7 @@
 실패로 걸면 백엔드가 목적지를 하나 늘린 날 사이트가 안 나간다.
 """
 import ast
+import html as html_mod
 import io
 import json
 import os
@@ -267,6 +268,108 @@ class ScreenTest(unittest.TestCase):
             m = re.search(sel + r"([^}]*)\}", CSS, re.M)
             self.assertIsNotNone(m, sel + " 규칙을 못 찾았다")
             self.assertIn("z-index:2", m.group(1), sel)
+
+
+import credits as creditslib  # noqa: E402
+
+SHELL = io.open(os.path.join(ROOT, "site", "shell.py"), encoding="utf-8").read()
+SEO = io.open(os.path.join(ROOT, "site", "seo.py"), encoding="utf-8").read()
+
+
+class CreditsPageTest(unittest.TestCase):
+    """🔴 `/credits.html` — **법적 의무를 지키는 페이지다.**
+
+    CC BY·BY-SA 는 **TASL**(Title·Author·Source·License)을 밝히라고 요구하고,
+    4.0 은 「수정했으면 그렇다고 표시하라」를 명문으로 요구한다. 우리는 크기를 줄이고 잘라
+    webp 로 바꿨다 — 그 사실도 페이지에 있다.
+
+    화면 실측(2026-09-30 · 1280px·390px): 77줄 · **빠진 표시 0** · 라이선스 링크 77 ·
+    원본(커먼즈) 링크 77 · 표 넘침 없음.
+    """
+
+    C = {"source": "Wikimedia Commons", "spec_generated": "2026-09-28T03:18:50+09:00",
+         "spec_confirmed": "2026-09-29",
+         "photos": {"KOJ": row(), "NRT": row(city="도쿄", page="https://commons.wikimedia.org/wiki/File:t.jpg"),
+                    "TYO": row(city="도쿄", page="https://commons.wikimedia.org/wiki/File:t.jpg")}}
+
+    def setUp(self):
+        self.html = creditslib.render(self.C, "hi@example.com")
+
+    def test_every_photo_shows_all_four_things(self):
+        for r in self.C["photos"].values():
+            for k in ("title", "author", "license"):
+                self.assertIn(html_mod.escape(r[k]), self.html, k)
+            self.assertIn(r["page"], self.html)
+            self.assertIn(r["license_url"], self.html)
+
+    def test_the_licence_link_is_marked_as_one(self):
+        """`rel="license"` — 기계가 「이게 라이선스 링크다」를 알 수 있게 한다."""
+        self.assertIn('rel="license noopener nofollow"', self.html)
+
+    def test_it_says_we_modified_the_originals(self):
+        """CC BY 4.0·BY-SA 4.0 은 **수정 고지를 명문으로 요구**한다.
+
+        ⚠️ 처음엔 「크기를 줄이」·「잘라」·「webp」 세 낱말만 봤는데, **고지 문단의 머리
+        (「원본을 고쳤습니다」)를 지워도 초록**이었다 — 돌연변이로 알았다. 낱말이 아니라
+        **평서문으로 무엇을 했는지**가 있어야 한다. 셋 다 본다: 고쳤다는 선언 · 무엇을 고쳤나 ·
+        무엇은 안 고쳤나."""
+        for phrase in ("원본을 고쳤습니다", "크기를 줄이", "잘라", "webp",
+                       "내용을 더하거나 바꾸지는 않았습니다"):
+            self.assertIn(phrase, self.html, phrase)
+
+    def test_the_modification_notice_is_on_every_page_too(self):
+        """출처 페이지까지 가지 않아도 「고쳤다」는 사실이 보인다 — 셸 푸터에 한 줄."""
+        self.assertIn("크기를 줄이고 잘라 webp 로 바꿨습니다", SHELL)
+
+    def test_codes_sharing_one_photo_become_one_row(self):
+        """도쿄는 코드가 둘(NRT·TYO)인데 **사진은 한 장**이다 — 두 줄로 내면 두 장처럼 읽힌다."""
+        self.assertEqual(self.html.count('<tr><th scope="row">'), 2)      # 가고시마 · 도쿄
+        self.assertIn("NRT TYO", self.html)
+
+    def test_column_labels_have_one_source(self):
+        """`<thead>` 와 모바일 라벨(`data-label`)이 **같은 한 벌**에서 온다 — 두 벌이면 한쪽만 바뀐다."""
+        self.assertIn("COLS = (", creditslib.__doc__ or "", ) if False else None
+        src = io.open(os.path.join(ROOT, "site", "credits.py"), encoding="utf-8").read()
+        self.assertIn('COLS = ("도시", "사진", "저작자", "라이선스")', src)
+        self.assertIn("for c in COLS", src)
+        for c in creditslib.COLS[1:]:
+            self.assertIn('data-label="%s"' % c, self.html)
+
+    def test_cc0_is_listed_too(self):
+        """표시 의무가 없지만 적는다 — 빼면 「왜 이 사진만 없나」를 나중에 아무도 모른다."""
+        c = {"photos": {"X": row(license="CC0", license_url="https://creativecommons.org/publicdomain/zero/1.0/")}}
+        out = creditslib.render(c, "hi@example.com")
+        self.assertIn("CC0", out)
+        self.assertIn("publicdomain/zero", out)
+
+    def test_values_are_escaped(self):
+        """저작자 이름은 커먼즈에서 온다 — `<` 가 섞여도 페이지가 깨지지 않는다."""
+        c = {"photos": {"X": row(author='<script>x</script>', title='a"b')}}
+        out = creditslib.render(c, "hi@example.com")
+        self.assertNotIn("<script>x</script>", out)
+        self.assertIn("&lt;script&gt;", out)
+        self.assertIn("a&quot;b", out)
+
+    def test_it_is_reachable_from_every_page(self):
+        """사진 자체에 글자를 얹을 수 없으니 **링크가 모든 페이지에** 있어야 한다.
+        노선 페이지는 셸 푸터, 홈은 헤더 내비(홈은 지도 앱이라 `<footer>` 가 없다)."""
+        self.assertIn('<a href="/credits.html">', SHELL)          # 셸 푸터
+        self.assertIn('<a class="muted" href="/credits.html">사진 출처</a>', HOME)
+        self.assertIn("/credits.html", SEO)                       # sitemap
+
+    def test_the_sitemap_date_is_the_photo_date_not_the_deal_date(self):
+        """딜 날짜를 주면 크롤러에게 「어제 고쳤다」고 **매일 거짓말**한다."""
+        self.assertIn("credits_lastmod or lastmod", SEO)
+        self.assertIn('cred_day = (credits.get("spec_confirmed") or credits.get("spec_generated") or "")[:10]', BUILD)
+
+    def test_the_build_writes_it(self):
+        self.assertIn('"credits.html"', BUILD)
+        self.assertIn("creditslib.render(credits", BUILD)
+
+    def test_narrow_screens_stack_instead_of_overflowing(self):
+        """실측(390px): 표가 **444px** 였다(main 358px). 법적 표시가 잘려 나가면 안 되므로 쌓는다."""
+        self.assertRegex(SHELL, r"table\.credits tr \{ display:block")
+        self.assertRegex(SHELL, r"table\.credits td::before \{ content:attr\(data-label\)")
 
 
 if __name__ == "__main__":

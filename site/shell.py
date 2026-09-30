@@ -317,6 +317,35 @@ CSS = """
   /* 특가 도장 */
   .gm-stamp { display:inline-block; transform:rotate(-9deg); border:2px solid var(--accent);
               color:var(--accent); font-weight:900; font-size:.72rem; padding:3px 8px; border-radius:6px; }
+  /* 사진 출처 (/credits.html) — 읽는 페이지다. 표가 길어(77줄) **줄 구분**이 가장 중요하다. */
+  .cr-lead { font-size:.9rem; color:var(--ink); line-height:1.7; margin:10px 0; max-width:62ch; }
+  .cr-note { font-size:.78rem; color:var(--sub); line-height:1.7; margin:4px 0; }
+  .cr-back { margin:22px 0 8px; font-size:.9rem; font-weight:700; }
+  table.credits { width:100%; border-collapse:collapse; margin:16px 0 8px; font-size:.82rem; }
+  table.credits th, table.credits td { text-align:left; vertical-align:top;
+       padding:8px 10px 8px 0; border-bottom:1px solid var(--line); }
+  table.credits thead th { font-size:.72rem; color:var(--sub); font-weight:800;
+       border-bottom:1.5px solid var(--line); white-space:nowrap; }
+  table.credits tbody th { font-weight:800; color:var(--ink); white-space:nowrap; }
+  /* 목적지 코드는 **부가 정보**다 — 도시 이름 아래 작게. 같은 사진을 쓰는 코드를 한 줄에 모았다. */
+  .cr-codes { display:block; font-size:.66rem; color:var(--sub); font-weight:600; letter-spacing:.02em; }
+  /* 커먼즈 파일명이 아주 길다(80자 넘는 것도 있다) — 줄바꿈을 허용해 표가 옆으로 넘치지 않게 한다. */
+  table.credits td:nth-child(2) { word-break:break-word; }
+  table.credits a { color:var(--accent); text-decoration:none; font-weight:700; }
+  table.credits a:hover { text-decoration:underline; }
+  /* 🔴 **좁은 화면에서는 표를 블록으로 쌓는다.** 4칸을 그대로 두면 표가 넘친다 —
+     실측(390px): main 358px 인데 표가 **444px**(저작자 칸이 283px 까지 벌어졌다). 법적 표시가
+     화면 밖으로 잘려 나가면 안 되므로, 옆으로 미는 대신 **줄마다 한 덩이**로 쌓는다.
+     칸 이름은 `data-label` 로 붙는다 — `<thead>` 와 같은 한 벌에서 온다(`site/credits.py` COLS). */
+  @media (max-width:560px) {
+    table.credits { font-size:.8rem; }
+    table.credits thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+    table.credits tr { display:block; padding:10px 0; border-bottom:1px solid var(--line); }
+    table.credits th, table.credits td { display:block; border:none; padding:1px 0; }
+    table.credits tbody th { white-space:normal; font-size:.95rem; margin-bottom:3px; }
+    table.credits td::before { content:attr(data-label) " · "; color:var(--sub); font-weight:700; }
+    .cr-codes { display:inline; margin-left:6px; }
+  }
 """
 
 def footer(contact):
@@ -325,6 +354,8 @@ def footer(contact):
     <p>· 가격은 조회 시점 기준이며 실제 예약 가격은 예약처에서 달라질 수 있습니다.</p>
     <p>· "예약" 링크를 통해 예약이 이루어지면 운영자가 수수료를 받을 수 있습니다.</p>
     <p>· 시세는 성인 1인 왕복 기준입니다. 시세는 해당 노선·유형(직항/경유)의 최근 30일 수집 가격 중앙값입니다. 데이터: Travelpayouts(Aviasales)</p>
+    <p>· 도시 사진: 위키미디어 커먼즈 — <a href="/credits.html">사진 출처와 라이선스</a>
+       (크기를 줄이고 잘라 webp 로 바꿨습니다)</p>
     <p>· {SITE_NAME} · 문의 {contact}</p>
   </footer>"""
 
