@@ -757,15 +757,16 @@
    "title": "File:Zürich (Schweiz), Ufer der Limmat -- 2011 -- 1409.jpg"
   }
  },
- "quality": 78,
  "sizes": [
   {
    "h": 200,
+   "quality": 58,
    "suffix": "-s",
    "w": 200
   },
   {
    "h": 340,
+   "quality": 78,
    "suffix": "",
    "w": 900
   }
