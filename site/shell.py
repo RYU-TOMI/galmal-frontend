@@ -331,6 +331,8 @@ CSS = """
   .cr-codes { display:block; font-size:.66rem; color:var(--sub); font-weight:600; letter-spacing:.02em; }
   /* 커먼즈 파일명이 아주 길다(80자 넘는 것도 있다) — 줄바꿈을 허용해 표가 옆으로 넘치지 않게 한다. */
   table.credits td:nth-child(2) { word-break:break-word; }
+  /* 라이선스 이름은 안 자른다 — `CC BY-SA 3.0` 이 두 줄로 갈리면 다른 라이선스처럼 읽힌다. */
+  table.credits td:nth-child(4) { white-space:nowrap; }
   table.credits a { color:var(--accent); text-decoration:none; font-weight:700; }
   table.credits a:hover { text-decoration:underline; }
   /* 🔴 **좁은 화면에서는 표를 블록으로 쌓는다.** 4칸을 그대로 두면 표가 넘친다 —
