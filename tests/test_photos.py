@@ -335,6 +335,24 @@ class CreditsPageTest(unittest.TestCase):
         self.assertIsNotNone(m, "COPY.md §8 의 머리말 줄을 못 찾았다 — 표 모양이 바뀌었으면 여기도 고친다")
         self.assertEqual(creditslib.LEAD, m.group(1))
 
+    @unittest.skipUnless(os.path.exists(COPY_MD), "기획 저장소가 없다(CI) — 로컬에서만 대조한다")
+    def test_the_alt_rule_matches_the_planning_file(self):
+        """🔴 `alt` 도 §8 이 정한다(기획 결정 2026-09-30 (2) — **내 실측이 근거**였다).
+        `""`(빈 값)로 확정됐고, **조건부**가 붙었다: 사진 하나가 글자 없이 홀로 서는 자리가 생기면 `{도시}`.
+        지금 세 자리(피드·히어로·호버/상세)는 전부 도시 이름이 글자로 붙어 있다 —
+        그 전제가 깨지는 날 이 검사가 아니라 **화면이** 먼저 바뀌어야 한다.
+
+        기획이 「§8 대조가 `alt` 행도 보게 해 달라」고 요청했다(2026-09-30)."""
+        copy = io.open(COPY_MD, encoding="utf-8").read()
+        m = re.search(r"\| 사진 `alt` \| (.+?) \|\n", copy)
+        self.assertIsNotNone(m, "COPY.md §8 의 `alt` 줄을 못 찾았다")
+        rule = m.group(1)
+        self.assertTrue(rule.startswith('`""`'), "§8 이 빈 값이 아닌 것을 정했다: %s" % rule[:40])
+        self.assertIn('alt=""', fn("photoImg"))
+        # 조건부의 전제 — 지금 세 자리에 도시 이름이 글자로 있다
+        self.assertIn('class="cityname"', JS_CODE)      # 호버·상세 — 사진 위에 도시 이름
+        self.assertIn('class="fcity"', JS_CODE)         # 피드·히어로 — 사진 옆에 도시 이름
+
     def test_the_licence_link_is_marked_as_one(self):
         """`rel="license"` — 기계가 「이게 라이선스 링크다」를 알 수 있게 한다."""
         self.assertIn('rel="license noopener nofollow"', self.html)
