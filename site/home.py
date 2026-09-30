@@ -149,12 +149,17 @@ def chip_problems(page_html, vocab, deals):
     return out
 
 
-def render_home(payload, deals_json, world_json, index, vocab, meta, generated_date):
+def render_home(payload, deals_json, world_json, index, vocab, meta, generated_date, photo_codes=()):
     # 공항 표시명은 **어휘에서 온다**(CONTRACT §5 · COPY.md §2 S5). `discover.js` 에 `{"ICN":"인천"}` 을
     # 적어 두면 그 순간 손 사본이 둘이 되고, 이 저장소는 그걸로 **다섯 번** 사고를 냈다.
     # 분위기·날짜 칩은 HTML 에 그려져 있어 JS 가 그 칩에서 읽지만, 공항 이름은 그릴 자리가 없다 — 그래서 실어 보낸다.
     # 빌드가 「모든 딜의 `oa` 가 이 표에 있나」를 이미 검사했다(`site/origin.py`).
     airports_json = json.dumps(vocab.get("airport_name") or {}, ensure_ascii=False, separators=(",", ":"))
+    # 🔴 **사진이 있는 목적지 코드**를 실어 보낸다. JS 는 파일이 있는지 알 길이 없으므로,
+    # 없는 코드에 `<img>` 를 걸면 **404 가 조용히 쌓이고** 그 자리에 깨진 이미지가 남는다
+    # (없는 파일의 404 는 HTML 에 안 나타난다 — `SPLIT.md` M4 의 함정과 같은 종류다).
+    # 목록은 빌드가 `public/assets/photos/` 를 훑어 만든 것이고, 거기서 이미 크레딧과 대조했다.
+    photos_json = json.dumps(sorted(photo_codes or ()), ensure_ascii=False, separators=(",", ":"))
     # ⓘ 설명이 「최근 {N}일」이라고 말한다 — 그 `N` 은 **창(window)이라 백엔드가 정한다**
     # (`CLAUDE.md`: 임계는 프론트가, 창은 백엔드가 정한다). 프론트가 `30` 을 적어 두면 백엔드가 창을
     # 바꾼 날 화면만 옛 숫자를 말한다 — 예외도 안 나고 사람만 모르는, 가장 비싼 모양이다.
@@ -210,6 +215,7 @@ def render_home(payload, deals_json, world_json, index, vocab, meta, generated_d
         f"<script>window.__WORLD={world_json};</script>\n"
         f"<script>window.__AIRPORTS={airports_json};</script>\n"
         f"<script>window.__WINDOW={int(window_days)};</script>\n"
+        f"<script>window.__PHOTOS={photos_json};</script>\n"
         '<script src="assets/d3-array.min.js"></script>\n'
         '<script src="assets/d3-geo.min.js"></script>\n'
         '<script src="assets/discover.js"></script>'

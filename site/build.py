@@ -166,8 +166,10 @@ def main():
         world = f.read()
     # 기계용 날짜는 **한 번만** 구해 홈·sitemap 이 같이 쓴다 — 두 번 구하면 자정 근처에서 갈릴 수 있다.
     generated_date = route.machine_date(meta["generated"])
+    # 게이트를 지난 집합이다 — 크레딧과 파일이 양방향으로 맞는 코드만 화면에 실린다.
+    photo_codes = sorted(set(credits.get("photos") or {}) & set(on_disk))
     page = home.render_home(payload, home.inline_deals(payload), world, index, snap["vocab"], meta,
-                            generated_date)
+                            generated_date, photo_codes)
     # 🔴 `discover.js` 가 어휘 목록을 **이 칩에서 읽으므로** 칩이 계약과 다르면 내보내지 않는다.
     bad = home.chip_problems(page, snap["vocab"], snap["deals"].get("deals", []))
     if bad:

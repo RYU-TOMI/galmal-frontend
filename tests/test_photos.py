@@ -15,6 +15,7 @@ import ast
 import io
 import json
 import os
+import re
 import sys
 import unittest
 
@@ -166,6 +167,106 @@ class RealSetTest(unittest.TestCase):
         """어느 발행분에서 왔는지 남긴다 — 사진이 바뀐 날 무엇이 바뀌었는지 댈 수 있어야 한다."""
         self.assertTrue(self.c.get("spec_generated"))
         self.assertTrue(self.c.get("source"))
+
+
+JS = io.open(os.path.join(ROOT, "public", "assets", "discover.js"), encoding="utf-8").read()
+CSS = io.open(os.path.join(ROOT, "public", "assets", "discover.css"), encoding="utf-8").read()
+HOME = io.open(os.path.join(ROOT, "site", "home.py"), encoding="utf-8").read()
+JS_CODE = re.sub(r"(?m)^\s*//.*$", "", JS)          # 주석 속 옛 코드에 속지 않는다
+
+
+def fn(name):
+    i = JS.index("function " + name + "(")
+    d, j, started = 0, i, False
+    while j < len(JS):
+        if JS[j] == "{":
+            d += 1; started = True
+        elif JS[j] == "}":
+            d -= 1
+            if started and d == 0:
+                return JS[i:j + 1]
+        j += 1
+    raise AssertionError(name + " 의 본문을 못 찾았다")
+
+
+class ScreenTest(unittest.TestCase):
+    """화면에 얹는 규칙 (T3). 실측은 CDP 로 했다 — 여기서는 **규칙의 모양**을 본다.
+
+    2026-09-30 실측(1440px, 캐시 끔): 첫 화면 사진 **147.7KB**(17건) · 피드를 끝까지 내리면 182.6KB.
+    지역 칩을 눌러 다시 그려도 **깜빡이지 않는다**(19장 전부 즉시 그려짐 · 받은 바이트 그대로) —
+    `innerHTML` 로 새로 만들지만 브라우저가 메모리 캐시에서 준다. 사진 404 **0건**.
+    """
+
+    def test_no_img_for_a_destination_without_a_photo(self):
+        """🔴 없는 사진에 `<img>` 를 걸면 **404 가 조용히 쌓이고** 그 자리에 깨진 이미지가 남는다.
+        없는 파일의 404 는 HTML 에 안 나타나므로 HTML 을 봐도 못 잡는다."""
+        b = fn("photoSrc")
+        self.assertIn("!PHOTO[c.dcode]", b)
+        self.assertIn('return "";', b)
+        self.assertIn("var PHOTO = {}", JS_CODE)
+        self.assertIn("window.__PHOTOS", JS_CODE)
+
+    def test_the_list_comes_from_the_build_not_from_a_hand_copy(self):
+        """파일이 있는지는 JS 가 알 길이 없다 — 빌드가 폴더를 훑어 실어 준다."""
+        self.assertIn("window.__PHOTOS={photos_json};", HOME)
+        self.assertIn("sorted(photo_codes or ())", HOME)
+        self.assertIn("photo_codes = sorted(set(credits.get(\"photos\") or {}) & set(on_disk))", BUILD)
+
+    def test_lazy_and_decorative(self):
+        """`loading="lazy"` 는 **`<img>` 에만** 있다 — CSS 배경으로 두면 안 보이는 카드까지 다 받는다.
+        `alt=""` — 도시 이름이 바로 옆에 글자로 있어서 또 넣으면 낭독기가 두 번 읽는다."""
+        b = fn("photoImg")
+        self.assertIn('loading="lazy"', b)
+        self.assertIn('alt=""', b)
+        self.assertIn('decoding="async"', b)
+        self.assertEqual(JS_CODE.count('loading="lazy"'), 1, "사진을 넣는 자리는 한 곳이어야 한다")
+
+    def test_the_gradient_stays_underneath(self):
+        """그라디언트는 **받는 동안의 자리**이고, 사진이 없는 곳(헬싱키·이시가키)의 최종 모습이다."""
+        self.assertIn("background:' + c.g", fn("photoHTML"))
+        self.assertEqual(JS_CODE.count("background:' + c.g"), 2, "사진 자리 둘(피드 썸네일·호버 카드)")
+
+    def test_the_badge_goes_away_only_when_there_is_a_photo(self):
+        """사진이 깔린 자리에 「사진 준비중」이 남으면 거짓말이다. 없는 자리에는 남아야 한다 —
+        그래서 **지우지 않고 갈랐다**(사진이 있으면 `<img>`, 없으면 배지)."""
+        b = fn("photoHTML")
+        self.assertIn("src ? photoImg(src) :", b)
+        self.assertIn("ph-tag", b)
+        self.assertEqual(JS_CODE.count("사진 준비중"), 1)
+
+    def test_hero_takes_the_big_one_and_small_cards_the_small_one(self):
+        """작은 자리에 큰 파일을 쓰면 첫 화면에서 25장 × 62KB 를 받는다(B71)."""
+        self.assertIn("photoSrc(c, !hero)", JS_CODE)
+        self.assertIn("photoSrc(c, false)", fn("photoHTML"))
+
+    def test_css_clips_and_covers(self):
+        self.assertRegex(CSS, r"\.ph\{[^}]*object-fit:cover")
+        self.assertRegex(CSS, r"\.ph\{[^}]*border-radius:inherit")      # 부모의 둥근 모서리를 따른다
+        self.assertRegex(CSS, r"\.thumb\{[^}]*overflow:hidden")          # 안 하면 네모가 튀어나온다
+
+    def test_the_photo_slot_is_marked_so_the_scrim_can_hook(self):
+        """🔴 CSS 에 스크림 규칙이 있어도 **표식이 안 붙으면 안 걸린다.**
+        돌연변이로 알았다: `has-photo` 를 빼도 검사가 전부 초록이었다 —
+        「규칙이 있나」만 보고 「그 규칙이 무엇에 걸리나」를 안 봤다."""
+        self.assertIn('(src ? " has-photo" : "")', fn("photoHTML"))
+        self.assertIn('(photoSrc(c, !hero) ? " has-photo" : "")', JS_CODE)
+        self.assertEqual(JS_CODE.count('" has-photo"'), 2, "사진 자리 둘 다 표식이 붙어야 한다")
+
+    def test_the_scrim_only_exists_over_a_photo(self):
+        """밝은 하늘에 흰 글자가 묻히지 않게 아래쪽만 어둡게. 그라디언트 위에서는 필요 없다 —
+        괜히 더 어둡게 하면 색이 탁해진다."""
+        self.assertIn(".has-photo::after{", CSS)
+        self.assertNotRegex(CSS, r"(?<!has-photo)\.thumb::after\{")
+
+    def test_overlays_sit_above_the_scrim(self):
+        """스크림이 도시 이름·배지·태그를 덮으면 **읽으려고 넣은 어둠이 글자를 지운다.**
+
+        ⚠️ 처음엔 `\.phtags\{` 로 찾았는데 **다른 선택자**(`.hovercard.expanded .hc-photo .phtags`)에
+        먼저 걸려 「z-index 가 없다」고 했다 — 규칙을 찾을 때는 **줄 시작으로 묶는다.**"""
+        for sel in (r"^\.hc-photo \.cityname\{", r"^\.pick\{", r"^\.phtags\{"):
+            m = re.search(sel + r"([^}]*)\}", CSS, re.M)
+            self.assertIsNotNone(m, sel + " 규칙을 못 찾았다")
+            self.assertIn("z-index:2", m.group(1), sel)
 
 
 if __name__ == "__main__":

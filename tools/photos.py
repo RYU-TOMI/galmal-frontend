@@ -56,8 +56,11 @@ CACHE = os.path.join(tempfile.gettempdir(), "galmal-photocache")
 #
 # 작은 쪽을 따로 두는 이유: 첫 화면에 작은 썸네일이 25장 깔린다(B71 — 첫 화면 무게).
 # 큰 것만 쓰면 62px 자리에 63.9KB 를 25장 받는다.
-SIZES = [("-s", 200, 200), ("", 900, 340)]
-QUALITY = 78
+# 🔴 **품질은 크기마다 다르다.** 작은 쪽은 62px 자리에 쓰이므로 화면에서 볼 차이가 거의 없다 —
+# 62px 로 줄여서 재면 q58 과 q78 의 오차 차이가 0.5/255(0.2%)인데 용량은 6.2 vs 8.4KB 다.
+# 첫 화면에 16장이 깔리니 그 차이가 **36KB** 다(B71 — 첫 화면 무게). 큰 쪽은 거의 원본 크기로
+# 보이므로 q78 을 유지한다. 200x200 파일끼리 비교하면 「크면 좋다」가 되므로 **화면 크기로 줄여서** 쟀다.
+SIZES = [("-s", 200, 200, 58), ("", 900, 340, 78)]
 UA = ("galmal.kr photo fetch/1.0 (https://galmal.kr; "
       "https://github.com/RYU-TOMI/galmal-frontend) python-urllib")
 
@@ -106,7 +109,6 @@ def main():
     ap.add_argument("--spec", default=SPEC)
     ap.add_argument("--out", default=OUT)
     ap.add_argument("--cache", default=CACHE)
-    ap.add_argument("--quality", type=int, default=QUALITY)
     ap.add_argument("--pause", type=float, default=1.0)
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--only", default="")
@@ -139,7 +141,7 @@ def main():
         }
         if only and code not in only:
             continue
-        paths = [os.path.join(a.out, code + sfx + ".webp") for sfx, _, _ in SIZES]
+        paths = [os.path.join(a.out, code + sfx + ".webp") for sfx, _, _, _ in SIZES]
         if not a.force and all(os.path.exists(p) and os.path.getsize(p) > 0 for p in paths):
             skipped += 1
             total += sum(os.path.getsize(p) for p in paths)
@@ -149,8 +151,8 @@ def main():
         raw, was_cached = fetch(ch["thumb"], cpath, a.pause)
         reused += 1 if was_cached else 0
         im = Image.open(io.BytesIO(raw))
-        for (sfx, w, h), p in zip(SIZES, paths):
-            cover(im, w, h).save(p, "WEBP", quality=a.quality, method=6)
+        for (sfx, w, h, q), p in zip(SIZES, paths):
+            cover(im, w, h).save(p, "WEBP", quality=q, method=6)
             total += os.path.getsize(p)
         made += 1
         sys.stdout.write("\r  %d/%d %s (%s)      " % (i + 1, len(codes), code, ko))
@@ -160,8 +162,7 @@ def main():
         json.dump({"source": spec.get("source", ""),
                    "spec_generated": spec.get("generated", ""),
                    "spec_confirmed": spec.get("confirmed", ""),
-                   "sizes": [{"suffix": s, "w": w, "h": h} for s, w, h in SIZES],
-                   "quality": a.quality,
+                   "sizes": [{"suffix": s, "w": w, "h": h, "quality": q} for s, w, h, q in SIZES],
                    "photos": credits}, f, ensure_ascii=False, indent=1, sort_keys=True)
         f.write("\n")
     print("\r도시 %d · 코드 %d · 구운 코드 %d · 건너뜀 %d · 캐시 재사용 %d"
