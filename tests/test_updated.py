@@ -8,8 +8,15 @@
   | `generated` 의 KST 날짜 | 피드 헤드 뒤 |
   |---|---|
   | 오늘 | `· {HH:MM} 기준` |
-  | 어제 | `· {M/D(요일)} {HH:MM} 기준 · 어제 자료예요` |
-  | 그제 이상 | `· {M/D(요일)} {HH:MM} 기준 · {N}일 전 자료예요` |
+  | 어제 | `· **어제** {HH:MM} 기준` |
+  | 그제 이상 | `· **{N}일 전** {HH:MM} 기준` |
+
+🔴 **2026-09-29 에 줄였다** (사용자: 「어제 자료에요 라는 정보 필요할까」).
+예전엔 `· 9/28(월) 03:18 기준 · 어제 자료예요` 로 **날짜와 그 날짜의 뜻**을 나란히 놨다.
+실측: 그 길이가 제목을 밀어 「오늘의 발견」의 「견」이 둘째 줄로 내려갔다.
+이제 절대 날짜 자리에 **상대 날짜**를 넣어 한 번만 말하고, 신선한 날의 `03:18 기준` 과 **같은 모양**이 된다.
+⚠️ 이건 `COPY.md` §2d 「두 단 위계」(「어제 자료」만으론 어느 어제인지 확인이 안 된다)를 **대체한 결정**이다 —
+기획에 통지했다. 근거를 지우지 않고 옮겨 적는다.
 
 🔴 **판정은 KST 로 한다.** `generated` 는 `+09:00` 이고 방문자는 해외일 수 있다 — 브라우저 로컬 날짜로
 비교하면 **한국 아닌 곳에서 낡음 경고가 안 뜬다**(아래 `test_local_date_would_hide_the_warning` 이 그 차이를 센다).
@@ -26,8 +33,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 JS = io.open(os.path.join(ROOT, "public", "assets", "discover.js"), encoding="utf-8").read()
 CSS = io.open(os.path.join(ROOT, "public", "assets", "discover.css"), encoding="utf-8").read()
 
-YDAY = "어제 자료예요"
-OLDER = "일 전 자료예요"
+YDAY = "어제"
+OLDER = "일 전"
 KST = dt.timezone(dt.timedelta(hours=9))
 
 
@@ -46,7 +53,7 @@ def head(updated, now_utc):
     n = (kst_today - dt.date.fromisoformat(day)).days
     if n <= 0:
         return " · %s 기준" % hm
-    return " · %s %s 기준 · %s" % ("MD", hm, YDAY if n == 1 else "%d%s" % (n, OLDER))
+    return " · %s %s 기준" % (YDAY if n == 1 else "%d%s" % (n, OLDER), hm)
 
 
 class RuleTest(unittest.TestCase):
@@ -57,17 +64,31 @@ class RuleTest(unittest.TestCase):
         self.assertIn(YDAY, head("2026-09-21 07:23", now))
         self.assertIn("3" + OLDER, head("2026-09-19 07:23", now))
 
-    def test_absolute_date_appears_only_when_stale(self):
-        """낡았을 때만 날짜를 앞에 붙인다 — 「어제 자료」만으론 어느 어제인지 확인이 안 된다(§2d 두 단 위계)."""
+    def test_only_the_stale_day_gets_a_day_word(self):
+        """신선한 날에는 날짜 말이 없다 — `· 07:23 기준` 뿐이다. 낡은 날에만 **상대 날짜**가 앞에 붙는다."""
         now = dt.datetime(2026, 9, 22, 1, 0, tzinfo=dt.timezone.utc)
-        self.assertNotIn("MD", head("2026-09-22 07:23", now))
-        self.assertIn("MD", head("2026-09-21 07:23", now))
+        self.assertEqual(head("2026-09-22 07:23", now), " · 07:23 기준")
+        self.assertEqual(head("2026-09-21 07:23", now), " · 어제 07:23 기준")
+
+    def test_the_same_thing_is_not_said_twice(self):
+        """🔴 2026-09-29 에 줄인 그 자리. 절대 날짜와 그 날짜의 뜻을 **같이** 놓지 않는다 —
+        그 길이가 제목을 밀어 「견」이 둘째 줄로 내려갔다.
+
+        옛 모양(`· 9/28(월) 03:18 기준 · 어제 자료예요`)이 되살아나면 잡는다."""
+        now = dt.datetime(2026, 9, 22, 1, 0, tzinfo=dt.timezone.utc)
+        out = head("2026-09-21 07:23", now)
+        self.assertNotIn("자료예요", out)
+        self.assertEqual(out.count("기준"), 1)
+        self.assertEqual(out.count("·"), 1, "구분점이 둘이면 두 토막으로 말하고 있다")
+        # 소스에도 절대 날짜가 안 붙는다 — 옮긴 사본만 고치고 JS 를 안 고치면 조용히 갈린다.
+        body = fn("updatedHTML")
+        self.assertNotIn("fmtMD", body, "낡음 표시에 절대 날짜를 다시 붙였다")
 
     def test_two_days_is_not_called_yesterday(self):
         """🔴 `어제` 로 고정하면 **그제인데 어제라고 말한다** — 신선도에서 「나흘·닷새」를 버린 것과 같은 함정."""
         now = dt.datetime(2026, 9, 22, 1, 0, tzinfo=dt.timezone.utc)
         out = head("2026-09-20 07:23", now)
-        self.assertIn("2" + OLDER, out)
+        self.assertEqual(out, " · 2일 전 07:23 기준")
         self.assertNotIn(YDAY, out)
 
     def test_future_or_equal_says_nothing_extra(self):
@@ -125,6 +146,35 @@ class SourceTest(unittest.TestCase):
         render = fn("render")
         head_line = [l for l in render.split("\n") if "updatedHTML()" in l][0]
         self.assertNotIn("anyFilter", head_line)
+
+
+class HeadRoomTest(unittest.TestCase):
+    """🔴 **낡음 배지가 제목을 밀어내지 않는다** (사용자 2026-09-29: 「오늘의 발견 에서 견이
+    아래로 내려갔음」).
+
+    `.fh-top` 은 flex 라 옆 글이 길어지면 **제목이 먼저 줄어든다.** 실측: 「· 어제 자료예요」가
+    붙는 순간 제목이 74 → **72px**(자연폭 76)로 눌려 **「견」이 둘째 줄로** 내려갔다(높이 20 → 40).
+    4px 이 모자라서 생긴 일이다.
+
+    **이 배지가 있는 날에만 생긴다** — 그래서 3주 넘게 아무도 못 봤다. C-15 를 넣어 배지를
+    띄우기 시작한 쪽과 같은 자리이고, 배지를 못 띄우던 시절엔 드러날 수 없었다.
+    CH8 이 낸 것이 아니다: 같은 데이터로 CH8 이전 빌드를 나란히 재니 제목이 똑같이 **2줄**이었다.
+
+    줄어들 쪽은 **옆의 작은 글자**다(그쪽은 원래 2줄로 접힌다).
+    """
+
+    def test_the_title_never_shrinks(self):
+        self.assertIn(".fh-top>b{flex:none;white-space:nowrap}", CSS)
+
+    def test_the_small_text_is_the_one_that_gives_way(self):
+        """`min-width:0` 이 없으면 flex 항목은 **자기 내용보다 작아지지 않아** 제목을 다시 민다."""
+        self.assertIn(".fh-top>span{min-width:0;text-align:right}", CSS)
+
+    def test_the_two_are_not_glued_together(self):
+        """제목이 안 줄어들면 둘이 붙을 수 있다 — 사이를 띄운다."""
+        m = re.search(r"\.fh-top\{([^}]*)\}", CSS)
+        self.assertIsNotNone(m)
+        self.assertIn("gap:", m.group(1))
 
 
 if __name__ == "__main__":

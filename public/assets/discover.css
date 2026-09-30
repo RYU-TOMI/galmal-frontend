@@ -26,7 +26,15 @@ body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pre
 /* 카드 피드 레일 */
 .feed{flex:0 0 340px;overflow-y:auto;padding:14px;background:var(--bg);border-right:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
 .feedhead{padding:2px 2px 2px}
-.fh-top{display:flex;justify-content:space-between;align-items:baseline}
+.fh-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+/* 🔴 **제목은 눌리지 않는다** (사용자 2026-09-29: 「오늘의 발견 에서 견이 아래로 내려갔음」).
+   `.fh-top` 은 flex 라 옆 글이 길어지면 제목이 먼저 줄어든다 — 실측: 「· 어제 자료예요」가 붙는
+   순간 제목이 74 → **72px**(자연폭 76)로 눌려 **「견」이 둘째 줄로** 내려갔다(높이 20 → 40).
+   4px 이 모자라서 생긴 일이다.
+   **CH8 이 낸 것이 아니다** — 같은 데이터로 CH8 이전 빌드를 나란히 재니 값이 똑같았다.
+   자료가 낡았을 때만(C-15 배지) 나타나서 여태 안 보였다. 줄어들 쪽은 **옆의 작은 글자**다. */
+.fh-top>b{flex:none;white-space:nowrap}
+.fh-top>span{min-width:0;text-align:right}
 .feedhead b{font-size:1.05rem;font-weight:900;letter-spacing:-.02em}.feedhead span{font-size:.7rem;color:var(--sub)}
 /* 「어제 자료예요」 — 굵게 `--ink`. **코랄 금지**(이 화면에서 코랄은 「싸다」의 색이다), 경고색도 만들지 않는다.
    오래된 것은 위험이 아니라 사실이다 — 신선도 배지가 경고하지 않는 것과 같은 이유. (COPY §2d-2) */
@@ -206,8 +214,11 @@ svg.map.panning{cursor:grabbing}
 body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:none!important}
 /* 지도는 transform 으로 확대된다 → 해안선 굵기는 배율을 따라가면 안 된다 (B17) */
 .land{fill:var(--land);stroke:#33534f22;stroke-width:.6;stroke-linejoin:round;vector-effect:non-scaling-stroke}
-/* 트윈 중에는 라벨과 항로를 그리지 않는다 — 움직이는 글자는 못 읽는다 (SPEC §CH1) */
-.tweening .plabel,.tweening .arc{opacity:0}
+/* 트윈 중에는 라벨을 그리지 않는다 — 움직이는 글자는 못 읽는다 (SPEC §CH1).
+   🔴 항로는 **숨기지 않는다**(2026-09-29 CH8). 예전엔 점선 패턴이 길이를 못 따라가 트윈 중
+   선이 끊겨 보였고, 그래서 숨겼다. `pathLength` 로 길이를 고정한 뒤에는 트윈 중에도 정확하다 —
+   숨기면 지역 칩으로 날아가는 동안 「어디서 어디로」가 사라진다. 글자와 선은 사정이 다르다. */
+.tweening .plabel{opacity:0}
 .arc{fill:none;stroke:var(--accent);stroke-width:1.6;stroke-linecap:round;filter:drop-shadow(0 .5px 1px #f2603f33)}
 .origin-dot{fill:var(--ink)}.origin-ring{fill:none;stroke:var(--ink);stroke-width:1.5;opacity:.35}
 .pin{cursor:pointer}.pin .halo{opacity:.16}.pin .core{stroke:#fff;stroke-width:2.2;transition:r .12s}
@@ -220,6 +231,23 @@ body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:no
 .plabel.off{display:none}
 .pin.act .plabel.off{display:block}
 .stagebar{position:absolute;left:18px;bottom:18px;display:flex;gap:6px;align-items:center}
+/* 🔴 **지역 칩은 두 줄로 접지 않는다** (기획 2026-09-29, SPEC §CH1). 칩이 3개에서 10개로
+   늘어 좁은 데스크톱에서 넘친다 — 실측: 필요한 폭 554px 인데 무대가 900px 폭에서 542 · 861px 에서 503.
+   글자를 줄이지 않고 **좌우 패딩만** 12→7px 로 줄인다(글꼴은 12.48px 그대로 — 12px 하한 위, B57).
+   `nowrap` 은 접히는 대신 **넘치게** 만들므로 자체로는 답이 아니다. 둘을 같이 쓴다. */
+.stagebar{flex-wrap:nowrap}
+/* 🔴 **칩 글자가 접히지 않는다.** 실측(861px · 필터 켬): 「중화권」 칩 높이가 29 → **44px** 이 됐다 —
+   바가 두 줄로 접힌 게 아니라 **칩 안의 글자가** 두 줄이 된 것이었다(`전 지역에서 찾는 중` 이
+   자리를 가져가며 칩이 눌렸다). `flex:none` 이 없으면 칩은 줄어들려 하고, 줄어들 수 없으면 글자를 접는다. */
+.stagebar .pill{white-space:nowrap;flex:none}
+@media(max-width:1000px){.stagebar{gap:5px}.stagebar .pill{padding:6px 7px}}
+/* 🔴 **모바일에서는 옆으로 넘긴다** (CH8 에서 낸 회귀를 그 자리에서 막는다).
+   칩이 3개(242px)에서 10개(445px)로 늘어, 390px 화면에서 실측 「국내」 칩이 L418 —
+   **화면 밖이라 누를 수 없었다.** 두 줄로 접지 않기로 했고(기획) 글자를 더 줄일 수도 없으니
+   **가로 스크롤**이다. 모바일 재설계(PH5b)는 그대로 뒤에 있다 — 여기서는 「닿을 수 없는 버튼」만 없앤다.
+   스크롤바는 지도 위라 숨긴다(자리를 차지하면 칩이 또 눌린다). */
+@media(max-width:520px){.stagebar{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none}
+  .stagebar::-webkit-scrollbar{display:none}}
 /* 🔴 **필터 중에도 단계 버튼을 남긴다** (SPEC §CH1, 2026-09-22 · B70).
    예전엔 `.stagebar.allregions .pill{display:none}` 로 치웠다 — 「필터 중에는 거리 단계 개념이 성립하지
    않는다」는 생각이었는데, 그 결과 **필터를 켠 사용자가 지도를 가까이 볼 길이 하나도 없었다**(스테퍼의
@@ -228,8 +256,11 @@ body.dragging, body.dragging *{user-select:none!important;-webkit-user-select:no
    **그때 오히려 더 필요한 말**이다(목록엔 남아 있다는 뜻). */
 .stagebar .allnote{display:none;background:#fff;border:1px solid var(--line);border-radius:99px;padding:6px 13px;font-size:.78rem;font-weight:700;color:var(--sub);box-shadow:0 2px 8px rgba(20,40,40,.10)}
 .stagebar.allregions .allnote{display:inline-block}
-/* 좁은 화면에선 버튼이 먼저다 — 안내가 밀려 줄이 넘치면 안내를 접는다 */
-@media(max-width:520px){.stagebar.allregions .allnote{display:none}}
+/* 좁은 화면에선 버튼이 먼저다 — 안내가 밀려 줄이 넘치면 안내를 접는다.
+   🔴 기준을 520 → 940px 로 올렸다(CH8). 칩이 3개에서 10개로 늘어 실측 필요 폭이
+   칩 445 + 여백 6 + 안내 102 = 553px 인데, 900px 화면의 무대에서 쓸 수 있는 폭은 542 다.
+   버튼이 먼저라는 규칙은 그대로고, 그 규칙이 걸리는 폭만 데이터에 맞춰 옮겼다. */
+@media(max-width:940px){.stagebar.allregions .allnote{display:none}}
 /* 거리 단계 스테퍼 — 줌이 아니다. ＋=한 단계 멀리, －=한 단계 가까이 (SPEC §CH1) */
 .stepper{position:absolute;right:16px;top:16px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;box-shadow:0 4px 14px rgba(20,40,40,.12)}
 .stepper button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;width:52px;height:44px;border:0;background:none;color:var(--ink);cursor:pointer;font:inherit;padding:0}
