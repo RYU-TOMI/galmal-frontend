@@ -1040,12 +1040,13 @@
     var p = svg.createSVGPoint(); p.x = x; p.y = y;
     return p.matrixTransform(svg.getScreenCTM().inverse());
   }
-  // 사진이 있으면 「사진 준비중」 배지를 뺀다 — 사진이 깔린 자리에 그 말이 남으면 거짓말이다.
+  // 🔴 **「사진 준비중」 배지는 없앴다** (SPEC §CH3 보강, 2026-09-29 확정).
+  // 사진이 없는 카드에도 안 붙인다 — **지키지 않는 약속을 화면에 두지 않는다.**
+  // 사진이 없으면 그라디언트만 남는다(헬싱키·이시가키). 그건 결함이 아니라 그 목적지의 모습이다.
   function photoHTML(c, max) {
     var src = photoSrc(c, false);
     return '<div class="hc-photo' + (src ? " has-photo" : "") + '" style="background:' + c.g + '">' +
-      (src ? photoImg(src) : '<span class="ph-tag">사진 준비중</span>') +
-      ovTags(c, max) + '<span class="cityname">' + c.n + "</span></div>";
+      photoImg(src) + ovTags(c, max) + '<span class="cityname">' + c.n + "</span></div>";
   }
   // `detail` — **확장 상세인가.** 같은 머리를 두 자리가 쓴다(호버/축소 카드 · 확장 상세)인데
   // 표식 규칙이 서로 다르다. 축소 카드는 **고르는 자리**라 피드 카드와 같이 하나만 짧게 쓰고,
