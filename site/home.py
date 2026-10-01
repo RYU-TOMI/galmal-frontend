@@ -49,7 +49,8 @@ _FILTER_DOCK = """
           </div></div>
         <div class="fdrow"><span class="fdlabel">예산</span>
           <div class="budgetwrap">
-            <div class="btrack"><div class="bhist" id="bhist" aria-hidden="true"></div><input id="budget" type="range" min="100000" max="1000000" step="50000" value="1000000"></div>
+            <div class="btrack"><div class="bhist" id="bhist" aria-hidden="true"></div><input id="budget" type="range" min="100000" max="1000000" step="50000" value="1000000"
+              aria-label="예산" aria-valuetext="제한 없음"></div>
             <b id="budgetVal">제한 없음</b></div>
           <div class="chips">
             <button type="button" class="fchip budget" data-budget="300000">30만<i></i></button>
@@ -113,10 +114,13 @@ def region_chips(vocab, deals):
     missing = sorted(h for h in have if h not in order)
     if missing:
         raise ValueError("vocab.region 순서에 없는 지역: %s" % missing)
-    out = ['<span class="pill on" data-region="">전체</span>']
+    # 🔴 `<span>` 이 아니라 `<button>` 이다 — **누르는 것**이기 때문이다(B11 실측: 10개 전부 탭 불가였다).
+    # 정지점은 하나다: 첫 칩만 `tabindex="0"`, 나머지는 `-1`(roving tabindex) — JS 가 옮긴다.
+    # `aria-pressed` 는 **뷰와 같은 칩**에 붙는다(JS). 처음엔 어느 칩도 아니므로 전부 `false` 다.
+    out = ['<button type="button" class="pill" data-region="" aria-pressed="false" tabindex="0">전체</button>']
     for k in order:
         if k in have:
-            out.append('<span class="pill" data-region="%s">%s</span>'
+            out.append('<button type="button" class="pill" data-region="%s" aria-pressed="false" tabindex="-1">%s</button>'
                        % (html.escape(k), html.escape(names[k])))
     return "".join(out)
 
@@ -141,7 +145,7 @@ def chip_problems(page_html, vocab, deals):
     # 지역 칩 — `discover.js` 의 `REGIONS` 가 **이 칩에서 읽는다**(분위기·날짜 칩과 같은 이유).
     # 칩이 비면 지역 이동이 조용히 죽는다: 예외도 안 나고 버튼만 사라진다.
     got_region = [html.unescape(x) for x in re.findall(
-        r'class="pill(?: on)?" data-region="([^"]*)"', page_html)]
+        r'<button [^>]*class="pill[^"]*" data-region="([^"]*)"', page_html)]
     have = set(d.get("region") for d in deals if d.get("region"))
     want = [""] + [k for k in (vocab.get("region") or []) if k in have]
     if got_region != want:
@@ -242,6 +246,13 @@ def render_home(payload, deals_json, world_json, index, vocab, meta, generated_d
 <link rel="stylesheet" href="assets/discover.css">
 {jsonld_block(structured)}
 </head><body>
+<!-- 건너뛰기 링크 **둘** (기획 결정 2026-10-01 (3), COPY §2). DOM 순서는 보이는 순서(피드가 왼쪽·먼저)
+     그대로 두고, 「조작에 먼저 닿는 길」을 이 링크가 맡는다 — 순서를 뒤집으면 포커스가 좌우로 튀고
+     지역바 `left` 에 피드 폭(340px)의 손 사본이 생긴다. 첫 Tab 에만 보인다. -->
+<div class="skips">
+  <a href="#feed">목록으로 건너뛰기</a>
+  <a href="#stagebar">지역·필터로 건너뛰기</a>
+</div>
 <div class="hdr">
   {logo(gid=HOME_LOGO_GID)}
   <!-- 🔴 **사진 출처 링크는 홈에도 있어야 한다** (PH8). 홈은 지도 앱이라 `<footer>` 가 없고,
@@ -259,19 +270,23 @@ def render_home(payload, deals_json, world_json, index, vocab, meta, generated_d
   <button type="button" class="fn-x" id="fnClose" aria-label="이 안내 닫기">×</button>
 </div>
 <div class="layout">
-  <div class="feed" id="feed"></div>
+  <!-- `tabindex="-1"` — 건너뛰기 링크가 여기로 **포커스를 옮길 수 있게**. 탭 순서엔 안 들어간다. -->
+  <div class="feed" id="feed" tabindex="-1"></div>
   <div class="stage">
     <svg class="map" id="map" preserveAspectRatio="xMidYMid slice" role="img" aria-label="여행지 발견 지도">
       <g id="lands"></g><path id="arc" class="arc" d=""/><g id="origin"></g><g id="pins"></g>
     </svg>
     <div class="prompt"><b>카드에 올리면</b> 지도에 항로가 · <b>핀 클릭</b>하면 상세가 열려요</div>
-    <div class="stagebar">{region_chips(vocab, deals)}</div>
+    <!-- 🔴 **정지점 하나**(SPEC §CH6): `←` `→` 로 칩 사이를 옮기고 `Enter`·`Space` 로 그 지역으로 간다.
+         칩마다 정지점을 두면 피드 앞에 **탭 10번**이 쌓인다. 뷰와 같은 칩이 `aria-pressed="true"` —
+         켜진 칩이 없을 수 있어서 radiogroup 이 아니다(§CH1). -->
+    <div class="stagebar" id="stagebar" role="toolbar" aria-label="지역으로 이동">{region_chips(vocab, deals)}</div>
     <div class="stepper" id="stepper">
       <!-- 🔴 `＋` 가 **확대**다 (사용자 2026-09-28: 「+,- 가 반대로 된 듯」).
            예전엔 단계 스테퍼라 `＋` 가 「더 멀리」(한 단계 넓게)였다 — 자유 줌에서는 그게 뒤집혀 읽힌다.
            이제 `＋` = 가까이(확대) · `－` = 더 멀리(축소)이고, 위가 `＋` 다(지도에서 흔한 자리). -->
-      <button type="button" data-step="in" aria-label="가까이" title="가까이"><i>＋</i><em>가까이</em></button>
-      <button type="button" data-step="out" aria-label="더 멀리" title="더 멀리"><i>－</i><em>더 멀리</em></button>
+      <button type="button" data-step="in" aria-label="지도 확대" title="가까이"><i>＋</i><em>가까이</em></button>
+      <button type="button" data-step="out" aria-label="지도 축소" title="더 멀리"><i>－</i><em>더 멀리</em></button>
     </div>{filter_dock(vocab)}
     <div class="hovercard" id="hc"></div>
     <div class="emptyday" id="emptyday" hidden>

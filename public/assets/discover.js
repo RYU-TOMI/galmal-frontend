@@ -140,8 +140,11 @@
   }
   // 문구는 **`평소보다 {N}%↓`** 다 (COPY.md §2 카드 피드). `50%↓` 만 쓰면 무엇 대비인지 안 말한다.
   // 발견 홈에서 `특가` 라는 단어는 안 쓴다 — 제품 안에 정의가 둘이라 단어를 나눴다(SPEC F19).
+  // 🔴 **읽히는 문구를 따로 준다**(COPY §2) — `41%↓` 를 낭독기는 「사십일 퍼센트 아래 화살표」로 읽는다.
+  // 보이는 글자는 그대로 두고 이름만 바꾼다(`recShort` 가 같은 모양으로 이미 하고 있다).
   function stampHTML(c) {
-    return c.dtier ? '<span class="stamp ' + c.dtier + '">평소보다 ' + c.disc + "</span>" : "";
+    return c.dtier ? '<span class="stamp ' + c.dtier + '" aria-label="평소보다 ' +
+      discNum(c.disc) + '% 싸요">평소보다 ' + c.disc + "</span>" : "";
   }
 
   // ---- 신기록 «N일 중 최저» (SPEC §CH3, COPY.md §2) ----
@@ -261,6 +264,13 @@
   var arc = document.getElementById("arc"), pins = document.getElementById("pins"), og = document.getElementById("origin");
   var feed = document.getElementById("feed"), stageEl = document.querySelector(".stage"), hc = document.getElementById("hc");
   var bslider = document.getElementById("budget"), bval = document.getElementById("budgetVal");
+  // 🔴 **보이는 값과 읽히는 값을 한 곳에서** 맞춘다(COPY §2: 읽히는 값 = 보이는 값 문구).
+  // 세 곳에서 따로 `textContent` 만 고치고 있었다 — 그러면 `aria-valuetext` 는 영원히 처음 값이다.
+  function setBudgetLabel() {
+    var t = budgetLabel();
+    if (bval) bval.textContent = t;
+    if (bslider) bslider.setAttribute("aria-valuetext", t);
+  }
   var BUDGET_MAX = 1000000;   // 출발지를 고를 때 데이터에서 다시 잡는다 — resetBudget()
 
   var ORIGIN = null, CITY = [], stageIdx = 0, active = null, expandedI = null;
@@ -339,7 +349,7 @@
     if (mx <= mn) mx = mn + STEP;                       // 딜이 1건뿐인 허브에서도 트랙이 성립하게
     bslider.min = mn; bslider.max = mx; bslider.step = STEP; bslider.value = mx;
     BUDGET_MAX = mx; budget = mx;                        // 최대치 = 필터 꺼짐
-    if (bval) bval.textContent = budgetLabel();
+    setBudgetLabel();
     syncBudgetChips();                                   // 출발지가 바뀌면 칩 건수·비활성도 다시 잡는다
   }
   function dimmed(c) { return (mood && c.tags.indexOf(mood) < 0) || (budgetOn() && num(c.price) > budget) || dateDim(c) || !matchesNights(c, nightsMode); }
@@ -498,12 +508,23 @@
     // 그래서 9개를 전부 계산해 비교하지 않는다 — 그건 값도 안 바뀌고 `render()` 마다 비용만 든다.
     var lit = regionKey !== null ? regionKey : (atFarView() ? "" : null);
     litAll = (regionKey === null && lit === "");
+    var first = null;
     for (var i = 0; i < pills.length; i++) {
-      pills[i].classList.toggle("on", lit !== null && pills[i].getAttribute("data-region") === lit);
+      var isOn = lit !== null && pills[i].getAttribute("data-region") === lit;
+      pills[i].classList.toggle("on", isOn);
+      // 🔴 **보이는 불과 읽히는 상태를 한 곳에서 맞춘다**(SPEC §CH6). 둘을 따로 두면 갈린다 —
+      // 이 저장소가 「불과 지도가 어긋난」 일로 이미 겪었다(B70).
+      pills[i].setAttribute("aria-pressed", isOn ? "true" : "false");
       // 이 출발지에 그 지역 딜이 없으면 **칩을 치운다** — 누르면 아무 일도 안 나는 버튼을 두지 않는다.
       // 실측: 대구는 섬·대양주·미주·그 외가 0건, 제주는 대양주·유럽·미주·국내가 0건이다.
       var rk = pills[i].getAttribute("data-region");
       pills[i].style.display = (rk && !regionHasDeals(rk)) ? "none" : "";
+      if (pills[i].style.display !== "none") { if (first === null) first = pills[i]; if (isOn) first = pills[i]; }
+    }
+    // roving tabindex 의 기준점 — **켜진 칩**, 없으면 **보이는 첫 칩**. 포커스가 이미 지역바 안에
+    // 있으면 건드리지 않는다(사용자가 화살표로 옮겨 둔 자리를 뺏지 않는다).
+    if (first && !bar.contains(document.activeElement)) {
+      for (var k = 0; k < pills.length; k++) pills[k].tabIndex = (pills[k] === first ? 0 : -1);
     }
     var note = bar.querySelector(".allnote");
     if (on && !note) { note = document.createElement("span"); note.className = "allnote"; note.textContent = "전 지역에서 찾는 중"; bar.appendChild(note); }
@@ -699,6 +720,9 @@
       var mn = c.tier === "minor", r = mn ? MINOR_R : PIN_R;
       var g = document.createElementNS(SVGNS, "g");
       g.setAttribute("class", "pin" + (mn ? " minor" : "") + (dimmed(c) ? " dim" : "")); g.dataset.i = c._i;
+      // 🔴 **핀은 카드의 시각적 표현이지 별도 조작 대상이 아니다**(SPEC §CH6, 2026-09-01 확정).
+      // 지도는 `role="img"` 한 덩이고, 낭독기에는 **피드가 곧 지도**다 — 같은 24곳을 두 번 훑게 하지 않는다.
+      g.setAttribute("aria-hidden", "true");
       var L = c._lab;
       g.innerHTML = (mn ? "" : '<circle class="halo" cx="' + c.x + '" cy="' + c.y + '" r="' + (PIN_R * 1.6) + '" fill="' + c._col + '"/>') +
         '<circle class="core" cx="' + c.x + '" cy="' + c.y + '" r="' + r + '" fill="' + c._col + '"/>' +
@@ -709,8 +733,18 @@
         el.addEventListener("click", function (e) { e.stopPropagation(); pinTap(i); }); })(g, c._i);
       pins.appendChild(g);
     });
+    // 🔴 **지도 이름은 지금 찍힌 수를 말한다**(COPY §2). 「왼쪽·오른쪽」은 쓰지 않는다 —
+    // 낭독기에는 방향이 없다. 핀이 0개인 날도 말이 되게 따로 둔다.
+    // ⚠️ 이 줄은 `render()` 안이어야 한다 — 처음에 `moveOnly()` 에 넣었다가 거기엔 `vis` 가 없어
+    // **프레임마다 ReferenceError** 가 날 뻔했다. 빌드도 테스트도 안 잡는 자리다(JS 는 안 돌려 보니까).
+    svg.setAttribute("aria-label", vis.length
+      ? (ORIGIN.n + " 출발 " + vis.length + "곳이 찍힌 지도예요. 같은 곳이 목록에 있어요.")
+      : "지도에 찍힌 곳이 없어요.");
     // 카드 피드
-    feed.innerHTML = '<div class="feedhead"><div class="fh-top"><b>오늘의 발견</b><span>' +
+    // 🔴 부제에 `role="status"` — 지역 칩·필터·출발지로 **개수가 바뀌면 낭독기가 읽는다**.
+    // 새 문구를 만들지 않는다(COPY §2): 보이는 그 문장이 그대로 읽힌다.
+    // 실측(2026-10-01): 지역 24→20→12→75, 필터 「조건에 맞는 26곳」 — 모든 조작에서 바뀐다.
+    feed.innerHTML = '<div class="feedhead"><div class="fh-top"><b>오늘의 발견</b><span role="status">' +
       (anyFilter() ? "조건에 맞는 " + matchCount(vis) + "곳" : ORIGIN.n + " 출발 · " + vis.length + "곳") +
       updatedHTML() + "</span></div>" +
       '<div class="sortbar">' +
@@ -751,8 +785,18 @@
         '<div class="fdate"><span class="when">' + c.when + "</span>" + c.date + (c.nights ? " · " + c.nights : "") + "</div>" +
         (hero ? '<div class="gorow"><button class="go">갈래 → 자세히 보기</button></div>' : "") +
         "</div>";
+      // 🔴 **카드가 정지점이다**(SPEC §CH6). 이름은 **카드 안 글자 그대로** — 통째 `aria-label` 로
+      // 덮지 않는다(덮으면 보이는 글자와 갈린다). hero 는 **안쪽 버튼이 그 정지점**이라 카드를
+      // 정지점으로 만들지 않는다 — 한 카드에 정지점 둘을 두지 않는다.
+      if (!hero) { card.tabIndex = 0; card.setAttribute("role", "button"); }
       (function (el, i) { el.addEventListener("mouseenter", function () { hoverIn(i, false); });
         el.addEventListener("mouseleave", hoverOut);
+        // **포커스는 호버와 같다** — 그 핀이 강조된다. 지도는 움직이지 않는다(SPEC §CH6).
+        el.addEventListener("focus", function () { hoverIn(i, false); });
+        el.addEventListener("blur", hoverOut);
+        el.addEventListener("keydown", function (e) {
+          if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") { e.preventDefault(); expand(i); }
+        });
         el.addEventListener("click", function () { expand(i); }); })(card, c._i);
       feed.appendChild(card);
     });
@@ -1280,7 +1324,7 @@
     // 공유는 **부차적 행동**이고 그 자리는 「평소 시세와 비교」가 먼저 와야 한다.
     // 전폭 CTA 는 예약처 링크뿐이다(DESIGN.md). 딥링크를 만들어 놓고 공유 수단이 없으면 반쪽이라
     // **없애는 게 아니라 자리를 낮춘다** — 모바일에서 주소창 복사는 어렵다(SPEC §CH4).
-    return '<button type="button" class="hc-x" aria-label="상세 닫기">×</button>' +
+    return '<button type="button" class="hc-x" aria-label="닫기">×</button>' +
       '<button type="button" class="hc-share" aria-label="공유" data-msg="링크를 복사했어요">' + SHARE_SVG + '</button>' +
       photoHTML(c, 4) + '<div class="hc-body">' + bodyTop(c, true) +
       '<div class="hc-detail">' +
@@ -1403,6 +1447,27 @@
   // 움직여 같은 핀에 `mouseout`→`mouseover` 가 다시 나고, 그때마다 선이 처음부터 다시 그려졌다
   // (줌 한 번에 **2번**). 도시가 그대로면 모양만 맞추고 그리는 애니메이션은 건드리지 않는다.
   var arcAt = null;
+  // 🔴 **상세는 포커스를 안으로 들인다.** 안 그러면 키보드 사용자는 `Enter` 를 눌러 상세를 연 뒤에도
+  // 포커스가 카드에 남아, 상세 안의 예약처 링크·`×` 에 닿으려면 탭을 수십 번 눌러야 한다.
+  // **가두지 않는다** — 모달이 아니다(SPEC §CH6). `Esc` 로 닫고 **누른 카드로 돌아간다**.
+  var returnTo = null;        // 상세를 연 자리 — 닫을 때 포커스를 여기로 되돌린다
+  function focusDetail() {
+    var x = hc.querySelector(".hc-x");
+    if (x) x.focus();
+  }
+  function restoreFocus() {
+    var el = returnTo; returnTo = null;
+    // 🔴 **포커스가 상세 안에 있을 때만** 되돌린다. `collapse()` 는 사용자가 닫을 때만 도는 게
+    // 아니라 **정렬·필터·지역을 바꿀 때도** 부수 효과로 돈다 — 그때 되돌리면 **필터를 누를 때마다
+    // 포커스를 뺏는다.** 「누가 닫았나」를 플래그로 들고 다니는 대신 **지금 포커스가 어디 있나**를 본다:
+    // 사용자가 `×`·`Esc` 로 닫았으면 포커스는 상세 안이고, 부수 효과면 사용자는 딴 데 있다.
+    if (!hc.contains(document.activeElement)) return;
+    // 카드가 다시 그려져 사라졌으면 **같은 딜의 새 카드**를 찾는다 — 포커스를 잃지 않는다.
+    if (!el || !el.isConnected) el = document.querySelector('.fcard[data-i="' + lastExpanded + '"]');
+    if (el && el.focus) el.focus();
+    else if (feed && feed.focus) feed.focus();   // 그래도 없으면 피드로 — 포커스가 `<body>` 로 떨어지지 않게
+  }
+  var lastExpanded = null;
   function showCard(i, scroll, expanded) {
     active = i; var c = cityByI(i); paintActive();
     if (!c || c.x == null) { hc.classList.remove("show"); return; }
@@ -1415,6 +1480,7 @@
     // 그대로 두면 두 장이 포개진다. 상세가 열려 있는 동안 카드 시트를 내린다.
     if (isMobile()) document.body.classList.toggle("detail-open", !!expanded);
     if (scroll) { var card = document.querySelector('.fcard[data-i="' + i + '"]'); if (card) card.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" }); }
+    if (expanded) { lastExpanded = i; focusDetail(); }
   }
   // ---- 핀 탭 (SPEC §CH4 열고닫기 · B10 확정 2026-09-05) ----
   // **모바일에서 핀 탭은 상세를 열지 않는다.** 시트가 peek 으로 내려가고 그 카드가 시트 맨 위로 온다.
@@ -1474,6 +1540,8 @@
     // 피드에 A 카드가 그대로 있어 한 번 누르면 돌아온다(기획 판단).
     //
     // ⚠️ `expandedI` 를 덮기 **전에** 읽는다 — 덮은 뒤에 보면 언제나 「열려 있다」가 된다.
+    // 닫을 때 돌아갈 자리 — **지금 포커스가 있는 곳**(카드이거나 hero 의 안쪽 버튼이거나 핀 밖).
+    if (expandedI === null) returnTo = document.activeElement;
     var hadDetail = (expandedI !== null);
     expandedI = i;
     var c = cityByI(i);
@@ -1510,6 +1578,7 @@
     document.body.classList.remove("detail-open");     // 카드 시트를 다시 올린다
     expandedI = null; active = null; paintActive(); hc.classList.remove("show", "expanded");
     hideArc(0.2); arcAt = null;
+    restoreFocus();                                  // 누른 카드로 포커스 복귀 (SPEC §CH6)
     if (ORIGIN_KEY) writeHash(ORIGIN_KEY, false);
   }
   // 사용자가 **명시적으로 닫으면**(지도 배경 클릭) `history.back()` 이다. URL 과 화면이 어긋나지
@@ -1643,6 +1712,29 @@
   for (var b = 0; b < sbs.length; b++) (function (el) {
     el.addEventListener("click", function () { setRegion(el.getAttribute("data-region") || ""); });
   })(sbs[b]);
+  // 🔴 **지역바는 정지점 하나다**(SPEC §CH6). 칩마다 정지점을 두면 피드 앞에 **탭 10번**이 쌓인다.
+  // `←` `→` 로 칩 사이를 옮기고(roving tabindex — 포커스 받은 칩만 `tabindex=0`),
+  // `Enter`·`Space` 는 버튼이 알아서 `click` 으로 바꿔 준다. `Home`·`End` 는 덤이다(공짜고 흔한 기대).
+  // 숨은 칩(그 출발지에 딜이 없는 지역)은 건너뛴다 — 안 그러면 포커스가 안 보이는 데로 간다.
+  function regionChips() {
+    var all = document.querySelectorAll(".stagebar .pill"), o = [], i;
+    for (i = 0; i < all.length; i++) if (all[i].offsetWidth > 0) o.push(all[i]);
+    return o;
+  }
+  function focusChip(list, idx) {
+    var n = list.length; if (!n) return;
+    var t = list[(idx + n) % n], i;
+    for (i = 0; i < list.length; i++) list[i].tabIndex = (list[i] === t ? 0 : -1);
+    t.focus();
+  }
+  document.querySelector(".stagebar").addEventListener("keydown", function (e) {
+    var list = regionChips(), at = list.indexOf(document.activeElement);
+    if (at < 0) return;
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); focusChip(list, at + 1); }
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); focusChip(list, at - 1); }
+    else if (e.key === "Home") { e.preventDefault(); focusChip(list, 0); }
+    else if (e.key === "End") { e.preventDefault(); focusChip(list, list.length - 1); }
+  });
   // ---- `＋/－` = **줌 버튼** (PH5c T2 · SPEC §CH1) ----
   // 🔴 **원래 뜻으로 돌아왔다.** 2026-08-22 에 「죽어 있던 버튼을 단계 스테퍼로 재활용」했는데,
   // 그건 자유 줌이 없던 시절의 임시였다. 이제 휠이 없는 사람(트랙패드 설정·접근성)에게
@@ -1879,13 +1971,13 @@
       el.classList.toggle("empty", n === 0);
     }
   }
-  if (bslider) bslider.addEventListener("input", function () { budget = +bslider.value; if (bval) bval.textContent = budgetLabel(); syncBudgetChips(); applyFilter(); });
+  if (bslider) bslider.addEventListener("input", function () { budget = +bslider.value; setBudgetLabel(); syncBudgetChips(); applyFilter(); });
   // 바로가기 칩은 슬라이더와 **경쟁하지 않는다** — 같은 값을 두 방법으로 고르는 것이다.
   // 누르면 슬라이더가 그 값으로 간다. (SPEC §CH2 / DECISIONS 2026-09-01)
   var budgEls = document.querySelectorAll(".fchip.budget");
   function setBudget(v) {
     budget = v; if (bslider) bslider.value = v;
-    if (bval) bval.textContent = budgetLabel();
+    setBudgetLabel();
     syncBudgetChips(); applyFilter();
   }
   // ---- 예산 히스토그램 (SPEC §CH2, 2026-09-03 확정: 트랙·히스토그램 **둘 다 선형**) ----
@@ -2112,7 +2204,32 @@
   });
   // **드롭다운을 미리 펼쳐 두지 않는다** — 그건 작아진 화면0이고 딜을 가린다. (SPEC §CH3)
   document.addEventListener("click", function () { closeDrop(); });
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeDrop(); });
+  // 🔴 **건너뛰기 링크는 우리가 데려간다**(B11). `href="#id"` 만으로는 두 가지가 안 된다:
+  // ① 우리 주소는 `#{허브}-{도시}` 라우팅이라 `#feed` 를 쓰면 **라우팅이 `#{허브}` 로 되돌린다**
+  //    (실측: 눌러도 주소가 `#SEL` 그대로였다) ② `href="#id"` 는 **스크롤만 하고 포커스는 안 준다**
+  //    (실측: 누른 뒤 `document.activeElement` 가 `body` 였다 — 건너뛴 게 아니다).
+  // 링크로 읽히게 `href` 는 두고(낭독기엔 「링크」로 들려야 한다), 가는 일만 우리가 한다.
+  (function () {
+    var links = document.querySelectorAll(".skips a"), i;
+    for (i = 0; i < links.length; i++) (function (a) {
+      a.addEventListener("click", function (e) {
+        e.preventDefault();
+        var to = a.getAttribute("href") === "#feed"
+          // 피드는 **첫 카드**로 (SPEC §CH6). hero 는 안쪽 버튼이 그 정지점이다.
+          ? (feed.querySelector(".fcard .go") || feed.querySelector(".fcard") || feed)
+          // 지역바는 **지금 정지점인 칩**으로 — roving tabindex 의 기준점이 거기다.
+          : (document.querySelector('.stagebar .pill[tabindex="0"]') || document.querySelector(".stagebar .pill"));
+        if (to && to.focus) { to.focus(); if (to.scrollIntoView) to.scrollIntoView({ block: "nearest" }); }
+      });
+    })(links[i]);
+  })();
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    closeDrop();
+    // 🔴 `Esc` 로 상세를 닫는다(SPEC §CH6). `×` 와 **같은 길**로 닫는다 — 사용자가 한 일이므로
+    // 히스토리도 같게 다뤄야 한다(B58·B59 가 그 자리다).
+    if (expandedI !== null) closeByUser();
+  });
 
   // 첫 방문 안내 띠 — **막지 않는다.** 닫으면 끝이고 다시 안 뜬다.
   // 유일한 위험은 "서울 전용 서비스"로 읽히는 것이다. 서울이 아닌 사람이 바꾸는 곳을 못 찾으면 그냥 나간다.
