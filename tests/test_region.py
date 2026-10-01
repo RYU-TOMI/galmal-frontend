@@ -72,9 +72,16 @@ class ChipTest(unittest.TestCase):
         self.assertNotIn('data-region="etc"', html_out)
         self.assertIn("일본", html_out)
 
-    def test_all_chip_is_first_and_lit(self):
+    def test_all_chip_is_first(self):
+        """B11: `<span>` 이 아니라 `<button>` 이다 — **누르는 것**이기 때문이다.
+        처음엔 **켜진 칩이 없다**(B78) — `aria-pressed` 는 전부 `false` 로 나가고 JS 가 맞춘다.
+        정지점은 **첫 칩 하나**(roving tabindex, SPEC §CH6)."""
         html_out = home.region_chips(VOCAB, DEALS)
-        self.assertTrue(html_out.startswith('<span class="pill on" data-region="">전체</span>'))
+        self.assertTrue(html_out.startswith(
+            '<button type="button" class="pill" data-region="" aria-pressed="false" tabindex="0">전체</button>'),
+            html_out[:120])
+        self.assertEqual(html_out.count('tabindex="0"'), 1, "정지점은 하나다")
+        self.assertEqual(html_out.count('aria-pressed="true"'), 0, "처음엔 켜진 칩이 없다")
 
     def test_a_region_without_a_name_stops_the_build(self):
         """이름을 못 얻으면 **그 칩이 말없이 빈다** — 그 지역 딜은 어느 칩으로도 갈 수 없다.
@@ -97,7 +104,7 @@ class ChipTest(unittest.TestCase):
     def test_no_deals_means_only_the_all_chip(self):
         """딜 0건인 날에도 「전체」는 남는다 — 지도는 그대로 있다."""
         self.assertEqual(home.region_chips(VOCAB, []),
-                         '<span class="pill on" data-region="">전체</span>')
+                         '<button type="button" class="pill" data-region="" aria-pressed="false" tabindex="0">전체</button>')
 
     def test_keys_and_names_are_escaped(self):
         v = {"region": ['a"b'], "region_name": {'a"b': 'c"d'}, "tags": {"top": []}, "when": {"fixed": []}}
@@ -117,22 +124,26 @@ class GateTest(unittest.TestCase):
         self.assertEqual([p for p in home.chip_problems(page, VOCAB, DEALS) if "지역" in p], [])
 
     def test_wrong_order_is_caught(self):
+        chip = lambda k, n: ('<button type="button" class="pill" data-region="%s" '
+                             'aria-pressed="false" tabindex="-1">%s</button>' % (k, n))
         page = self._page(VOCAB, DEALS).replace(
-            '<span class="pill" data-region="jp">일본</span><span class="pill" data-region="sea">동남아</span>',
-            '<span class="pill" data-region="sea">동남아</span><span class="pill" data-region="jp">일본</span>')
+            chip("jp", "일본") + chip("sea", "동남아"), chip("sea", "동남아") + chip("jp", "일본"))
         self.assertTrue([p for p in home.chip_problems(page, VOCAB, DEALS) if "지역" in p])
 
     def test_a_missing_chip_is_caught(self):
-        page = self._page(VOCAB, DEALS).replace('<span class="pill" data-region="jp">일본</span>', "")
+        page = self._page(VOCAB, DEALS).replace(
+            '<button type="button" class="pill" data-region="jp" aria-pressed="false" tabindex="-1">일본</button>', "")
         self.assertTrue([p for p in home.chip_problems(page, VOCAB, DEALS) if "지역" in p])
 
     def test_a_chip_for_a_region_with_no_deals_is_caught(self):
         """빈 칩이 섞여 들어오면 잡는다 — 눌렀는데 아무 일도 안 나는 버튼."""
-        page = self._page(VOCAB, DEALS) + '<span class="pill" data-region="cn">중화권</span>'
+        page = self._page(VOCAB, DEALS) + ('<button type="button" class="pill" data-region="cn" '
+                                            'aria-pressed="false" tabindex="-1">중화권</button>')
         self.assertTrue([p for p in home.chip_problems(page, VOCAB, DEALS) if "지역" in p])
 
     def test_losing_the_all_chip_is_caught(self):
-        page = self._page(VOCAB, DEALS).replace('<span class="pill on" data-region="">전체</span>', "")
+        page = self._page(VOCAB, DEALS).replace(
+            '<button type="button" class="pill" data-region="" aria-pressed="false" tabindex="0">전체</button>', "")
         self.assertTrue([p for p in home.chip_problems(page, VOCAB, DEALS) if "지역" in p])
 
 
@@ -197,7 +208,11 @@ class LightTest(unittest.TestCase):
         누른 것이 있으면 그게 이긴다 — 지역 뷰는 **눌러서만** 나오므로."""
         b = body("syncStageBar")
         self.assertIn('var lit = regionKey !== null ? regionKey : (atFarView() ? "" : null);', b)
-        self.assertIn('pills[i].classList.toggle("on", lit !== null && pills[i].getAttribute("data-region") === lit)', b)
+        # B11: 판정이 `isOn` 으로 **이름을 얻었다** — 보이는 불과 읽히는 `aria-pressed` 가
+        # **같은 값**에서 나온다. 둘을 따로 두면 갈린다(B70 에서 겪은 그것).
+        self.assertIn('var isOn = lit !== null && pills[i].getAttribute("data-region") === lit;', b)
+        self.assertIn('pills[i].classList.toggle("on", isOn);', b)
+        self.assertIn('pills[i].setAttribute("aria-pressed", isOn ? "true" : "false");', b)
 
     def test_only_the_all_chip_can_light_without_a_press(self):
         """지역 뷰는 눌러서만 나온다 — 9개를 전부 계산해 비교하면 값은 안 바뀌고 비용만 든다.
