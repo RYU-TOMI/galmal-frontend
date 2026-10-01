@@ -802,6 +802,10 @@
     for (var s = 0; s < sps.length; s++) (function (el) { el.addEventListener("click", function () { sortMode = el.dataset.sort; collapse(); render(); }); })(sps[s]);
     if (active !== null) paintActive();
     syncStepper(); syncDateChips(); syncNightChips(); syncMoodChips(); syncBudgetChips(); syncStageBar();
+      // 🔴 **지도가 움직였으면 카드도 자기 핀으로** (B60). `render()` 는 창 크기 변경·출발지 변경·
+    // 필터 등 **뷰와 무관한 이유로도** 돌지만, 돌 때마다 핀 좌표를 다시 계산하므로 카드도 다시 놓는다.
+    // 열린 카드가 없으면 아무 일도 안 한다.
+    followCard();
   }
 
   // ---- 전환 트윈 (SPEC §CH1 / B2) ----
@@ -960,13 +964,35 @@
     // 「점에 고정 안 되고 화면을 따라가」). 둘 다 **그 핀이 무엇인지 가리키는** 것들이라,
     // 지도가 움직이는데 제자리에 있으면 **엉뚱한 곳을 가리키게 된다.**
     // 펼친 상세는 여기 해당 없다 — 움직이면 **닫기로** 했다(길고 결정하는 자리라 따라다니면 어지럽다).
-    if (active !== null && expandedI === null && hc.classList.contains("show")) {
-      var ac = cityByI(active);
-      if (ac && ac.x != null) {
-        positionCard(ac, null);
-        if (arc.getAttribute("d")) arc.setAttribute("d", arcPath(ac));   // 모양만, 애니메이션은 그대로
-      }
-    }
+    // 펼친 상세는 여기 해당 없다 — **움직이면 닫기로** 했다. 「언제 따라가나」는 부르는 쪽이 정하고
+    // 「어디에 놓나」는 `followCard()` 한 벌이다(`render()` 도 같은 것을 쓴다 — B60).
+    if (expandedI === null) followCard();
+  }
+  // 🔴 **카드는 자기 핀을 가리킨다** — 위치 계산은 **한 벌**이다(B60, 2026-10-01).
+  // 예전엔 이 계산이 `moveOnly()` 안에만 있었고 그나마 호버 미니카드만 대상이었다. 그래서
+  // **`render()` 로 지도가 움직이면 카드가 제자리에 남았다** — 창 크기를 바꾸면 그 길로 간다.
+  // 실측(상세 열고 1440 → 1200): 핀과의 가로 차 0 → 3px, **세로 −5 → 150px**.
+  // (백로그엔 「가로 142px」로 적혀 있었다 — PH5c·CH8 이 뷰 계산을 바꾸며 증상이 옮겨 갔다.)
+  //
+  // 창 크기 변경은 **닫지 않고 다시 놓는다**(기획 동의 2026-10-01). PH5c 가 상세를 닫기로 한 이유는
+  // 「길고 결정하는 자리라 **따라다니면** 어지럽다」였는데, 창 크기 변경은 **한 번의 점프**지
+  // 따라다니는 게 아니다. 그 이유가 적용되지 않으므로 규칙을 늘리지 않고 원래 불변식을 지킨다.
+  function followCard() {
+    if (active === null || !hc.classList.contains("show")) return;
+    var ac = cityByI(active);
+    if (!ac || ac.x == null) return;
+    // 🔴 **「핀이 도착할 자리」가 아니라 「핀이 지금 있는 자리」를 준다.**
+    // `positionCard` 의 둘째 인자는 두 가지를 한다 — ① 어디에 붙이나 ② **카드 높이 상한**
+    // (`핀 y − 16 − 8`, SPEC §CH4). 지도가 미끄러지는 동안에는 「도착할 자리」(`pinTarget()`)를
+    // 주지만, 여기서는 지도가 **이미 움직인 뒤**라 핀의 **지금 자리**가 진실이다.
+    //
+    // ⚠️ 두 번 틀렸다. ① `pinTarget()` 을 그대로 쓰니 가로 어긋남이 3 → **-107px**
+    // (창이 바뀌어도 지도를 핀에 다시 맞추지는 않으므로 핀은 거기 없다).
+    // ② `null` 로 바꾸니 **높이 상한이 풀려** 카드가 핀 **아래로 뒤집혔다**(세로 587px).
+    // 둘 다 필요하다 — **지금 핀의 화면 좌표**를 주면 붙이는 자리와 높이 상한이 같이 맞는다.
+    // 호버 미니카드는 짧아 상한이 걸릴 일이 없으므로 예전 그대로 `null` 이다.
+    positionCard(ac, expandedI !== null ? svgToClient(ac.x, ac.y) : null);
+    if (arc.getAttribute("d")) arc.setAttribute("d", arcPath(ac));   // 모양만, 애니메이션은 그대로
   }
   function tweenTo(from, to, ms) {
     var id = ++tweenId, t0 = 0;
@@ -1422,9 +1448,19 @@
     // 일어난 것처럼 보였다 — 누른 게 먹었는지 알 수 없다.
     if (expandedI === i) { closeByUser(); return; }
     missNote = "";                 // 다른 딜을 열었으면 "그 딜이 없다" 안내는 역할이 끝났다
+    // 🔴 **히스토리에도 「동시에 하나만」** (기획 결정 2026-10-01 (1) · B59).
+    // 상세가 이미 열려 있으면 **쌓지 않고 바꾼다.** 쌓으면 `×`(= `history.back()`)가 **앞 상세를
+    // 되살린다** — 실측: 제주 → 후쿠오카 → `×` → 제주가 다시 열리고 주소도 `#SEL-CJU` 였다.
+    // 스펙 두 줄이 같이 어긋나 있었다(§CH4): 「`×` 는 카드만 닫힌다」와
+    // 「뒤로가기 → 상세만 닫힌다 · `#{허브}`」 — 쌓으면 뒤로가기도 `#{허브}-A` 로 간다.
+    // 대가는 **뒤로가기가 A 를 건너뛰는 것**인데, A→B 는 같은 자리에서 대상만 바꾼 것이고
+    // 피드에 A 카드가 그대로 있어 한 번 누르면 돌아온다(기획 판단).
+    //
+    // ⚠️ `expandedI` 를 덮기 **전에** 읽는다 — 덮은 뒤에 보면 언제나 「열려 있다」가 된다.
+    var hadDetail = (expandedI !== null);
     expandedI = i;
     var c = cityByI(i);
-    if (c && ORIGIN_KEY) writeHash(ORIGIN_KEY + "-" + c.dcode, true);   // 상세는 히스토리를 쌓는다
+    if (c && ORIGIN_KEY) writeHash(ORIGIN_KEY + "-" + c.dcode, !hadDetail);
     if (!c || !CURV) { showCard(i, true, true); return; }
     var to = viewForPin(c, CURV);
     // 이미 그 자리면 굳이 움직이지 않는다 — 딥링크 진입은 **이동 없이 그 위치에서 시작**한다.
