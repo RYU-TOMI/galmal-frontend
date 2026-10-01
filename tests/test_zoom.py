@@ -156,8 +156,10 @@ class FollowTest(unittest.TestCase):
 
     def test_arc_moves_without_restarting_its_draw(self):
         """끄는 동안 매 프레임 `drawArc` 를 부르면 선이 계속 처음부터 그려져 깜빡인다."""
-        self.assertIn("arcPath(ac)", _fn("followCard"))
-        self.assertNotIn("drawArc", _fn("followCard"))
+        # CH9 뒤 항로 갱신은 `followArc()` 로 갈라졌다 — **선은 늘** 따라가고 카드만 정책을 탄다
+        # (상세를 여는 미끄러짐 동안 선이 멈춰 있던 것, 2026-10-01).
+        self.assertIn("arcPath(ac)", _fn("followArc"))
+        self.assertNotIn("drawArc", _fn("followArc"))
         self.assertNotIn("drawArc", _fn("moveOnly"))
 
     def test_text_is_not_selected_while_dragging(self):

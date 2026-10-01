@@ -109,9 +109,30 @@ class FollowTest(unittest.TestCase):
         self.assertIn("if (expandedI !== null) closeByUser();", fn("takeView"))
         self.assertIn("if (expandedI === null) followCard();", fn("moveOnly"))
 
-    def test_the_arc_follows_without_restarting(self):
-        self.assertIn("arcPath(ac)", fn("followCard"))
-        self.assertNotIn("drawArc", body("followCard"))
+    def test_the_arc_follows_even_while_a_detail_opens(self):
+        """🔴 **항로와 카드는 정책이 다르다** (사용자 2026-10-01: 「자세히보기를 하면 그곳으로
+        화면이 이동하면서 경로선이 이상하게 떠있어」).
+
+        상세를 여는 미끄러짐 동안 **카드**는 안 옮긴다 — 「핀이 도착할 자리」에 미리 놓여 있어야
+        흔들리지 않는다. 그런데 **항로까지** 같이 건너뛰니 선만 옛 자리에 멈춰 있었다:
+        실측 152 보이는 프레임 중 **146프레임** 어긋남, 최대 **97.6px**, 선 길이는 285 로 고정.
+        고친 뒤 153프레임 중 **0**.
+
+        ⚠️ CH8 에서 내가 만든 회귀다 — `.tweening .arc{opacity:0}` 을 지우며 「이제 정확하니
+        숨길 이유가 없다」고 했는데 **이 길에서는 정확하지 않았다.** 숨겨 뒀을 땐 안 보였을 뿐이다."""
+        self.assertIn("arcPath(ac)", fn("followArc"))
+        self.assertNotIn("drawArc", body("followArc"))
+        self.assertNotIn("arcPath", body("followCard"), "항로 갱신이 두 벌이 됐다")
+        mv = body("moveOnly")
+        self.assertIn("followArc();", mv)                       # 선은 늘
+        self.assertIn("if (expandedI === null) followCard();", mv)   # 카드는 정책대로
+        self.assertIn("followArc(); followCard();", body("render"))
+
+    def test_the_arc_needs_no_card_on_screen(self):
+        """선은 카드가 떠 있지 않아도 따라간다 — 상세를 여는 동안 카드는 아직 안 떠 있을 수 있다."""
+        f = body("followArc")
+        self.assertNotIn('hc.classList.contains("show")', f)
+        self.assertIn("if (active === null) return;", f)
 
     def test_nothing_happens_without_an_open_card(self):
         """열린 카드가 없으면 아무 일도 안 한다 — `render()` 는 늘 돈다."""
