@@ -243,7 +243,9 @@ class StepperTest(unittest.TestCase):
     def test_stage_light_goes_off_when_the_user_takes_over(self):
         """사용자가 만진 뷰는 어느 단계도 아니다 — 불이 켜져 있으면 **거짓말**이 된다."""
         # CH8: 「어느 단계도 아니다」가 「어느 지역도 아니다」가 됐다 — `regionKey === null`.
-        self.assertIn('pills[i].classList.toggle("on", lit !== null && pills[i].getAttribute("data-region") === lit)', CODE)
+        # B11 에서 판정이 `isOn` 으로 이름을 얻었다 — 불과 `aria-pressed` 가 같은 값에서 나온다.
+        self.assertIn('var isOn = lit !== null && pills[i].getAttribute("data-region") === lit;', CODE)
+        self.assertIn('pills[i].classList.toggle("on", isOn);', CODE)
 
     def test_ui_sync_runs_only_on_change(self):
         """🔴 뷰가 움직일 때마다 부르면 `syncStepper()` 가 `viewOf()` 를 두 번 불러 무대를 잰다 —

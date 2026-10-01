@@ -6,6 +6,33 @@
    출발지 드롭다운(처음부터 펼쳐짐) · 첫 방문 띠(× 를 눌러도 안 닫힘). 셋 다 **조용히 실패**했다.
    전역에서 한 번 못박는다. (기획 제안, 2026-09-04) */
 [hidden]{display:none!important}
+/* ---- 포커스 표시 — **우리가 정한다** (B11, 2026-10-01) ----
+   실측: `:focus` 가 들어간 우리 규칙은 **0개**였다. 그렇다고 안 보이던 건 아니다 —
+   크롬 기본 링(`outline: auto 1px`)이 측정한 32개 전부에 떴다. 백로그의 「안 보인다」는
+   절반만 맞았고 정확히는 **「우리가 안 정했다」**였다. 브라우저 기본값에 기대면 브라우저가
+   바꾸는 날 우리 화면이 같이 바뀐다.
+
+   🔴 **한 색으로는 못 덮는다.** 링이 닿는 바탕 10가지에 대고 대비를 재 보니(3:1 기준):
+   `ink` 는 3곳 미달(accent2·ink·sub), 흰색은 **6곳** 미달(흰 카드·도크·지도 땅/바다…),
+   코랄은 7곳 미달. 그래서 **바깥은 `ink`**(흰·soft·지도 위에서 9.9~12.9:1) 로 두고,
+   색을 모르는 자리(사진 위)만 **흰 링 + 어두운 테두리 두 겹**으로 간다.
+
+   `:focus-visible` 이다 — 마우스로 눌렀을 때는 안 뜬다(그 사람은 어디를 눌렀는지 안다). */
+/* **두 겹 — 안쪽 흰 2px + 바깥 `--ink` 2px**(DESIGN §접근성). `outline-offset` 이 만든 틈을
+   흰 `box-shadow` 가 채우고 그 바깥을 `--ink` outline 이 두른다. 어느 바탕에서도 **둘 중 하나는 산다.** */
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;box-shadow:0 0 0 2px #fff}
+/* 사진 위에 앉는 둘은 **바탕 색을 모른다**(밝은 하늘일 수도, 어두운 야경일 수도).
+   흰 링과 어두운 테두리를 겹쳐 **어느 사진 위에서도 한쪽은 대비가 산다.** */
+.hc-x:focus-visible,.hc-share:focus-visible{outline-color:#fff;box-shadow:0 0 0 2px rgba(6,20,18,.75)}
+/* 건너뛰기 링크 둘 (COPY §2) — **첫 Tab 에만 보인다.** 평소엔 화면 밖에 있다가 포커스를 받으면 내려온다.
+   `display:none` 이면 포커스도 못 받으므로 자리를 옮기는 방식이어야 한다. */
+.skips{position:absolute;left:0;top:0;z-index:50}
+.skips a{position:absolute;left:8px;top:-60px;background:var(--card);color:var(--ink);font-weight:800;
+  font-size:.86rem;padding:8px 14px;border-radius:0 0 10px 10px;border:1px solid var(--line);
+  box-shadow:0 4px 14px rgba(20,40,40,.16);text-decoration:none;white-space:nowrap;transition:top .12s}
+.skips a:nth-child(2){left:190px}
+.skips a:focus{top:0}
+@media(prefers-reduced-motion:reduce){.skips a{transition:none}}
 html,body{height:100%}
 body{background:var(--bg);color:var(--ink);font-family:'Pretendard Variable',Pretendard,sans-serif;-webkit-font-smoothing:antialiased;display:flex;flex-direction:column}
 .hdr{position:relative;z-index:30;display:flex;align-items:center;height:56px;padding:0 18px;background:var(--card);border-bottom:1px solid var(--line);flex:0 0 auto}

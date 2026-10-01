@@ -79,7 +79,7 @@ def problems(js, css):
     # ⚠️ 정규식이 `[^)]*` 였는데 CH8 의 조건에 `getAttribute("data-region")` 이 들어오면서
     # **괄호를 못 넘어 0곳으로 셌다** — 검사가 「켜는 곳이 없다」고 거짓 경보를 냈다.
     # 한 문장 안(`[^;]*`)에서 센다.
-    lit = len(re.findall(r'classList\.toggle\("on",[^;]*(?:stageIdx|regionKey|=== lit)\)',
+    lit = len(re.findall(r'classList\.toggle\("on",[^;]*(?:stageIdx|regionKey|=== lit|isOn)\)',
                          re.sub(r"(?m)^\s*//.*$", "", js)))
     if lit == 0:
         out.append("단계바의 「켜짐」을 켜는 곳이 없다")
@@ -126,7 +126,7 @@ class StageTest(unittest.TestCase):
         old = JS.replace("  function setRegion(key) {",
                          '  function setRegion(key) {\n'
                          '    var bs=document.querySelectorAll(".stagebar .pill");\n'
-                         '    for (var k=0;k<bs.length;k++) bs[k].classList.toggle("on", bs[k].getAttribute("data-region") === lit);')
+                         '    for (var k=0;k<bs.length;k++) var isOn=bs[k].getAttribute("data-region") === lit; bs[k].classList.toggle("on", isOn);')
         self.assertNotEqual(old, JS)
         self.assertTrue(any("한 곳이어야" in b for b in problems(old, CSS)))
 
