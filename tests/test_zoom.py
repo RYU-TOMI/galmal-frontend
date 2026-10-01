@@ -139,16 +139,25 @@ class FollowTest(unittest.TestCase):
 
     def test_detail_closes_but_mini_card_follows(self):
         """🔴 **둘이 다르다.** 미니카드는 「그 핀이 무엇인지」 가리키므로 따라가야 하고,
-        펼친 상세는 길고 결정하는 자리라 따라다니면 어지럽다 — 닫는다."""
+        펼친 상세는 길고 결정하는 자리라 따라다니면 어지럽다 — 닫는다.
+
+        CH9(B60)에서 **위치 계산이 `followCard()` 한 벌로 옮겨졌다.** 규칙은 그대로다 —
+        「언제 따라가나」는 **부르는 쪽**이 정하고(여기), 「어디에 놓나」는 한 곳에서 한다.
+        그래야 `render()` 도 같은 계산을 쓰면서 상세에 대해서는 **다른 정책**을 가질 수 있다."""
         tv = _fn("takeView")
         self.assertIn("if (expandedI !== null) closeByUser();", tv)
         mv = _fn("moveOnly")
-        self.assertIn("expandedI === null", mv)
-        self.assertIn("positionCard(ac, null)", mv)
+        self.assertIn("if (expandedI === null) followCard();", mv)      # 끄는 동안엔 미니카드만
+        self.assertNotIn("positionCard", mv, "위치 계산이 두 벌이 됐다")
+        fc = _fn("followCard")
+        # 「핀이 **지금** 있는 자리」 — 붙이는 자리와 **카드 높이 상한**을 같이 정한다.
+        self.assertIn("positionCard(ac, expandedI !== null ? svgToClient(ac.x, ac.y) : null)", fc)
+        self.assertNotIn("pinTarget()", fc, "「도착할 자리」는 미끄러지는 동안에만 쓴다")
 
     def test_arc_moves_without_restarting_its_draw(self):
         """끄는 동안 매 프레임 `drawArc` 를 부르면 선이 계속 처음부터 그려져 깜빡인다."""
-        self.assertIn("arcPath(ac)", _fn("moveOnly"))
+        self.assertIn("arcPath(ac)", _fn("followCard"))
+        self.assertNotIn("drawArc", _fn("followCard"))
         self.assertNotIn("drawArc", _fn("moveOnly"))
 
     def test_text_is_not_selected_while_dragging(self):
