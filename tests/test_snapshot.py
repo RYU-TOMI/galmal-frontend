@@ -15,11 +15,13 @@
 처음엔 「39개 전부 같다」로 짰다가 백엔드 반례(보존일엔 deals 만 어제 시각)로 고쳤다.
 그대로 뒀으면 보존일마다 배포가 통째로 멈췄다.
 """
+import io
 import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "site"))
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "site"))
 
 import snapshot  # noqa: E402
 
@@ -121,6 +123,58 @@ class LoadTest(unittest.TestCase):
             self.assertEqual(len(calls), 2)
         finally:
             snapshot.fetch_all = orig
+
+
+class RetryByAddressTest(unittest.TestCase):
+    """🔴 **기다리는 이유는 CDN 캐시뿐이다** (B52-①, CH11 T2).
+
+    예전엔 주소를 안 보고 **12번 × 60초**를 기다렸다. 로컬 픽스처에는 캐시가 없으므로
+    같은 파일을 12번 다시 읽고 **11분을 기다린 뒤** 같은 말로 실패했다. 픽스처가 어긋난
+    날 이게 가장 비싼 형태다 — 사람이 기다리다 중단하면 **왜 멈췄는지도 모른 채** 끝난다.
+    실측: 어긋낸 로컬 픽스처로 빌드 → **0.7초**에 종료코드 1(옛 기본값이면 기다림만 660초).
+    """
+
+    def _count(self, api, **kw):
+        calls = []
+        orig = snapshot.fetch_all
+
+        def fake(a):
+            calls.append(a)
+            return snap(routes={"ICN-FUK": YESTERDAY})      # 늘 어긋난다 — 끝까지 다시 받는다
+        snapshot.fetch_all = fake
+        try:
+            with self.assertRaises(SystemExit):
+                snapshot.load(api, wait=0, log=lambda *a: None, **kw)
+        finally:
+            snapshot.fetch_all = orig
+        return len(calls)
+
+    def test_local_folder_is_read_once(self):
+        self.assertEqual(self._count("fixtures/v1"), 1)
+
+    def test_url_still_waits_for_the_cache(self):
+        """캐시 수명(10분)을 넘길 만큼은 그대로 기다린다 — 이쪽을 줄이면 T6d 가 무너진다."""
+        self.assertEqual(self._count("https://api.galmal.kr/v1"), 12)
+
+    def test_an_explicit_count_wins(self):
+        """손으로 넘긴 값은 주소와 무관하게 그대로 쓴다 — 기본값일 때만 주소를 본다."""
+        self.assertEqual(self._count("fixtures/v1", retries=5), 5)
+        self.assertEqual(self._count("https://api.galmal.kr/v1", retries=2), 2)
+
+    def test_the_two_places_ask_the_same_question(self):
+        """🔴 `fetch()` 와 `load()` 가 **같은 판정**을 써야 한다 — 따로 물으면 한쪽만 바뀐다."""
+        import route
+        self.assertIs(route.is_url, snapshot.is_url)
+        self.assertTrue(route.is_url("https://api.galmal.kr/v1"))
+        self.assertTrue(route.is_url("http://127.0.0.1:8000/v1"))
+        self.assertFalse(route.is_url("fixtures/v1"))
+        self.assertFalse(route.is_url(r"C:\tmp\v1"))
+
+    def test_the_cli_default_is_not_a_number(self):
+        """`build.py` 가 12 를 박아 넘기면 위 판정이 **절대 안 돈다** — 실제로 그랬다."""
+        with io.open(os.path.join(ROOT, "site", "build.py"), encoding="utf-8") as f:
+            src = f.read()
+        self.assertIn('"--retries", type=int, default=None', src)
 
 
 if __name__ == "__main__":

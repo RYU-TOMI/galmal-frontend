@@ -107,8 +107,20 @@ def thin(r):
 
 
 def months_shown(months):
-    """`n >= 3` 인 것만, 월 오름차순 앞에서 10개 — 현행 SQL 재현."""
-    return [m for m in months if m["n"] >= MIN_SAMPLES][:MONTH_CAP]
+    """`n >= 3` 인 것만, **월 오름차순** 앞에서 10개 (`CONTRACT.md` §차트 102줄).
+
+    🔴 **정렬을 우리가 한다**(B63). 예전엔 거르고 바로 앞에서 10개를 잘랐다 — 주석은
+    「월 오름차순」인데 오름차순은 **백엔드가 그렇게 준다는 전제**였다. 계약은 반대로 적어
+    놓았다: 「필요한 순서는 **소비자가 다시 정렬한다**」(§`routes/index` 정렬). 전제가 깨지면
+    **엉뚱한 달 10개가 조용히 실린다** — 예외도 안 나고 막대도 그려지고 숫자만 틀린다.
+    `fmt.weekday_name()` 은 같은 이유로 「배열 순서를 믿지 않는다」고 적어 두고 값으로 읽는데,
+    월만 순서를 믿고 있었다. 오늘 픽스처 43노선은 전부 오름차순이라 **화면은 안 바뀐다.**
+
+    `m` 은 `"2026-09"` 꼴이라 글자 비교가 곧 시간 순서다(월이 0 으로 채워져 있다).
+    자르기 **전에** 정렬한다 — 뒤에 하면 아무 10개를 뽑아 예쁘게 늘어놓는 것이 된다.
+    """
+    return sorted((m for m in months if m["n"] >= MIN_SAMPLES),
+                  key=lambda m: m["m"])[:MONTH_CAP]
 
 
 def airlines_shown(airlines):
@@ -134,13 +146,22 @@ def machine_date(generated):
     return datetime.fromisoformat(generated).astimezone(timezone.utc).date().isoformat()
 
 
+def is_url(api):
+    """`api` 가 네트워크 주소인가 — 로컬 폴더인가.
+
+    🔴 **한 군데서만 묻는다.** `snapshot.load()` 가 「CDN 캐시를 기다릴 가치가 있나」를
+    같은 기준으로 판단한다(B52-①). 두 곳에서 따로 물으면 한쪽만 바뀌는 날이 온다.
+    """
+    return api.startswith("http")
+
+
 def fetch(api, path):
     """v1 응답 하나를 읽는다. `api` 는 URL 이거나 로컬 폴더다.
 
     **빌드 타임에** 부른다 — 브라우저가 아니라 빌드 서버다. 그래서 CORS 는 관심사가
     아니고, 방문자는 이 요청을 보지 못한다(`CONTRACT.md` §v1).
     """
-    if api.startswith("http"):
+    if is_url(api):
         with urllib.request.urlopen(api.rstrip("/") + "/" + path, timeout=30) as r:
             return json.loads(r.read().decode("utf-8"))
     with open(os.path.join(api, *path.split("/")), encoding="utf-8") as f:
@@ -158,6 +179,13 @@ def subscribe_link(sub, code, label):
 
     **그래서 지어내지 않고 `meta.json` 의 `subscribe` 블록에서 받는다.**
     문구(「이 메일을 그대로 보내주시면…」)는 `COPY.md` 소관이라 여기서 만든다.
+
+    🔴 **본문 모양을 바꿀 땐 백엔드에 먼저 알린다**(B63, 2026-10-05). 반대 방향의 사본이
+    하나 더 있다: 백엔드 `tests/test_subscriptions.py::test_route_in_body_is_read` 가 여기서
+    만드는 본문(`노선: ICN-FUK (인천 → 후쿠오카)`)을 **보고 옮겨 적은 사본**으로 들고 있다.
+    계약에는 주소·제목·`route_token` 만 있고 **본문 모양은 없다** — 즉 양쪽 테스트가 다
+    초록인 채로 구독이 「전 노선」으로 떨어질 수 있다. 백엔드도 자기 `ROUTE_RE` 위에
+    「바꾸기 전에 프론트에 먼저 알린다」를 적어 뒀다(`64b83f4`). 이쪽에도 적는다.
     """
     subject = urllib.parse.quote(sub["subject_subscribe"])
     token = sub["route_token"].replace("{code}", code)

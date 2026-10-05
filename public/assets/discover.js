@@ -211,6 +211,23 @@
   // ---- 파싱/공용 ----
   var LIGHT = [247, 178, 158], DEEP = [214, 60, 30];
   function lerp(a, b, t) { return Math.round(a + (b - a) * t); }
+  // 🔴 **백엔드 문자열을 HTML 에 끼울 때 두른다** (B51).
+  // 실측(2026-10-05, 브라우저에 직접 물음): 지금 깨진 것은 **0건**이다 — HTML5 는 **속성 안에서는**
+  // `&currency=` 를 안 바꾼다(뒤에 영숫자·`=` 가 오면 historical 규칙으로 통과시킨다).
+  // ⚠️ 파이썬 `html.unescape` 로 재면 **280개가 깨진다고 나온다** — 그 함수는 속성 예외를 모른다.
+  // **자가 아니라 브라우저에 물어야 하는 자리였다.**
+  //
+  // 그러나 **본문은 다르다**: 같은 문자열을 본문에 넣으면 `&currency` → `¤cy`,
+  // `&lt=1` → `<=1`, `&copy=2` → `©=2` 로 **지금도 바뀐다.** 도시명·예약처 이름이 본문으로 간다 —
+  // 예약처 이름에 `&` 가 하나 들어오는 날이 그날이다. 그래서 **오기 전에** 두른다.
+  //
+  // `setAttribute`·`textContent` 로 가는 자리에는 **두르지 않는다** — 거기선 브라우저가 이미
+  // 그대로 넣으므로, 두르면 화면에 `&amp;` 가 **글자 그대로** 보인다(고치려다 만드는 버그).
+  function esc(v) {
+    return String(v == null ? "" : v)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
   function num(p) { return +p.replace(/[^0-9]/g, ""); }
   // 출발일 정렬 키 — 원본 ISO(YYYY-MM-DD)를 그대로 쓴다. 사전순 = 시간순.
   // 표시용 문자열("9/12(토)~")을 되파싱하면 연도가 없어 내년 딜이 앞으로 온다.
@@ -548,7 +565,7 @@
   function ovTags(c, max) {
     if (!max) return "";
     var t = cardTags(c.tags).slice(0, max);
-    return t.length ? '<div class="phtags">' + t.map(function (x) { return '<span class="ovtag">' + x + "</span>"; }).join("") + "</div>" : "";
+    return t.length ? '<div class="phtags">' + t.map(function (x) { return '<span class="ovtag">' + esc(x) + "</span>"; }).join("") + "</div>" : "";
   }
   var SPARSE_AT = 10;   // 이 미만이면 "딜이 적은 출발지" 안내를 붙인다 (SPEC §CH3 F2)
   var PIN_R = 6, MINOR_R = 2.5;   // major 지름 12px · minor 지름 5px (SPEC §CH1)
@@ -710,7 +727,7 @@
     var O = pt(ORIGIN.lon, ORIGIN.lat); ORIGIN.x = O[0]; ORIGIN.y = O[1];
     og.innerHTML = '<circle class="origin-ring" cx="' + O[0] + '" cy="' + O[1] + '" r="9"/>' +
       '<circle class="origin-dot" cx="' + O[0] + '" cy="' + O[1] + '" r="4"/>' +
-      '<text class="plabel org" x="' + O[0] + '" y="' + (O[1] - 13) + '" text-anchor="middle">' + ORIGIN.n + " 출발</text>";
+      '<text class="plabel org" x="' + O[0] + '" y="' + (O[1] - 13) + '" text-anchor="middle">' + esc(ORIGIN.n) + " 출발</text>";
     var vis = visibleCities(), colorOf = colorMaker(vis);
     vis.forEach(function (c) { var p = pt(c.lon, c.lat); c.x = p[0]; c.y = p[1]; c._col = colorOf(c.price); });
     placeLabels(vis);
@@ -727,7 +744,7 @@
       g.innerHTML = (mn ? "" : '<circle class="halo" cx="' + c.x + '" cy="' + c.y + '" r="' + (PIN_R * 1.6) + '" fill="' + c._col + '"/>') +
         '<circle class="core" cx="' + c.x + '" cy="' + c.y + '" r="' + r + '" fill="' + c._col + '"/>' +
         (L ? '<text class="plabel' + (L.off ? " off" : "") + '" x="' + L.x + '" y="' + L.y +
-             '" text-anchor="' + L.anchor + '">' + c.n + "</text>" : "");
+             '" text-anchor="' + L.anchor + '">' + esc(c.n) + "</text>" : "");
       (function (el, i) { el.addEventListener("mouseenter", function () { hoverIn(i, true); });
         el.addEventListener("mouseleave", hoverOut);
         el.addEventListener("click", function (e) { e.stopPropagation(); pinTap(i); }); })(g, c._i);
@@ -774,7 +791,7 @@
           (hero ? '<span class="pick">진짜 갈래말래?</span>' + ovTags(c, isMobile() ? 2 : 4) : "") + "</div>" +
         // 🔴 **둘이 같이 뜨지 않는다** — 도장 우선, 없으면 신기록 (SPEC §CH3).
         // 좁은 줄에 표식 둘이 겹치면 **어느 쪽도 안 읽힌다.** 고르는 자리는 카드, 둘 다 보여 주는 자리는 상세다.
-        '<div class="fbody"><div class="frow"><b class="fcity">' + c.n + '</b>' + (stampHTML(c) || recShort(c)) + "</div>" +
+        '<div class="fbody"><div class="frow"><b class="fcity">' + esc(c.n) + '</b>' + (stampHTML(c) || recShort(c)) + "</div>" +
         // 🔴 **`1인 왕복` 은 고지가 아니라 단위다** (SPEC §CH4 보강 · COPY.md §인원).
         // 「원」이나 「왕복」처럼 **값에 붙어 다니는 말**이라 매 카드에 있어도 소음이 아니다 —
         // 오히려 없으면 **한 사람 값인지 두 사람 값인지 모른 채** 카드를 비교하게 된다.
@@ -782,7 +799,7 @@
         '<div class="fprice"><span><small>₩</small>' + c.price + ' <span class="tilde">~</span>' +
           ' <span class="unit">1인 왕복</span></span>' + c.trans + "</div>" +
         freshHTML(c) +
-        '<div class="fdate"><span class="when">' + c.when + "</span>" + c.date + (c.nights ? " · " + c.nights : "") + "</div>" +
+        '<div class="fdate"><span class="when">' + esc(c.when) + "</span>" + c.date + (c.nights ? " · " + esc(c.nights) : "") + "</div>" +
         (hero ? '<div class="gorow"><button class="go">갈래 → 자세히 보기</button></div>' : "") +
         "</div>";
       // 🔴 **카드가 정지점이다**(SPEC §CH6). 이름은 **카드 안 글자 그대로** — 통째 `aria-label` 로
@@ -833,10 +850,10 @@
         if (!best || n > best.n) best = { k: k, n: n, name: D.origins[k].name };
       }
       // 판정선 10건은 **출발지 전체 M 기준**이다. 무대 기준으로 재면 `가까운 곳`에서 서울조차 희소로 잡힌다.
-      note = "<b>" + ORIGIN.n + " 출발은 오늘 " + TOTAL + "곳이에요.</b>" +
+      note = "<b>" + esc(ORIGIN.n) + " 출발은 오늘 " + TOTAL + "곳이에요.</b>" +
         // 최다 허브가 지금 출발지면 둘째 줄은 거짓말이 된다 — 그때는 첫 줄만 둔다.
         (best && best.k !== ORIGIN_KEY && best.n > TOTAL
-          ? "<span>" + best.name + "에서 출발하면 " + best.n + "곳까지 늘어나요.</span>" : "");
+          ? "<span>" + esc(best.name) + "에서 출발하면 " + best.n + "곳까지 늘어나요.</span>" : "");
     }
     if (note) {
       var sp = document.createElement("div"); sp.className = "feednote sparse";
@@ -1133,7 +1150,7 @@
   function photoHTML(c, max) {
     var src = photoSrc(c, false);
     return '<div class="hc-photo' + (src ? " has-photo" : "") + '" style="background:' + c.g + '">' +
-      photoImg(src) + ovTags(c, max) + '<span class="cityname">' + c.n + "</span></div>";
+      photoImg(src) + ovTags(c, max) + '<span class="cityname">' + esc(c.n) + "</span></div>";
   }
   // `detail` — **확장 상세인가.** 같은 머리를 두 자리가 쓴다(호버/축소 카드 · 확장 상세)인데
   // 표식 규칙이 서로 다르다. 축소 카드는 **고르는 자리**라 피드 카드와 같이 하나만 짧게 쓰고,
@@ -1154,7 +1171,7 @@
       // 여기가 맞는 자리다: 출발 공항과 **같은 종류의 사실**(이 값이 무엇에 대한 값인가)이고 글자 크기도 같다.
       // `oa` 가 없어도 단위는 나간다 — 접기를 떠받치는 건 **단위**지 공항이 아니다.
       (detail ? '<div class="hc-oa">' + (c.oa ? c.oa + ' 출발 · ' : "") + '1인 왕복</div>' : "") +
-      '<div class="hc-date">' + c.date + (c.nights ? " · " + c.nights : "") + "</div>" +
+      '<div class="hc-date">' + c.date + (c.nights ? " · " + esc(c.nights) : "") + "</div>" +
       '<div class="hc-trans">' + c.trans + "</div>" + freshHTML(c);
   }
   // ---- 평소 시세(중앙값) 대비 발견가 ----
@@ -1310,9 +1327,9 @@
       // (광고)는 `ad` 가 참인 링크에만 붙인다 — 이름·순서·URL 모양으로 추측하지 않는다.
       // `tag`(전체 비교·한국 인기·중립·한국어)는 우리가 매기는 평가라 계속 숨긴다. (COPY.md 제휴 고지)
       // 시각적으로 약하게 둔다 — 눈에 띄게 만들면 고지가 아니라 강조가 된다.
-      return '<a class="cmp" href="' + bookURL(l) + '" data-u="' + l.url + '" data-p="' + (l.pax_url || "") + '"' +
+      return '<a class="cmp" href="' + esc(bookURL(l)) + '" data-u="' + esc(l.url) + '" data-p="' + esc(l.pax_url || "") + '"' +
         ' target="_blank" rel="noopener sponsored">' +
-        '<span class="cmp-name">' + l.name + (l.ad ? ' <span class="cmp-ad">(광고)</span>' : "") + paxNote(l) + '</span>' +
+        '<span class="cmp-name">' + esc(l.name) + (l.ad ? ' <span class="cmp-ad">(광고)</span>' : "") + paxNote(l) + '</span>' +
         '<span class="cmp-go">최저가 보기 →</span></a>';
     }).join("") + "</div>";
   }
@@ -1339,7 +1356,7 @@
       // ⚠️ **고지 사슬은 건드리지 않는다**: `(광고)` 설명 → 예약처 목록 → 가격 고지는 붙어 있어야 한다
       // (그 사이에 링크가 끼면 고지가 무엇에 대한 것인지 흐려진다 — B61). 이 링크는 그 **앞**에 있어 사슬 밖이다.
       // 주소는 루트 기준 경로다 — 도메인을 JS 에 박으면 `shell.BASE_URL` 과 사본이 둘이 된다.
-      (c.route ? '<a class="hc-route" href="/routes/' + c.route + '.html">이 노선 시세 자세히 →</a>' : "") +
+      (c.route ? '<a class="hc-route" href="/routes/' + esc(c.route) + '.html">이 노선 시세 자세히 →</a>' : "") +
       // `links` 가 비면 **섹션을 통째로 생략**한다 — 지금은 헤더만 남아 "비교해보세요" 라고
       // 해놓고 비교할 게 없는 화면이 된다. 오늘 픽스처는 131건 전부 5개라 **장애 시 방어**다.
       // ⚠️ 배열 길이를 하드코딩하지 않는다 — 5개는 지금 사실이지 계약이 아니다(SPEC §CH4).
@@ -1700,11 +1717,20 @@
     if (from && CURV && !reduceMotion()) tweenTo(from, CURV, 400);
   }
   // 무대 종횡비가 1000/680을 넘나들면 가시 가로가 통째로 바뀐다 → far 배율을 다시 잡는다.
+  // 🔴 **리사이즈 리스너는 하나다**(B52-③). 둘이던 때는 모바일 리사이즈마다 `render()` 가
+  // **두 번** 돌았다 — 여기서 120ms 뒤에 한 번, 시트 쪽 리스너의 `setSheet(…, true)` 가
+  // 전환 끝(300ms)에 또 한 번. 게다가 시트 쪽은 눌림(debounce)이 없어서 **리사이즈 이벤트
+  // 수만큼** 타이머가 쌓였다(브라우저는 끄는 동안 초당 수십 번 보낸다).
+  // 순서가 중요하다: 시트 높이가 무대 높이(`--sheet-h`)를 정하므로 **재기 전에** 먹인다.
   var rzT = null;
   window.addEventListener("resize", function () {
     if (rzT) clearTimeout(rzT);
     geoBump();                                  // 창 크기가 바뀌면 무대·UI 상자가 통째로 달라진다
-    rzT = setTimeout(function () { rzT = null; if (ORIGIN) render(); }, 120);
+    if (isMobile()) applySheet(sheetH);          // 새 창 높이로 스냅 상한이 바뀐다 — 다시 물린다
+    else { feed.style.height = ""; document.documentElement.style.removeProperty("--sheet-h"); }
+    // 모바일은 시트·무대가 `.28s` 로 끌린다(`discover.css` `.feed`). 끌리는 중에 재면
+    // 중심·배율을 **지나가는 높이**로 잡는다 — 끝난 뒤에 잰다.
+    rzT = setTimeout(function () { rzT = null; if (ORIGIN) render(); }, isMobile() ? 320 : 120);
   });
   // 🔴 **자리 번호가 아니라 `data-region` 으로** 부른다. 그날 딜이 없는 지역은 칩이 빠져
   // 번호가 밀리므로(대구는 넷이 빠진다), 번호로 묶으면 「유럽」을 눌렀는데 「미주」로 간다.
@@ -2053,18 +2079,22 @@
     return Math.max(SHEET_HALF + 40, h - 72);      // 지도를 조금은 남긴다
   }
   function sheetSnaps() { return [SHEET_PEEK, SHEET_HALF, sheetFull()]; }
-  function setSheet(h, animate) {
-    if (!isMobile()) return;
+  // 시트 높이만 먹인다 — `render()` 는 안 부른다. 리사이즈는 자기 타이머로 한 번만 그린다(B52-③).
+  function applySheet(h) {
     var sn = sheetSnaps();
     h = Math.max(sn[0], Math.min(sn[2], h));
     sheetH = h;
-    if (!animate) document.body.classList.add("sheet-drag");
     feed.style.height = h + "px";
     // 단계바·도크가 시트 위에 얹혀 따라 올라온다.
     document.documentElement.style.setProperty("--sheet-h", h + "px");
     // full 은 "훑고 비교할 때"라 지도 조작이 필요 없다. 무대가 72px 까지 줄면 단계바·도크가
     // 무대 밖으로 밀려 헤더와 안내 띠를 덮는다(실측) — 그때는 치운다.
     document.body.classList.toggle("sheet-full", h >= sheetFull() - 20);
+  }
+  function setSheet(h, animate) {
+    if (!isMobile()) return;
+    if (!animate) document.body.classList.add("sheet-drag");
+    applySheet(h);
     if (animate) {
       document.body.classList.remove("sheet-drag");
       // 무대가 시트만큼 짧아졌다 → 중심·배율·LOD·라벨을 다시 잡는다.
@@ -2136,10 +2166,6 @@
     document.addEventListener("touchcancel", onUp);
   })();
   if (isMobile()) setSheet(SHEET_HALF, true);
-  window.addEventListener("resize", function () {
-    if (isMobile()) setSheet(sheetH, true);
-    else { feed.style.height = ""; document.documentElement.style.removeProperty("--sheet-h"); }
-  });
 
   var fdock = document.getElementById("fdock"), fdt = document.getElementById("fdtoggle");
   if (fdt) fdt.addEventListener("click", function () { fdock.classList.toggle("collapsed"); syncDockClip(); });
@@ -2173,7 +2199,7 @@
     // **건수를 붙인다** — 희소 허브는 고르기 전에 티를 낸다(`제주 10곳`). (SPEC §CH3)
     drop.innerHTML = liveOrigins().map(function (k) {
       return '<button type="button" class="odopt" role="option" data-o="' + k + '">' +
-             '<b>' + D.origins[k].name + '</b><i>' + dealCount(k) + "곳</i></button>";
+             '<b>' + esc(D.origins[k].name) + '</b><i>' + dealCount(k) + "곳</i></button>";
     }).join("");
     var els = drop.querySelectorAll(".odopt");
     for (var i = 0; i < els.length; i++) (function (el) {

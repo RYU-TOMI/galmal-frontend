@@ -47,7 +47,7 @@ import sys
 import time
 from datetime import datetime
 
-from route import fetch
+from route import fetch, is_url
 
 
 def fetch_all(api):
@@ -96,12 +96,19 @@ def problems(snap, expect=None):
     return out
 
 
-def load(api, expect=None, retries=12, wait=60, log=print):
+def load(api, expect=None, retries=None, wait=60, log=print):
     """검증된 스냅숏을 돌려준다. 끝내 안 맞으면 종료코드 1 로 멈춘다.
 
     검사를 끄는 길은 없다. 예전엔 `--no-snapshot-check` 가 있었는데, 기준선 픽스처(05d0de9)가
     이 규칙 이전 발행이라서였다. 2026-09-19 픽스처를 한 발행분으로 새로 받아 적어 없앴다(B40).
+
+    🔴 **기다리는 이유는 CDN 캐시뿐이다**(B52-①). 로컬 폴더에는 캐시가 없다 — 같은 파일을
+    12번 다시 읽고 **12분 뒤에** 같은 말로 실패한다. 픽스처가 어긋났을 때 그게 가장 비싼
+    형태다: 사람이 기다리다 중단하면 **왜 멈췄는지 모른 채** 끝난다. 그래서 한 번만 본다.
+    `retries` 를 손으로 넘기면 그 값을 그대로 쓴다 — 기본값일 때만 주소를 보고 정한다.
     """
+    if retries is None:
+        retries = 12 if is_url(api) else 1
     for attempt in range(1, retries + 1):
         snap = fetch_all(api)
         bad = problems(snap, expect)
