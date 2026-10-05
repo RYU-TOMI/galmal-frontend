@@ -53,7 +53,9 @@ def main():
     ap.add_argument("--expect-generated", default="",
                     help="백엔드 신호가 알려준 generated. 받은 meta 와 다르면 옛 캐시다. "
                          "비우면 이 대조만 건너뛴다(섞임 검사는 그대로 한다)")
-    ap.add_argument("--retries", type=int, default=12, help="스냅숏이 안 맞을 때 다시 받는 횟수")
+    ap.add_argument("--retries", type=int, default=None,
+                    help="스냅숏이 안 맞을 때 다시 받는 횟수. 기본: API 주소면 12, 로컬 폴더면 1 "
+                         "— 로컬엔 기다릴 캐시가 없다(B52-①)")
     ap.add_argument("--wait", type=int, default=60, help="재시도 간격(초). CDN max-age=600")
     a = ap.parse_args()
 

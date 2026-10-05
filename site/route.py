@@ -134,13 +134,22 @@ def machine_date(generated):
     return datetime.fromisoformat(generated).astimezone(timezone.utc).date().isoformat()
 
 
+def is_url(api):
+    """`api` 가 네트워크 주소인가 — 로컬 폴더인가.
+
+    🔴 **한 군데서만 묻는다.** `snapshot.load()` 가 「CDN 캐시를 기다릴 가치가 있나」를
+    같은 기준으로 판단한다(B52-①). 두 곳에서 따로 물으면 한쪽만 바뀌는 날이 온다.
+    """
+    return api.startswith("http")
+
+
 def fetch(api, path):
     """v1 응답 하나를 읽는다. `api` 는 URL 이거나 로컬 폴더다.
 
     **빌드 타임에** 부른다 — 브라우저가 아니라 빌드 서버다. 그래서 CORS 는 관심사가
     아니고, 방문자는 이 요청을 보지 못한다(`CONTRACT.md` §v1).
     """
-    if api.startswith("http"):
+    if is_url(api):
         with urllib.request.urlopen(api.rstrip("/") + "/" + path, timeout=30) as r:
             return json.loads(r.read().decode("utf-8"))
     with open(os.path.join(api, *path.split("/")), encoding="utf-8") as f:
