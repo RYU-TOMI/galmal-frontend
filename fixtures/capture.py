@@ -59,13 +59,18 @@ def main():
     src = sys.argv[1]
     gen = _from_url(src) if src.startswith("http") else _from_git(src)
 
-    # 🔴 **옛 사본을 먼저 비운다.** 백엔드는 표본 0 이 된 노선의 옛 파일을 지우지 않는다 —
+    # 🔴 **다 받은 다음에 옛 사본을 손댄다**(B52-②). 예전엔 받기 **전에** 비웠다 —
+    # 47개 중 30번째에서 네트워크가 끊기면 픽스처가 **반쪽으로 남았다.** git 으로 되돌릴
+    # 수는 있지만, 되돌려야 하는 걸 아는 사람만 되돌린다. 받다 실패하면 **아무것도 안 바뀐다.**
+    blobs = list(gen)
+
+    # 🔴 **그제서야 옛 사본을 비운다.** 백엔드는 표본 0 이 된 노선의 옛 파일을 지우지 않는다 —
     # 덮어쓰기만 하면 지금 index 에 없는 노선 파일이 섞여 남는다.
     import shutil
     shutil.rmtree(OUT, ignore_errors=True)
 
     n = 0
-    for rel, blob in gen:
+    for rel, blob in blobs:
         dst = os.path.join(HERE, rel)
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         with open(dst, "wb") as f:
