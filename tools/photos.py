@@ -128,6 +128,20 @@ def main():
         if not os.path.isdir(d):
             os.makedirs(d)
 
+    # 🔴 **검수된 사진만 굽는다** (기획 2026-10-05 지적, CH11).
+    # 이 도구는 「`photos.json` 에 있으면 다 검수된 것」이라고 **가정**하고 있었다 — `ok` 를 읽는 줄이
+    # 한 줄도 없었다. 기획이 후보를 `ok:false` 로 넣어 두는 방식으로 바뀌면서, 그대로 돌리면
+    # **검수 전 사진이 그냥 나간다**(실측 2026-10-05: 도시 82곳 중 `ok:false` 5곳).
+    #
+    # `ok` 키가 **없으면 굽지 않는다.** 기본값을 「허용」으로 두면 키가 하나 늘거나 이름이 바뀌는 날
+    # 또 샌다 — **모르면 안 내보낸다.**
+    def approved(v):
+        return v.get("ok") is True
+    held = sorted(ko for ko, v in cities.items() if not approved(v))
+    cities = {ko: v for ko, v in cities.items() if approved(v)}
+    if held:
+        print("검수 전이라 건너뜀 %d곳: %s" % (len(held), " · ".join(held)))
+
     credits, made, skipped, reused, total = {}, 0, 0, 0, 0
     codes = [(c, ko) for ko, v in sorted(cities.items()) for c in v["codes"]]
     for i, (code, ko) in enumerate(sorted(codes)):

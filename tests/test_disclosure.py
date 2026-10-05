@@ -270,7 +270,8 @@ class RouteLinkTest(unittest.TestCase):
 
     def test_link_target_is_root_relative(self):
         """도메인을 JS 에 박으면 `shell.BASE_URL` 과 사본이 둘이 되고, 상대경로면 해시 주소에서 엉뚱하게 풀린다."""
-        self.assertIn("href=\"/routes/' + c.route + '.html\"", self._detail())
+        # B51(2026-10-05): 백엔드 문자열이라 `esc()` 를 두른다. 규칙(루트 상대·`BASE_URL` 사본 없음)은 그대로.
+        self.assertIn("href=\"/routes/' + esc(c.route) + '.html\"", self._detail())
 
     def test_route_value_is_carried_from_the_deal(self):
         """`toCity()` 가 `route` 를 들고 와야 한다 — 받아만 두고 버리던 값이었다."""
