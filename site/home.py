@@ -158,12 +158,22 @@ def render_home(payload, deals_json, world_json, index, vocab, meta, generated_d
     # 적어 두면 그 순간 손 사본이 둘이 되고, 이 저장소는 그걸로 **다섯 번** 사고를 냈다.
     # 분위기·날짜 칩은 HTML 에 그려져 있어 JS 가 그 칩에서 읽지만, 공항 이름은 그릴 자리가 없다 — 그래서 실어 보낸다.
     # 빌드가 「모든 딜의 `oa` 가 이 표에 있나」를 이미 검사했다(`site/origin.py`).
-    airports_json = json.dumps(vocab.get("airport_name") or {}, ensure_ascii=False, separators=(",", ":"))
+    # 🔴 **인라인 `<script>` 안의 `</` 를 막는다** (B51 · `shell.jsonld_block` 과 같은 이유).
+    # 값 안에 `</script>` 가 들어오면 브라우저가 **거기서 스크립트를 끝낸다** — 페이지가 통째로 깨지고,
+    # JSON 은 멀쩡해 보여서 `json.loads` 로는 못 잡는다. `shell.jsonld_block` 은 이미 막는데
+    # 여기만 빠져 있었다. **규칙이 있는데 빠진 자리**다.
+    def inline(v):
+        return json.dumps(v, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+    airports_json = inline(vocab.get("airport_name") or {})
     # 🔴 **사진이 있는 목적지 코드**를 실어 보낸다. JS 는 파일이 있는지 알 길이 없으므로,
     # 없는 코드에 `<img>` 를 걸면 **404 가 조용히 쌓이고** 그 자리에 깨진 이미지가 남는다
     # (없는 파일의 404 는 HTML 에 안 나타난다 — `SPLIT.md` M4 의 함정과 같은 종류다).
     # 목록은 빌드가 `public/assets/photos/` 를 훑어 만든 것이고, 거기서 이미 크레딧과 대조했다.
-    photos_json = json.dumps(sorted(photo_codes or ()), ensure_ascii=False, separators=(",", ":"))
+    photos_json = inline(sorted(photo_codes or ()))
+    # 🔴 **딜과 지도 윤곽에도 같은 보호를 입힌다** — 도시 이름과 예약처 URL 이 전부 `__DEALS` 안에 있다.
+    # 이미 JSON 문자열이라 다시 `dumps` 하지 않고 `</` 만 깬다.
+    deals_json = (deals_json or "").replace("</", "<\\/")
+    world_json = (world_json or "").replace("</", "<\\/")
     # ⓘ 설명이 「최근 {N}일」이라고 말한다 — 그 `N` 은 **창(window)이라 백엔드가 정한다**
     # (`CLAUDE.md`: 임계는 프론트가, 창은 백엔드가 정한다). 프론트가 `30` 을 적어 두면 백엔드가 창을
     # 바꾼 날 화면만 옛 숫자를 말한다 — 예외도 안 나고 사람만 모르는, 가장 비싼 모양이다.
