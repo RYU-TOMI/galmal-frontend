@@ -117,6 +117,24 @@ class SubscribeLinkTest(unittest.TestCase):
         _, _, body = _mailto_parts(route.subscribe_link(sub, "ICN-FUK", "인천 → 후쿠오카"))
         self.assertIn("[ICN-FUK]", body)
 
+    def test_the_body_shape_is_pinned_because_the_backend_copied_it(self):
+        """🔴 **이 테스트가 깨지면 백엔드에 먼저 알린다** (B63, CH11 T3).
+
+        계약에는 주소·제목·`route_token` 만 있고 **본문 모양은 없다.** 그런데 백엔드
+        `tests/test_subscriptions.py::test_route_in_body_is_read` 가 이 첫 줄을
+        **보고 옮겨 적은 사본**으로 들고 있다 — 즉 본문을 바꾸면 **양쪽 테스트가 다 초록인 채로**
+        구독이 「전 노선」으로 떨어질 수 있다(`subscriptions.py` 의 `add(route or "ALL")`).
+        도쿄만 신청한 사람이 43노선 메일을 받고, 그건 스팸 신고로 돌아온다.
+
+        그래서 모양을 여기 못 박는다. 바꾸고 싶으면 **이 테스트를 고치기 전에 메시지를 보낸다.**
+        """
+        _, _, body = _mailto_parts(route.subscribe_link(META["subscribe"], "ICN-FUK", "인천 → 후쿠오카"))
+        self.assertEqual(body.split("\n")[0], "노선: ICN-FUK (인천 → 후쿠오카)")
+
+    def test_the_warning_is_written_where_the_change_would_be_made(self):
+        """경고가 백로그에만 있으면 **그 파일을 여는 사람은 못 본다** — 함수 머리말에 둔다."""
+        self.assertIn("본문 모양을 바꿀 땐 백엔드에 먼저 알린다", route.subscribe_link.__doc__)
+
     def test_probe_missing_code_would_mean_all(self):
         """탐침 — 코드가 빠진 본문에서 이 검사가 **정말 아무것도 못 찾는지**. 못 찾으면 백엔드는 `ALL` 로 친다."""
         self.assertIsNone(_first_route("노선: (인천 → 후쿠오카)\n\n이 메일을 그대로 보내주시면 구독이 신청됩니다."))
@@ -173,10 +191,43 @@ class ThresholdTest(unittest.TestCase):
         self.assertEqual(len(shown), route.MONTH_CAP)
         self.assertEqual([m["m"] for m in shown][:2], ["2026-01", "2026-03"])   # 앞에서부터
 
-    def test_months_arrive_sorted_in_real_data(self):
-        """🔴 `months_shown()` 은 **정렬하지 않고** 앞에서 10개를 자른다 — 백엔드가 월 오름차순으로 준다는 전제에 기댄다.
-        전제가 깨지면 엉뚱한 달 10개가 조용히 실린다. 코드는 안 고쳤다(BACKLOG B63) — 여기선 전제가 오늘 성립하는지만 본다."""
-        unsorted = [c for c, r in ROUTES.items() if [m["m"] for m in r["months"]] != sorted(m["m"] for m in r["months"])]
+    def test_months_are_sorted_by_us_not_by_the_backend(self):
+        """🔴 **정렬을 우리가 한다** (B63, CH11 T3).
+
+        예전엔 거르고 바로 앞에서 10개를 잘랐다 — 주석은 「월 오름차순」인데 그 오름차순은
+        **백엔드가 그렇게 준다는 전제**였다. 계약은 반대로 적어 뒀다: 「필요한 순서는
+        **소비자가 다시 정렬한다**」(`CONTRACT.md` §`routes/index` 정렬). 전제가 깨지면
+        엉뚱한 달 10개가 **조용히** 실린다 — 예외도 안 나고 막대도 그려지고 숫자만 틀린다.
+
+        그래서 여기서는 **일부러 뒤섞어** 넣는다. 오늘 데이터로는 아무것도 증명되지 않는다.
+        """
+        months = [{"m": "2026-%02d" % i, "n": 9, "price": 100 + i} for i in range(1, 13)]
+        shuffled = months[7:] + months[:7]                  # 8월부터 시작하게 돌린다
+        self.assertNotEqual([m["m"] for m in shuffled], sorted(m["m"] for m in shuffled))
+        got = [m["m"] for m in route.months_shown(shuffled)]
+        self.assertEqual(got, ["2026-%02d" % i for i in range(1, 11)],
+                         "뒤섞여 오면 앞 10개가 아니라 **이른 10개**를 보여야 한다")
+
+    def test_sorting_happens_before_the_cut(self):
+        """자른 뒤에 정렬하면 **아무 10개를 예쁘게 늘어놓는** 것이 된다 — 더 나빠진다."""
+        months = [{"m": "2027-%02d" % i, "n": 9, "price": 1} for i in range(1, 7)] +                  [{"m": "2026-%02d" % i, "n": 9, "price": 1} for i in range(7, 13)]
+        got = [m["m"] for m in route.months_shown(months)]
+        self.assertEqual(got[0], "2026-07", "2026 년이 뒤에 실려 와도 먼저 나와야 한다")
+        self.assertEqual(got, sorted(got))
+        self.assertEqual(len(got), route.MONTH_CAP)
+
+    def test_thin_buckets_are_dropped_before_the_cut_too(self):
+        """거르기가 자르기보다 먼저여야 한다 — 뒤면 얇은 버킷이 자리를 차지하고 **10개가 안 찬다**."""
+        months = [{"m": "2026-%02d" % i, "n": 1, "price": 1} for i in range(1, 4)] +                  [{"m": "2026-%02d" % i, "n": 9, "price": 1} for i in range(4, 20 - 5)]
+        got = route.months_shown(months)
+        self.assertEqual(len(got), route.MONTH_CAP)
+        self.assertTrue(all(m["n"] >= route.MIN_SAMPLES for m in got))
+
+    def test_real_data_is_unchanged_by_the_sort(self):
+        """오늘 43노선은 전부 오름차순으로 온다 — **화면은 한 글자도 안 바뀐다**는 근거다.
+        (이 전제가 깨지는 날 위 테스트들이 지켜 주고, 이 테스트는 그날 빨개져서 알려 준다.)"""
+        unsorted = [c for c, r in ROUTES.items()
+                    if [m["m"] for m in r["months"]] != sorted(m["m"] for m in r["months"])]
         self.assertEqual(unsorted, [])
 
     def test_airlines_sorted_by_price_and_capped(self):
