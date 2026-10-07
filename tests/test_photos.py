@@ -368,6 +368,27 @@ class CreditsPageTest(unittest.TestCase):
                        "내용을 더하거나 바꾸지는 않았습니다"):
             self.assertIn(phrase, self.html, phrase)
 
+    NOTICE = ("원본을 고쳤습니다. 화면에 맞추려고 크기를 줄이고 가장자리를 잘라냈으며 "
+              "webp 형식으로 바꿨습니다. 내용을 더하거나 바꾸지는 않았습니다. "
+              "원본은 각 줄의 제목 링크에서 볼 수 있습니다.")
+
+    def _text(self):
+        """구운 HTML 에서 태그를 걷고 공백을 한 칸으로 — 문장은 `<b>` 와 줄바꿈에 걸쳐 있다."""
+        return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", self.html))
+
+    def test_the_modification_notice_is_the_copy_spec_string(self):
+        """🔴 수정 고지도 `COPY.md` §8 이 정본이다 — 머리말처럼 **전문 일치**로 본다(B87).
+        낱말로만 보던 동안 산출물과 정본이 **갈린 채 초록**이었다(2026-10-07 CH12 T2)."""
+        self.assertIn(self.NOTICE, self._text())
+
+    @unittest.skipUnless(os.path.exists(COPY_MD), "기획 저장소가 없다(CI) — 로컬에서만 대조한다")
+    def test_the_modification_notice_matches_the_planning_file_word_for_word(self):
+        copy = io.open(COPY_MD, encoding="utf-8").read()
+        m = re.search(r"\| 수정 고지[^|]*\| `([^`]+)`", copy)
+        self.assertIsNotNone(m, "COPY.md §8 의 수정 고지 줄을 못 찾았다 — 표 모양이 바뀌었으면 여기도 고친다")
+        self.assertEqual(self.NOTICE, m.group(1))
+        self.assertIn(m.group(1), self._text())
+
     def test_the_modification_notice_is_on_every_page_too(self):
         """출처 페이지까지 가지 않아도 「고쳤다」는 사실이 보인다 — 셸 푸터에 한 줄."""
         self.assertIn("크기를 줄이고 잘라 webp 로 바꿨습니다", SHELL)
