@@ -368,6 +368,27 @@ class CreditsPageTest(unittest.TestCase):
                        "내용을 더하거나 바꾸지는 않았습니다"):
             self.assertIn(phrase, self.html, phrase)
 
+    NOTICE = ("원본을 고쳤습니다. 화면에 맞추려고 크기를 줄이고 가장자리를 잘라냈으며 "
+              "webp 형식으로 바꿨습니다. 내용을 더하거나 바꾸지는 않았습니다. "
+              "원본은 각 줄의 제목 링크에서 볼 수 있습니다.")
+
+    def _text(self):
+        """구운 HTML 에서 태그를 걷고 공백을 한 칸으로 — 문장은 `<b>` 와 줄바꿈에 걸쳐 있다."""
+        return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", self.html))
+
+    def test_the_modification_notice_is_the_copy_spec_string(self):
+        """🔴 수정 고지도 `COPY.md` §8 이 정본이다 — 머리말처럼 **전문 일치**로 본다(B87).
+        낱말로만 보던 동안 산출물과 정본이 **갈린 채 초록**이었다(2026-10-07 CH12 T2)."""
+        self.assertIn(self.NOTICE, self._text())
+
+    @unittest.skipUnless(os.path.exists(COPY_MD), "기획 저장소가 없다(CI) — 로컬에서만 대조한다")
+    def test_the_modification_notice_matches_the_planning_file_word_for_word(self):
+        copy = io.open(COPY_MD, encoding="utf-8").read()
+        m = re.search(r"\| 수정 고지[^|]*\| `([^`]+)`", copy)
+        self.assertIsNotNone(m, "COPY.md §8 의 수정 고지 줄을 못 찾았다 — 표 모양이 바뀌었으면 여기도 고친다")
+        self.assertEqual(self.NOTICE, m.group(1))
+        self.assertIn(m.group(1), self._text())
+
     def test_the_modification_notice_is_on_every_page_too(self):
         """출처 페이지까지 가지 않아도 「고쳤다」는 사실이 보인다 — 셸 푸터에 한 줄."""
         self.assertIn("크기를 줄이고 잘라 webp 로 바꿨습니다", SHELL)
@@ -411,7 +432,28 @@ class CreditsPageTest(unittest.TestCase):
     def test_the_sitemap_date_is_the_photo_date_not_the_deal_date(self):
         """딜 날짜를 주면 크롤러에게 「어제 고쳤다」고 **매일 거짓말**한다."""
         self.assertIn("credits_lastmod or lastmod", SEO)
-        self.assertIn('cred_day = (credits.get("spec_confirmed") or credits.get("spec_generated") or "")[:10]', BUILD)
+        self.assertIn('cred_day = credits.get("photos_changed")', BUILD)
+
+    def test_the_date_moves_only_when_the_rows_change(self):
+        """🔴 B86 — 기획의 `confirmed`(검수한 날)에 묶여 있을 땐 **행이 5개 늘어도 날짜가 그대로**였다.
+        도구가 「행이 바뀐 날」을 적는다. 다시 굽기만 하면 안 움직인다."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("photo_tool", os.path.join(ROOT, "tools", "photos.py"))
+        tool = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tool)
+        old = {"photos": {"A": row()}, "photos_changed": "2026-01-01"}
+        self.assertEqual(tool.changed_day(old, {"A": row()}, "2026-02-02"), "2026-01-01")                 # 그대로
+        self.assertEqual(tool.changed_day(old, {"A": row(), "B": row()}, "2026-02-02"), "2026-02-02")     # 행이 늘었다
+        self.assertEqual(tool.changed_day(old, {"A": row(license="CC0")}, "2026-02-02"), "2026-02-02")    # 라이선스가 바뀌었다
+        self.assertEqual(tool.changed_day({}, {"A": row()}, "2026-02-02"), "2026-02-02")                  # 첫 실행
+
+    def test_the_shipped_credits_carry_the_date_and_the_sitemap_uses_it(self):
+        import seo
+        c = json.load(io.open(os.path.join(ROOT, "public", "assets", "photos", "credits.json"), encoding="utf-8"))
+        day = c.get("photos_changed") or ""
+        self.assertRegex(day, r"^\d{4}-\d{2}-\d{2}$")
+        xml = seo.sitemap({"routes": []}, "1999-01-01", {}, day)
+        self.assertIn("/credits.html</loc><lastmod>%s</lastmod>" % day, xml)
 
     def test_the_build_writes_it(self):
         self.assertIn('"credits.html"', BUILD)

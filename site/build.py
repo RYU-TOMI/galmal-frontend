@@ -190,8 +190,11 @@ def main():
     print("  credits.html  (사진 %d장)" % len(set(
         (r.get("city"), r.get("page")) for r in (credits.get("photos") or {}).values())))
 
-    # 사진 출처 페이지의 `lastmod` 는 **사진이 확정된 날**이다(딜 날짜가 아니다).
-    cred_day = (credits.get("spec_confirmed") or credits.get("spec_generated") or "")[:10] or None
+    # 사진 출처 페이지의 `lastmod` 는 **표의 행이 마지막으로 바뀐 날**이다(딜 날짜도, 기획의 검수일도 아니다 — B86).
+    # `tools/photos.py` 가 적는다. 없으면 딜 날짜로 **조용히** 떨어지지 않고 멈춘다.
+    cred_day = credits.get("photos_changed")
+    if not cred_day:
+        sys.exit("credits.json 에 photos_changed 가 없다 — tools/photos.py 를 다시 돌린다")
     for name, text in seo.build_all(index, generated_date, snap["routes"], cred_day).items():
         with open(os.path.join(a.out, name), "w", encoding="utf-8", newline="") as f:
             f.write(text)

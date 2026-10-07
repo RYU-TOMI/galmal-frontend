@@ -104,6 +104,15 @@ def cover(im, tw, th):
     return src.resize((tw, th), Image.LANCZOS, box=box)
 
 
+def changed_day(old, photos, today):
+    """출처 페이지의 행이 **마지막으로 바뀐 날**(B86). 행이 그대로면 옛 날짜를 지킨다 —
+    다시 굽기만 해서 날짜가 움직이면 크롤러에게 「고쳤다」고 거짓말한다.
+    기획 목록의 `confirmed`(검수한 날)는 페이지가 바뀐 날이 아니라서 쓰지 않는다."""
+    if old.get("photos") == photos and old.get("photos_changed"):
+        return old["photos_changed"]
+    return today
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--spec", default=SPEC)
@@ -172,8 +181,14 @@ def main():
         sys.stdout.write("\r  %d/%d %s (%s)      " % (i + 1, len(codes), code, ko))
         sys.stdout.flush()
 
-    with io.open(os.path.join(a.out, "credits.json"), "w", encoding="utf-8", newline="") as f:
+    cpath = os.path.join(a.out, "credits.json")
+    old = {}
+    if os.path.exists(cpath):
+        with io.open(cpath, encoding="utf-8") as f:
+            old = json.load(f)
+    with io.open(cpath, "w", encoding="utf-8", newline="") as f:
         json.dump({"source": spec.get("source", ""),
+                   "photos_changed": changed_day(old, credits, time.strftime("%Y-%m-%d")),
                    "spec_generated": spec.get("generated", ""),
                    "spec_confirmed": spec.get("confirmed", ""),
                    "sizes": [{"suffix": s, "w": w, "h": h, "quality": q} for s, w, h, q in SIZES],

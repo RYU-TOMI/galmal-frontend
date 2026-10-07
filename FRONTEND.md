@@ -32,14 +32,14 @@ galmal-backend 크론(매일 KST 아침) → api.galmal.kr/v1/*.json 발행
 | `site/origin.py` | 딜의 `oa` 를 `vocab.airport_name` 이 덮는지 · `route` 앞 절반과 같은지 |
 | `site/photos.py` | 사진 파일 ↔ `credits.json` 을 **여집합 양방향**으로 — 표시 없는 사진이 나가면 CC 위반 |
 | `site/credits.py` | `/credits.html` — 사진 **89코드(도시 82)**의 저작자·제목·라이선스·원본 링크 + 수정 고지.
-  `lastmod` 가 기획 목록의 `confirmed` 에 묶여 **사진이 늘어도 안 움직인다**(B86) |
+  `lastmod` 는 `credits.json` 의 `photos_changed`(행이 바뀐 날 — `tools/photos.py` 가 적는다, 없으면 빌드가 멈춘다) |
 | `tools/photos.py` | **오프라인 도구**(Pillow). 사진을 받아 두 크기 webp 로 굽는다 — 빌드·CI 는 부르지 않는다 |
 | `site/home.py` | 발견 홈 — 칩은 `vocab` 으로 그린다 · `chip_problems` · `inline_deals`(이전용 어댑터) |
 | `site/route.py` | 노선 페이지 47장 · 임계(`usable`·`months_shown` **정렬까지 우리가 한다**) · 구독 `mailto:` — 🔴 **본문 첫 줄을 바꾸면 백엔드에 먼저 알린다**(B63) |
 | `site/shell.py` · `charts.py` · `fmt.py` · `seo.py` | `<head>`·CSS · SVG 차트 · 날짜 표기 · sitemap |
 | `public/` | 그대로 서빙되는 파일 — `assets/discover.js|css`·d3·`og.png` · `data/world.geojson` |
 | `fixtures/v1/` | v1 사본 **51개**(라이브 `2026-09-30T04:21:43+09:00`, 딜 140 · 노선 47). **세 갈래가 다 있어야 한다** — 얇은 49/두꺼운 91 · 신기록 ≥1건 · `SEL` 허브 인천 62/**김포 13**. 「도장 없는 신기록」은 **합성으로** 지킨다(B79 · 기획 결정 2026-09-30). **손으로 고치지 않는다** — `fixtures/capture.py <URL>` |
-| `tests/` | 단위 테스트 **469개** — 출력에서 `^OK` 확인. **빨가면 배포가 멈춘다**(B48).
+| `tests/` | 단위 테스트 **473개** — 출력에서 `^OK` 확인. **빨가면 배포가 멈춘다**(B48).
   `test_origins.py` 가 **외부 출처 허용목록의 정본**이다(기획이 `SESSIONS.md` 에 「검사가 있다」만 적는다) |
 
 ### 0-2. 빌드가 막는 것 (틀리면 **한 파일도 쓰기 전에** 멈춘다 → 배포 안 됨 → 사이트는 직전 배포본)
@@ -69,6 +69,9 @@ galmal-backend 크론(매일 KST 아침) → api.galmal.kr/v1/*.json 발행
 | 09-19 | **vocab 챕터** | 손 사본 5개 제거(칩·지역명) · 매핑 포괄 검사 · 픽스처 한 발행분 재수신 · `--no-snapshot-check` 삭제 |
 
 ### 0-4. 대기 중 (손대기 전에 사용자 승인)
+
+- ✅ **B86·B87**(2026-10-07) — 출처 페이지 `lastmod` 가 「행이 바뀐 날」을 말한다(10-05 → 10-07) ·
+  수정 고지를 `COPY.md` §8 과 전문 일치로 본다. 남긴 것: **B88**(푸터 고지 문장이 §8 과 다름 — 기획 결정 대기).
 
 - ✅ **CH12 사진 5곳 받기**(2026-10-07) — 헬싱키·이시가키·프놈펜·팔라우·다카마쓰.
   `ok` 문지기가 든 도구로 **첫 실행**(들어온 목록 82곳 전부 `ok:true`, 아닌 것 0 · 구운 코드 5 · 건너뜀 84).
