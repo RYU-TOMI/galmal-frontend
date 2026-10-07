@@ -432,7 +432,28 @@ class CreditsPageTest(unittest.TestCase):
     def test_the_sitemap_date_is_the_photo_date_not_the_deal_date(self):
         """딜 날짜를 주면 크롤러에게 「어제 고쳤다」고 **매일 거짓말**한다."""
         self.assertIn("credits_lastmod or lastmod", SEO)
-        self.assertIn('cred_day = (credits.get("spec_confirmed") or credits.get("spec_generated") or "")[:10]', BUILD)
+        self.assertIn('cred_day = credits.get("photos_changed")', BUILD)
+
+    def test_the_date_moves_only_when_the_rows_change(self):
+        """🔴 B86 — 기획의 `confirmed`(검수한 날)에 묶여 있을 땐 **행이 5개 늘어도 날짜가 그대로**였다.
+        도구가 「행이 바뀐 날」을 적는다. 다시 굽기만 하면 안 움직인다."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("photo_tool", os.path.join(ROOT, "tools", "photos.py"))
+        tool = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tool)
+        old = {"photos": {"A": row()}, "photos_changed": "2026-01-01"}
+        self.assertEqual(tool.changed_day(old, {"A": row()}, "2026-02-02"), "2026-01-01")                 # 그대로
+        self.assertEqual(tool.changed_day(old, {"A": row(), "B": row()}, "2026-02-02"), "2026-02-02")     # 행이 늘었다
+        self.assertEqual(tool.changed_day(old, {"A": row(license="CC0")}, "2026-02-02"), "2026-02-02")    # 라이선스가 바뀌었다
+        self.assertEqual(tool.changed_day({}, {"A": row()}, "2026-02-02"), "2026-02-02")                  # 첫 실행
+
+    def test_the_shipped_credits_carry_the_date_and_the_sitemap_uses_it(self):
+        import seo
+        c = json.load(io.open(os.path.join(ROOT, "public", "assets", "photos", "credits.json"), encoding="utf-8"))
+        day = c.get("photos_changed") or ""
+        self.assertRegex(day, r"^\d{4}-\d{2}-\d{2}$")
+        xml = seo.sitemap({"routes": []}, "1999-01-01", {}, day)
+        self.assertIn("/credits.html</loc><lastmod>%s</lastmod>" % day, xml)
 
     def test_the_build_writes_it(self):
         self.assertIn('"credits.html"', BUILD)
