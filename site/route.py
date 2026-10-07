@@ -185,7 +185,7 @@ def subscribe_link(sub, code, label):
     만드는 본문(`노선: ICN-FUK (인천 → 후쿠오카)`)을 **보고 옮겨 적은 사본**으로 들고 있다.
     계약에는 주소·제목·`route_token` 만 있고 **본문 모양은 없다** — 즉 양쪽 테스트가 다
     초록인 채로 구독이 「전 노선」으로 떨어질 수 있다. 백엔드도 자기 `ROUTE_RE` 위에
-    「바꾸기 전에 프론트에 먼저 알린다」를 적어 뒀다(`64b83f4`). 이쪽에도 적는다.
+    「바꾸기 전에 프론트에 먼저 알린다」를 적어 뒀다(`b1a06ee`). 이쪽에도 적는다.
     """
     subject = urllib.parse.quote(sub["subject_subscribe"])
     token = sub["route_token"].replace("{code}", code)

@@ -20,7 +20,7 @@
 | 응답 | `generated` |
 |---|---|
 | `routes/index` · `routes/{code}` | == G |
-| `vocab` (참조 데이터, 2026-09-19~) | == G — **보존일에도** 오늘 G (백엔드 `7a4983e`) |
+| `vocab` (참조 데이터, 2026-09-19~) | == G — **보존일에도** 오늘 G (백엔드 `f03cb1f`) |
 | `deals` — `meta.preserved` 가 거짓 | == G |
 | `deals` — `meta.preserved` 가 참 | **< G** |
 | 백엔드 신호의 `client_payload.generated` (있을 때만) | == G |
@@ -99,7 +99,7 @@ def problems(snap, expect=None):
 def load(api, expect=None, retries=None, wait=60, log=print):
     """검증된 스냅숏을 돌려준다. 끝내 안 맞으면 종료코드 1 로 멈춘다.
 
-    검사를 끄는 길은 없다. 예전엔 `--no-snapshot-check` 가 있었는데, 기준선 픽스처(05d0de9)가
+    검사를 끄는 길은 없다. 예전엔 `--no-snapshot-check` 가 있었는데, 기준선 픽스처(d75921d)가
     이 규칙 이전 발행이라서였다. 2026-09-19 픽스처를 한 발행분으로 새로 받아 적어 없앴다(B40).
 
     🔴 **기다리는 이유는 CDN 캐시뿐이다**(B52-①). 로컬 폴더에는 캐시가 없다 — 같은 파일을

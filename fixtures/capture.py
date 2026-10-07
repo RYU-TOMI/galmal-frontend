@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """v1 응답 사본을 **받아 적는다.** 손으로 고치는 것을 대신하는 도구다.
 
-    python fixtures/capture.py 05d0de9                  # 이 저장소의 커밋에서
+    python fixtures/capture.py d75921d                  # 이 저장소의 커밋에서
     python fixtures/capture.py https://api.galmal.kr/v1 # 실물 API 에서
 
 분리 후에는 두 번째 형태만 남는다(첫 번째는 `docs/v1/` 이 같은 저장소에 있는

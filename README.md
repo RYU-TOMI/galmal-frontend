@@ -129,6 +129,9 @@ python fixtures/capture.py https://api.galmal.kr/v1               # 픽스처를
 
 2026-09-16 이전의 작업 이력은 분리 전 저장소 [`promo-ticket-site`](https://github.com/RYU-TOMI/promo-ticket-site)(→ `galmal-plan`)에 있습니다.
 
+한 사람이 **Claude(Claude Code) 세션 셋** — 기획 · 백엔드 · 프론트 — 과 함께 만들었습니다.
+커밋 메시지에는 AI 표기를 붙이지 않습니다(2026-10-06 결정) — **밝히는 자리는 이 문장 하나**입니다.
+
 ## 법적 고지
 
 - 가격은 **조회 시점 기준**이며 실제 예약 가격은 예약처에서 달라질 수 있습니다.
