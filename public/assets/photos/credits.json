@@ -225,6 +225,15 @@
    "page": "https://commons.wikimedia.org/wiki/File:Hanoi_skyline_with_Ba_Vi_Mountain.jpg",
    "title": "File:Hanoi skyline with Ba Vi Mountain.jpg"
   },
+  "HEL": {
+   "author": "Diego Delso",
+   "city": "헬싱키",
+   "en": "Helsinki Cathedral Senate Square",
+   "license": "CC BY-SA 3.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Catedral_Luterana_de_Helsinki,_Finlandia,_2012-08-14,_DD_05.JPG",
+   "title": "File:Catedral Luterana de Helsinki, Finlandia, 2012-08-14, DD 05.JPG"
+  },
   "HGH": {
    "author": "EditQ",
    "city": "항저우",
@@ -269,6 +278,15 @@
    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
    "page": "https://commons.wikimedia.org/wiki/File:2022_Views_from_Diamond_Head_02.jpg",
    "title": "File:2022 Views from Diamond Head 02.jpg"
+  },
+  "ISG": {
+   "author": "663highland",
+   "city": "이시가키",
+   "en": "Kabira Bay Ishigaki",
+   "license": "CC BY 2.5",
+   "license_url": "https://creativecommons.org/licenses/by/2.5",
+   "page": "https://commons.wikimedia.org/wiki/File:Kabira_Bay_Ishigaki_Island21bs5s4410.jpg",
+   "title": "File:Kabira Bay Ishigaki Island21bs5s4410.jpg"
   },
   "IST": {
    "author": "Hunanuk",
@@ -522,6 +540,15 @@
    "page": "https://commons.wikimedia.org/wiki/File:La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques,_Paris_ao%C3%BBt_2014_(2).jpg",
    "title": "File:La Tour Eiffel vue de la Tour Saint-Jacques, Paris août 2014 (2).jpg"
   },
+  "PNH": {
+   "author": "Marcin Konsek",
+   "city": "프놈펜",
+   "en": "Royal Palace Phnom Penh",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:2016_Phnom_Penh,_Pa%C5%82ac_Kr%C3%B3lewski,_Pawilon_Chanchhaya_(02).jpg",
+   "title": "File:2016 Phnom Penh, Pałac Królewski, Pawilon Chanchhaya (02).jpg"
+  },
   "PQC": {
    "author": "[//commons.wikimedia.org/wiki/User:Trantuonglam Trantuonglam]",
    "city": "푸꾸옥",
@@ -566,6 +593,15 @@
    "license_url": "https://creativecommons.org/licenses/by/3.0",
    "page": "https://commons.wikimedia.org/wiki/File:Trevi_Fountain,_Rome,_Italy_2_-_May_2007.jpg",
    "title": "File:Trevi Fountain, Rome, Italy 2 - May 2007.jpg"
+  },
+  "ROR": {
+   "author": "Luka Peternel",
+   "city": "팔라우",
+   "en": "Rock Islands Palau aerial",
+   "license": "CC BY-SA 4.0",
+   "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
+   "page": "https://commons.wikimedia.org/wiki/File:Rock-Islands-Palau-1-2016-aerial-view-Luka-Peternel.jpg",
+   "title": "File:Rock-Islands-Palau-1-2016-aerial-view-Luka-Peternel.jpg"
   },
   "SEA": {
    "author": "Jeffery Hayes",
@@ -665,6 +701,15 @@
    "license_url": "https://creativecommons.org/licenses/by-sa/4.0",
    "page": "https://commons.wikimedia.org/wiki/File:Chocolate_Hills_Carmen_Bohol_2019.jpg",
    "title": "File:Chocolate Hills Carmen Bohol 2019.jpg"
+  },
+  "TAK": {
+   "author": "lienyuan lee",
+   "city": "다카마쓰",
+   "en": "Ritsurin Garden Takamatsu",
+   "license": "CC BY 3.0",
+   "license_url": "https://creativecommons.org/licenses/by/3.0",
+   "page": "https://commons.wikimedia.org/wiki/File:%E6%A0%97%E6%9E%97%E5%85%AC%E5%9C%92%E5%81%83%E6%9C%88%E6%A9%8B_Ritsurinkoen_Engetsu_Bridge_-_panoramio.jpg",
+   "title": "File:栗林公園偃月橋 Ritsurinkoen Engetsu Bridge - panoramio.jpg"
   },
   "TAO": {
    "author": "K.Y.K.Z.K.",
@@ -772,6 +817,6 @@
   }
  ],
  "source": "Wikimedia Commons",
- "spec_confirmed": "2026-09-29",
+ "spec_confirmed": "2026-10-05",
  "spec_generated": "2026-09-28T03:18:50+09:00"
 }
